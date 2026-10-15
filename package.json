@@ -1,0 +1,18 @@
+{
+  "name": "webxr-labverse-project",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Maharashtra Std. 10 Physics WebXR Virtual Lab",
+  "scripts": {
+    "dev": "vite \"all codes\" --host",
+    "build": "vite build \"all codes\"",
+    "preview": "vite preview \"all codes\" --host"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "vite": "^8.3.4"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "physics-xr-lab-ohms-law",
+  "version": "1.0.0",
+  "description": "Maharashtra Std. 10 Physics WebXR Virtual Lab - Verification of Ohm's Law with Hand Tracking and 3D Apparatus",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

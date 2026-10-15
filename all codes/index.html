@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050d18" />
+    <title>Physics XR Lab — Ohm's Law Virtual Practical</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <!-- 3D WebGL Canvas -->
+      <canvas id="lab-canvas" aria-label="3D Physics Laboratory Workbench"></canvas>
+
+      <!-- 1. Brand Header Panel -->
+      <header class="panel brand-panel" id="brand-panel">
+        <span class="status-dot"></span>
+        <div>
+          <h1>Physics XR Lab · Ohm’s Law Practical</h1>
+          <p>Maharashtra State Board · Std. 10 Physics · Virtual Lab Practical</p>
+        </div>
+      </header>
+
+      <!-- 2. Top Center Instruction Banner -->
+      <div class="panel instruction-bar" id="instruction-bar">
+        <span id="instruction-banner" class="instruction-text">
+          Click one terminal, then click another terminal to connect a wire.
+        </span>
+        <button id="cancel-selection-btn" class="cancel-btn">✕ Cancel Selection</button>
+      </div>
+
+      <!-- 3. Top Right Laptop & VR Toolbar -->
+      <nav class="panel toolbar-panel" id="toolbar-panel" aria-label="Laptop Navigation Controls">
+        <button id="enter-vr-btn" class="btn btn-vr" title="Checking VR support…">
+          <span>🥽</span> Enter VR
+        </button>
+        <button id="reset-view-btn" class="btn" title="Reset camera to default overview">
+          <span>🔄</span> Reset View
+        </button>
+        <button id="toggle-exp-panel-btn" class="btn active" title="Toggle Experiment & Meters Panel">
+          <span>⚡</span> Experiment
+        </button>
+        <button id="toggle-labels-btn" class="btn active" title="Show or hide 3D apparatus labels">
+          <span>🏷️</span> Labels: ON
+        </button>
+        <button id="toggle-terminals-btn" class="btn active" title="Show or hide terminal snap markers">
+          <span>📍</span> Terminals: ON
+        </button>
+        <button id="toggle-guided-btn" class="btn btn-guided" title="Guided Mode: Step-by-step circuit assembly with narration">
+          <span>🎓</span> Guided: OFF
+        </button>
+        <button id="toggle-orientation-toolbar-btn" class="btn btn-orientation" title="Experiment Orientation: Learn how circuit connects & full procedure">
+          <span>🎯</span> Orientation Guide
+        </button>
+        <button id="toggle-schematic-btn" class="btn" title="View Maharashtra textbook circuit diagram">
+          <span>📐</span> Schematic
+        </button>
+        <button id="toggle-diag-btn" class="btn btn-dev-diag" title="Developer Diagnostics (Ctrl+Shift+D)">
+          <span>🛠️</span>
+        </button>
+      </nav>
+
+      <!-- 4. Camera Presets Dock -->
+      <div class="panel presets-dock" id="presets-dock">
+        <span class="dock-label">Camera:</span>
+        <button class="preset-btn" data-preset="overview">Overview</button>
+        <button class="preset-btn" data-preset="meters">Meters</button>
+        <button class="preset-btn" data-preset="resistor_rheostat">Resistor & Rheo</button>
+        <button class="preset-btn" data-preset="supply_key">Supply & Key</button>
+      </div>
+
+      <!-- 5. Circuit Connections Side/Bottom Panel -->
+      <section class="panel circuit-panel" id="circuit-panel" aria-label="Circuit Connections Manager">
+        <div class="panel-header">
+          <div>
+            <h3>Circuit Connections</h3>
+            <span id="connection-count-badge" class="count-badge">0 / 7 Wires</span>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button id="toggle-orientation-btn" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; border-color: #c084fc; color: #c084fc;" title="View Step-by-Step Circuit Orientation">🎯 Orientation</button>
+            <button id="toggle-schematic-btn" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; border-color: #38bdf8; color: #38bdf8;" title="View photographic circuit connection guide">📸 Photo Guide</button>
+            <span id="circuit-status-badge" class="status-tag incomplete">Incomplete Circuit</span>
+          </div>
+        </div>
+
+        <div class="connections-scroll">
+          <p id="empty-connections-message" class="empty-state">
+            No wires connected yet. Click any apparatus terminal to begin wiring.
+          </p>
+          <ul id="connection-list" class="connection-list"></ul>
+        </div>
+
+        <div class="panel-actions">
+          <button id="undo-wire-btn" class="btn" disabled title="Undo the last created wire">
+            <span>↩️</span> Undo Last
+          </button>
+          <button id="reset-circuit-btn" class="btn btn-danger" disabled title="Remove all created wires">
+            <span>🔄</span> Reset Circuit
+          </button>
+        </div>
+      </section>
+ 
+      <!-- 6. Master Ohm's Law Experiment Panel -->
+      <aside id="experiment-panel-container" aria-label="Ohm's Law Experiment Panel"></aside>
+
+      <!-- 7. Feedback Toast Message -->
+      <div id="feedback-toast" class="toast toast-info" aria-live="polite"></div>
+
+      <!-- 7b. Narration Caption Bar (always visible when active, accessible) -->
+      <div id="narration-caption-bar" class="hidden" role="status" aria-live="polite" aria-label="Narration captions">
+        <div id="narration-caption-text">🎓 Enable Guided Mode to start step-by-step narration.</div>
+        <div class="narration-controls">
+          <button class="narration-btn active" id="narration-toggle-btn" title="Toggle narration audio on or off">🔊 Narration: ON</button>
+          <button class="narration-btn" id="narration-replay-btn" title="Replay the current narration">↺ Replay</button>
+          <button class="narration-btn" id="narration-stop-btn" title="Stop current narration">⏹ Stop</button>
+          <label for="narration-volume-slider" style="font-size:11px;color:#64748b;">Vol:</label>
+          <input type="range" id="narration-volume-slider" min="0" max="100" value="80" title="Narration volume">
+        </div>
+      </div>
+
+      <!-- 7c. Bottom Navigation Hint -->
+      <footer class="bottom-dock">
+        <div class="desktop-hint">
+          <kbd>Left Click</kbd> Select Terminals / Rotate View · <kbd>Right Click</kbd> Pan · <kbd>Scroll</kbd> Zoom · Click any wire to remove
+        </div>
+      </footer>
+
+      <!-- 8. Circuit Schematic Modal -->
+      <div id="schematic-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+        <div class="modal-card" style="max-width: 840px; width: 92vw; max-height: 90vh; overflow-y: auto;">
+          <div class="modal-header">
+            <h3 id="modal-heading">📸 Ohm's Law Experiment · Correct Circuit Connection Guide</h3>
+            <button id="close-schematic-btn" class="close-btn" aria-label="Close dialog">✕</button>
+          </div>
+          <div style="margin: 8px 0 14px 0; border-radius: 8px; overflow: hidden; border: 2px solid #38bdf8; background: #ffffff; text-align: center;">
+            <img src="/images/ohms_law_circuit_guide.png" alt="Ohm's Law Correct Circuit Connection Guide" style="width: 100%; height: auto; max-height: 380px; object-fit: contain; display: block;" />
+          </div>
+          <svg class="circuit-svg" viewBox="0 0 540 250" xmlns="http://www.w3.org/2000/svg">
+            <rect width="540" height="250" fill="#041220" rx="6" />
+
+            <!-- Main series path -->
+            <path d="M 60 160 L 60 70 L 150 70" stroke="#38bdf8" stroke-width="3" fill="none" />
+            <path d="M 190 70 L 250 70" stroke="#38bdf8" stroke-width="3" fill="none" />
+            <path d="M 330 70 L 450 70 L 450 160" stroke="#38bdf8" stroke-width="3" fill="none" />
+            <path d="M 450 160 L 370 160" stroke="#38bdf8" stroke-width="3" fill="none" />
+            <path d="M 320 160 L 230 160" stroke="#38bdf8" stroke-width="3" fill="none" />
+            <path d="M 170 160 L 60 160" stroke="#38bdf8" stroke-width="3" fill="none" />
+
+            <!-- Battery (6V DC Supply) -->
+            <g transform="translate(60, 115)">
+              <line x1="-14" y1="-10" x2="14" y2="-10" stroke="#ef4444" stroke-width="4" />
+              <line x1="-7" y1="0" x2="7" y2="0" stroke="#94a3b8" stroke-width="3" />
+              <line x1="-14" y1="10" x2="14" y2="10" stroke="#ef4444" stroke-width="4" />
+              <line x1="-7" y1="20" x2="7" y2="20" stroke="#94a3b8" stroke-width="3" />
+              <text x="-26" y="-8" fill="#ef4444" font-size="12" font-weight="bold">+</text>
+              <text x="-24" y="24" fill="#94a3b8" font-size="14" font-weight="bold">-</text>
+              <text x="20" y="8" fill="#38bdf8" font-size="10" font-weight="bold">Battery (6V)</text>
+            </g>
+
+            <!-- Switch / Plug Key -->
+            <g transform="translate(200, 160)">
+              <circle cx="-16" cy="0" r="3" fill="#ffffff" />
+              <circle cx="16" cy="0" r="3" fill="#ffffff" />
+              <line x1="-16" y1="0" x2="10" y2="-14" stroke="#fbbf24" stroke-width="3" />
+              <text x="0" y="24" fill="#f0f9ff" font-size="10" font-weight="bold" text-anchor="middle">Plug Key (Open)</text>
+            </g>
+
+            <!-- Ammeter (in series) -->
+            <g transform="translate(170, 70)">
+              <circle r="18" fill="#08223c" stroke="#38bdf8" stroke-width="2.5" />
+              <text x="0" y="5" fill="#f0f9ff" font-size="14" font-weight="bold" text-anchor="middle">A</text>
+              <text x="-13" y="-7" fill="#ef4444" font-size="9" font-weight="bold">+</text>
+              <text x="10" y="-7" fill="#94a3b8" font-size="10" font-weight="bold">-</text>
+              <text x="0" y="32" fill="#38bdf8" font-size="10" text-anchor="middle">Ammeter (Series)</text>
+            </g>
+
+            <!-- Rheostat (variable resistor) -->
+            <g transform="translate(370, 160)">
+              <path d="M -30 0 L -20 -8 L -10 8 L 0 -8 L 10 8 L 20 -8 L 30 0" stroke="#d97706" stroke-width="3" fill="none" />
+              <line x1="-15" y1="18" x2="10" y2="-12" stroke="#fbbf24" stroke-width="2.5" />
+              <polygon points="12,-15 5,-13 9,-8" fill="#fbbf24" />
+              <text x="0" y="30" fill="#d97706" font-size="10" font-weight="bold" text-anchor="middle">Rheostat Rh</text>
+            </g>
+
+            <!-- Standard Resistor (5 Ω) -->
+            <g transform="translate(290, 70)">
+              <path d="M -35 0 L -25 -8 L -15 8 L -5 -8 L 5 8 L 15 -8 L 25 8 L 35 0" stroke="#f59e0b" stroke-width="3" fill="none" />
+              <text x="0" y="-14" fill="#f59e0b" font-size="11" font-weight="bold" text-anchor="middle">Resistor R (5 Ω)</text>
+            </g>
+
+            <!-- Voltmeter (in parallel across Resistor R) -->
+            <path d="M 255 70 L 255 20 L 275 20" stroke="#2dd4bf" stroke-width="2.5" fill="none" stroke-dasharray="4,2" />
+            <path d="M 305 20 L 325 20 L 325 70" stroke="#2dd4bf" stroke-width="2.5" fill="none" stroke-dasharray="4,2" />
+            <g transform="translate(290, 20)">
+              <circle r="15" fill="#08223c" stroke="#2dd4bf" stroke-width="2.5" />
+              <text x="0" y="5" fill="#2dd4bf" font-size="12" font-weight="bold" text-anchor="middle">V</text>
+              <text x="-11" y="-5" fill="#ef4444" font-size="8" font-weight="bold">+</text>
+              <text x="8" y="-5" fill="#94a3b8" font-size="9" font-weight="bold">-</text>
+              <text x="0" y="-18" fill="#2dd4bf" font-size="10" font-weight="bold" text-anchor="middle">Voltmeter (Parallel)</text>
+            </g>
+          </svg>
+          <p style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5;">
+            <strong>Ohm’s Law Setup:</strong> The Ammeter is placed in <em>series</em> with the load to measure current $I$. The Voltmeter is placed in <em>parallel</em> across resistance $R$ to measure potential difference $V$.
+          </p>
+        </div>
+      </div>
+
+      <!-- 8b. Experiment Orientation & Step-by-Step Circuit Guide Modal -->
+      <div id="orientation-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="orient-modal-heading">
+        <div class="modal-card orient-modal-card">
+          <div class="orient-modal-header">
+            <div class="orient-header-title">
+              <span style="font-size: 26px;">🎯</span>
+              <div>
+                <h3 id="orient-modal-heading">Ohm's Law Practical Orientation · Complete Experiment & Circuit Guide</h3>
+                <p>Maharashtra State Board · Std. 10 Physics · Step-by-Step Virtual Lab Practical</p>
+              </div>
+            </div>
+            <button id="close-orientation-btn" class="close-btn" aria-label="Close Orientation dialog">✕</button>
+          </div>
+
+          <!-- Multi-Tab Navigation -->
+          <nav class="orient-nav-bar" aria-label="Orientation Sections">
+            <button class="orient-nav-btn active" data-tab="circuit">
+              <span>🔌</span> 1. Circuit Connections (1st to 7th)
+            </button>
+            <button class="orient-nav-btn" data-tab="overview">
+              <span>📋</span> 2. Project Aim & Apparatus
+            </button>
+            <button class="orient-nav-btn" data-tab="procedure">
+              <span>⚡</span> 3. Procedure (At the Last)
+            </button>
+          </nav>
+
+          <div class="orient-modal-body">
+            <!-- Tab 1: Step-by-Step Circuit Wiring Sequence (Active) -->
+            <div id="orient-content-circuit" class="orient-tab-content active">
+              <div class="orient-info-box" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <strong>🔌 Sequential Circuit Assembly Roadmap:</strong> Follow this exact order to build the circuit without errors.
+                  <div style="font-size: 11.5px; color: #94a3b8; margin-top: 3px;">
+                    Wires 1 to 5 form the <em>Series Current Loop</em>; Wires 6 & 7 connect the <em>Voltmeter in Parallel</em>. Click any card to highlight terminals!
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="orient-tour-btn" class="btn btn-primary btn-micro" style="padding: 6px 12px; font-size: 11.5px; display: flex; align-items: center; gap: 5px;">
+                    <span>🌟</span> 3D Glow Tour
+                  </button>
+                  <span id="orient-summary-badge" class="count-badge" style="font-size: 13px;">0 / 7 Wires Connected</span>
+                </div>
+              </div>
+
+              <div class="orient-wire-grid">
+                <!-- 1st Connection -->
+                <div class="orient-step-card" id="orient-step-card-1">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">1️⃣ 1st Connection</span>
+                    <span id="orient-wire-status-1" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Battery (+) ➔ Plug Key (Left)</div>
+                  <div class="orient-step-path">battery_positive ──[Red Wire]──► switch_left</div>
+                  <div class="orient-step-desc">
+                    Start the circuit by connecting the 6V DC power supply positive terminal (Red) to the input terminal of the plug key.
+                  </div>
+                </div>
+
+                <!-- 2nd Connection -->
+                <div class="orient-step-card" id="orient-step-card-2">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">2️⃣ 2nd Connection</span>
+                    <span id="orient-wire-status-2" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Plug Key (Right) ➔ Ammeter (+)</div>
+                  <div class="orient-step-path">switch_right ──[Red Wire]──► ammeter_positive</div>
+                  <div class="orient-step-desc">
+                    Connect the output of the plug key to the positive terminal of the DC Ammeter. The Ammeter must always be placed in series.
+                  </div>
+                </div>
+
+                <!-- 3rd Connection -->
+                <div class="orient-step-card" id="orient-step-card-3">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">3️⃣ 3rd Connection</span>
+                    <span id="orient-wire-status-3" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Ammeter (-) ➔ Rheostat (Slider)</div>
+                  <div class="orient-step-path">ammeter_negative ──[Blue Wire]──► rheostat_in</div>
+                  <div class="orient-step-desc">
+                    Connect the negative (black) terminal of the Ammeter to the top slider terminal of the Rheostat to enable variable current adjustment.
+                  </div>
+                </div>
+
+                <!-- 4th Connection -->
+                <div class="orient-step-card" id="orient-step-card-4">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">4️⃣ 4th Connection</span>
+                    <span id="orient-wire-status-4" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Rheostat (Base) ➔ 10 Ω Resistor (Left)</div>
+                  <div class="orient-step-path">rheostat_out ──[Blue Wire]──► resistor_left</div>
+                  <div class="orient-step-desc">
+                    Connect the lower fixed base terminal of the Rheostat to the left terminal of the unknown 10 Ω standard resistor coil.
+                  </div>
+                </div>
+
+                <!-- 5th Connection -->
+                <div class="orient-step-card" id="orient-step-card-5" style="border-color: rgba(56, 189, 248, 0.45);">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">5️⃣ 5th Connection · Loop Complete!</span>
+                    <span id="orient-wire-status-5" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">10 Ω Resistor (Right) ➔ Battery (-)</div>
+                  <div class="orient-step-path">resistor_right ──[Black Wire]──► battery_negative</div>
+                  <div class="orient-step-desc">
+                    Connect the right terminal of the Resistor back to the Battery negative terminal (Black). <strong>🎉 Milestone: The entire 5-wire series loop is now complete!</strong>
+                  </div>
+                </div>
+
+                <!-- 6th Connection -->
+                <div class="orient-step-card" id="orient-step-card-6">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">6️⃣ 6th Connection</span>
+                    <span id="orient-wire-status-6" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Voltmeter (+) ➔ Resistor (Left)</div>
+                  <div class="orient-step-path">voltmeter_positive ──[Red Wire]──► resistor_left</div>
+                  <div class="orient-step-desc">
+                    Connect the positive terminal of the Voltmeter in parallel to the high-potential (left) terminal of the resistor.
+                  </div>
+                </div>
+
+                <!-- 7th Connection -->
+                <div class="orient-step-card" id="orient-step-card-7">
+                  <div class="orient-step-header">
+                    <span class="orient-step-tag">7️⃣ 7th Connection</span>
+                    <span id="orient-wire-status-7" class="status-tag incomplete">⏳ Pending</span>
+                  </div>
+                  <div class="orient-step-title">Voltmeter (-) ➔ Resistor (Right)</div>
+                  <div class="orient-step-path">voltmeter_negative ──[Black Wire]──► resistor_right</div>
+                  <div class="orient-step-desc">
+                    Connect the negative terminal of the Voltmeter in parallel to the low-potential (right) terminal of the resistor. All 7 connections are now complete!
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Project Overview & Scientific Theory -->
+            <div id="orient-content-overview" class="orient-tab-content">
+              <div class="orient-info-box">
+                <strong style="color: #38bdf8; font-size: 14px;">🎯 Practical Aim:</strong><br />
+                To study the dependence of potential difference (V) across a resistor on the electric current (I) passing through it, determine its resistance, and verify Ohm's Law.
+              </div>
+
+              <div class="orient-info-box" style="border-left-color: #2dd4bf;">
+                <strong style="color: #2dd4bf; font-size: 14px;">📖 Scientific Principle & Ohm's Law Statement:</strong><br />
+                <em>"At constant temperature and physical state, the electric current (I) flowing through a conductor is directly proportional to the potential difference (V) across its ends."</em><br />
+                <div style="font-family: var(--font-mono); font-size: 14px; color: #fde047; margin: 8px 0;">
+                  V ∝ I &nbsp;⟹&nbsp; V / I = R (Constant Resistance) &nbsp;⟹&nbsp; V = I × R
+                </div>
+                Where <strong>R</strong> is the resistance of the conductor in Ohms (Ω). For this lab practical, standard R = <strong>10.00 Ω</strong>.
+              </div>
+
+              <div>
+                <h4 style="color: #ffffff; margin-bottom: 10px; font-size: 13.5px;">🧰 Required Apparatus:</h4>
+                <div class="orient-apparatus-grid">
+                  <div class="orient-app-card">
+                    <strong>🔋 DC Power Supply (6V)</strong>
+                    <span>Provides continuous potential difference to drive current.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>🔑 Plug Key</strong>
+                    <span>Switch used to safely close or open the circuit.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>🎚️ Rheostat (20 Ω)</strong>
+                    <span>Variable resistor to adjust circuit resistance and current.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>⚡ DC Ammeter (0–1 A)</strong>
+                    <span>Measures circuit current (I). Always connected in series.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>📦 Standard Resistor (10 Ω)</strong>
+                    <span>The component across which Ohm's Law is verified.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>🔋 DC Voltmeter (0–10 V)</strong>
+                    <span>Measures potential difference (V). Connected in parallel.</span>
+                  </div>
+                  <div class="orient-app-card">
+                    <strong>🔌 Connecting Wires</strong>
+                    <span>Low resistance copper leads joining apparatus terminals.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Practical Procedure (At the Last) -->
+            <div id="orient-content-procedure" class="orient-tab-content">
+              <div class="orient-info-box" style="border-left-color: #22c55e;">
+                <strong style="color: #4ade80; font-size: 14px;">⚡ Operational Sequence (What happens after wiring / at the last):</strong><br />
+                Once all 7 wires are connected, follow these steps to execute the experiment, record observations, and verify Ohm's Law.
+              </div>
+
+              <div class="orient-proc-list">
+                <div class="orient-proc-item">
+                  <div class="orient-proc-num">8</div>
+                  <div class="orient-proc-body">
+                    <strong>Close the Plug Key Switch (Start Current)</strong>
+                    <p>Insert the key into the plug key (or click the green "Start Current" physical button). Current starts flowing immediately through the series loop. Notice the Ammeter and Voltmeter needles deflect!</p>
+                    <span id="orient-key-status" class="status-tag incomplete" style="align-self: flex-start; margin-top: 4px;">🔒 Switch Open</span>
+                  </div>
+                </div>
+
+                <div class="orient-proc-item">
+                  <div class="orient-proc-num">9</div>
+                  <div class="orient-proc-body">
+                    <strong>Adjust Rheostat Resistance (Rh)</strong>
+                    <p>Move the rheostat slider (or click the preset buttons <code>Min (0.5Ω)</code>, <code>-1.0Ω</code>, <code>+1.0Ω</code>, <code>Max (20Ω)</code>) to set 5 different resistance positions. Observe current (I) increase as resistance decreases.</p>
+                  </div>
+                </div>
+
+                <div class="orient-proc-item">
+                  <div class="orient-proc-num">10</div>
+                  <div class="orient-proc-body">
+                    <strong>Record 5 Sets of Observations</strong>
+                    <p>For each rheostat setting, note the Ammeter reading <em>I</em> (Amperes) and Voltmeter reading <em>V</em> (Volts). Click <strong>[ 📝 Record Reading ]</strong>. The table will calculate <code>V / I</code> which should stay constant at ~10.00 Ω!</p>
+                    <span id="orient-readings-status" class="status-tag incomplete" style="align-self: flex-start; margin-top: 4px;">0 / 5 Readings Recorded</span>
+                  </div>
+                </div>
+
+                <div class="orient-proc-item">
+                  <div class="orient-proc-num">11</div>
+                  <div class="orient-proc-body">
+                    <strong>Plot V–I Graph & Verify Slope</strong>
+                    <p>Click the <strong>[ 📈 V–I Graph ]</strong> tab. Observe that the plotted points lie along a straight line passing through the origin (0, 0), proving <em>V ∝ I</em>. The slope <code>ΔV / ΔI</code> gives the verified resistance R = 10.00 Ω!</p>
+                  </div>
+                </div>
+
+                <div class="orient-proc-item">
+                  <div class="orient-proc-num">12</div>
+                  <div class="orient-proc-body">
+                    <strong>Safety Precautions</strong>
+                    <p>• Voltmeter must ALWAYS be in parallel; Ammeter must ALWAYS be in series.<br />
+                    • Open the plug key when readings are not being recorded to avoid heating the resistor wire.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Developer Diagnostics Panel (Hidden by default for students, toggle: Ctrl+Shift+D or ?debug=1) -->
+      <aside id="dev-diagnostics-panel" class="dev-diagnostics-panel hidden" aria-hidden="true">
+        <div class="diag-header">
+          <span>🛠️ WebXR Engine Diagnostics</span>
+          <button id="close-diag-btn" class="diag-close-btn" title="Close Diagnostics">✕</button>
+        </div>
+        <div class="diag-grid">
+          <div class="diag-item"><span class="diag-key">WebXR API:</span> <span id="diag-xr-api" class="diag-val">Checking…</span></div>
+          <div class="diag-item"><span class="diag-key">Immersive-VR:</span> <span id="diag-immersive-vr" class="diag-val">Checking…</span></div>
+          <div class="diag-item"><span class="diag-key">VR Session:</span> <span id="diag-vr-session" class="diag-val">Inactive</span></div>
+          <div class="diag-item"><span class="diag-key">Hand Tracking:</span> <span id="diag-hand-data" class="diag-val">Not Detected</span></div>
+          <div class="diag-item"><span class="diag-key">Left Hand:</span> <span id="diag-left-hand" class="diag-val">Inactive</span></div>
+          <div class="diag-item"><span class="diag-key">Right Hand:</span> <span id="diag-right-hand" class="diag-val">Inactive</span></div>
+          <div class="diag-item"><span class="diag-key">Pinch Status:</span> <span id="diag-pinch-status" class="diag-val">None</span></div>
+          <div class="diag-item"><span class="diag-key">Performance:</span> <span id="diag-fps" class="diag-val">-- FPS</span></div>
+          <div class="diag-item"><span class="diag-key">3D Model:</span> <span id="diag-glb-status" class="diag-val">Loading…</span></div>
+        </div>
+      </aside>
+
+      <!-- 9. Loading Screen Overlay -->
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-title">Physics XR Lab · Circuit Setup</div>
+        <div class="loading-bar-track">
+          <div id="loading-progress-bar" class="loading-bar-fill"></div>
+        </div>
+        <div id="loading-status-text" class="loading-status">Loading apparatus model...</div>
+      </div>
+
+      <!-- 10. Fallback Error Banner -->
+      <div id="error-banner" class="error-banner" role="alert">
+        <span>⚠️</span>
+        <span id="error-message">Could not load Untitled.glb. Showing fallback workbench.</span>
+      </div>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

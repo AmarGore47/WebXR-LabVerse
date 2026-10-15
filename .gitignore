@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Production build
+dist/
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Blender autosaves & backup files
+*.blend1
+*.blend2
+
+# Large zip archives
+*.zip
+
+# Large files exceeding GitHub's upload limits (>50MB)
+webXR_practical lab models/chemistry_models.glb
+webXR_practical lab models/antique_mirror.glb
+webXR_practical lab models/glass Slab.*
