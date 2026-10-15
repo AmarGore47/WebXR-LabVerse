@@ -290,7 +290,21 @@ let vrSessionManager = null;
 
 vrWorldPanel = new VRWorldPanel({
   scene,
+  apparatusLabels: labels,
   callbacks: {
+    onToggleLabels: () => {
+      const isVisible = labels.toggle();
+      const toggleLabelsBtn = document.getElementById('toggle-labels-btn');
+      if (toggleLabelsBtn) {
+        toggleLabelsBtn.classList.toggle('active', isVisible);
+        toggleLabelsBtn.innerHTML = `<span>🏷️</span> Labels: ${isVisible ? 'ON' : 'OFF'}`;
+      }
+      showFeedbackToast({
+        type: 'info',
+        message: `🏷️ 3D Labels ${isVisible ? 'ON' : 'OFF'}`
+      });
+      return isVisible;
+    },
     onStartPractical: () => {
       narration.init();
       const res = simulation.startPractical();
@@ -510,7 +524,12 @@ vrSessionManager = new VRSessionManager({
       vrHandCircuitHUD.setVisible(true);
       vrHandCircuitHUD.renderCanvas();
     }
-    labels.setVisible(false);
+    // Respect current apparatus label visibility
+    labels.setVisible(labels.visible);
+    if (vrWorldPanel) {
+      vrWorldPanel.labelsVisible = labels.visible;
+      vrWorldPanel.renderCanvas();
+    }
 
     // Development-only scene audit
     auditScene(scene, circuitState);
@@ -522,7 +541,7 @@ vrSessionManager = new VRSessionManager({
     controls.target.copy(DEFAULT_CAM_TARGET);
 
     if (vrHandCircuitHUD) vrHandCircuitHUD.hide();
-    labels.setVisible(true);
+    labels.setVisible(labels.visible);
 
     // Development-only scene audit
     auditScene(scene, circuitState);
@@ -716,6 +735,7 @@ modelLoader
       measurement.initModelNodes();
       terminalMarkers.syncWithModel(modelLoader.model);
       startCurrentButton.syncWithModel(modelLoader.model);
+      labels.syncWithModel(modelLoader.model);
     }
     setTimeout(() => {
       ui.hideLoading();
@@ -759,6 +779,11 @@ function animate(time, frame) {
 
   // Update guided mode (billboard tooltip, animated energy beam, 3D pins)
   guidedMode.update(camera);
+
+  // Update wire electrical surge / pulse when current flows
+  if (wireRenderer) {
+    wireRenderer.update(timeSec, simulation.current);
+  }
 
   // Update Start Current button (push animation, LED pulse)
   if (startCurrentButton) {

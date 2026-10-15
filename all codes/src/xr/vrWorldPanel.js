@@ -20,6 +20,8 @@ export class VRWorldPanel {
   constructor(options = {}) {
     this.scene = options.scene;
     this.callbacks = options.callbacks || {};
+    this.apparatusLabels = options.apparatusLabels || null;
+    this.labelsVisible = true;
 
     this.group = new THREE.Group();
     this.group.name = 'VRWorldPanel';
@@ -149,6 +151,7 @@ export class VRWorldPanel {
       // 7. Bottom Safety Bar
       { id: 'undo_wire', label: '↩️ Undo Wire', ...to3D(42, 1000, 330, 56) },
       { id: 'cancel_selection', label: '✕ Cancel Selection', ...to3D(395, 1000, 390, 56) },
+      { id: 'toggle_labels_vr', label: '🏷️ 3D Labels: ON/OFF', ...to3D(805, 1000, 340, 56) },
       { id: 'exit_vr', label: '⬅️ Back / Exit VR', ...to3D(1164, 1000, 330, 56) }
     ];
 
@@ -551,12 +554,21 @@ export class VRWorldPanel {
       this.drawObservationTableView(ctx, w, h, state);
     }
 
-    // 8. Bottom Safety Bar: [ ↩️ Undo Wire ] [ ✕ Cancel Selection ] [ ⬅️ Back / Exit VR ]
+    // 8. Bottom Safety Bar: [ ↩️ Undo Wire ] [ ✕ Cancel Selection ] [ 🏷️ 3D Labels: ON/OFF ] [ ⬅️ Back / Exit VR ]
     const bottomBarY = 1000;
     const bottomH = 56;
+    const isLabelsOn = this.labelsVisible;
     const bottomBtns = [
       { id: 'undo_wire', label: '↩️ Undo Wire', x: 42, w: 330, color: '#1e293b', border: '#38bdf8' },
       { id: 'cancel_selection', label: '✕ Cancel Selection', x: 395, w: 390, color: '#78350f', border: '#f59e0b' },
+      {
+        id: 'toggle_labels_vr',
+        label: `🏷️ 3D Labels: ${isLabelsOn ? 'ON' : 'OFF'}`,
+        x: 805,
+        w: 340,
+        color: isLabelsOn ? '#0369a1' : '#1e293b',
+        border: isLabelsOn ? '#38bdf8' : '#64748b'
+      },
       { id: 'exit_vr', label: '⬅️ Back / Exit VR', x: 1164, w: 330, color: '#991b1b', border: '#f87171' }
     ];
 
@@ -1306,6 +1318,19 @@ export class VRWorldPanel {
     // Exit VR (both top header button and bottom bar button)
     if (btnId === 'exit_vr' || btnId === 'exit_vr_top') {
       if (this.callbacks.onExitVR) this.callbacks.onExitVR();
+      return;
+    }
+
+    // Toggle 3D Apparatus Labels in VR
+    if (btnId === 'toggle_labels_vr') {
+      if (this.callbacks.onToggleLabels) {
+        this.labelsVisible = this.callbacks.onToggleLabels();
+      } else if (this.apparatusLabels) {
+        this.labelsVisible = this.apparatusLabels.toggle();
+      } else {
+        this.labelsVisible = !this.labelsVisible;
+      }
+      this.renderCanvas();
       return;
     }
 
