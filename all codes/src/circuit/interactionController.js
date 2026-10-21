@@ -20,6 +20,7 @@ export class InteractionController {
     this.terminalMarkers = options.terminalMarkers;
     this.modelLoader = options.modelLoader;
     this.simulation = options.simulation;
+    this.controls = options.controls || null;
     this.onFeedback = options.onFeedback || (() => {});
     this.onSelectionChanged = options.onSelectionChanged || (() => {});
 
@@ -36,6 +37,19 @@ export class InteractionController {
 
     this.initSwitchLever();
     this.setupPointerEvents();
+  }
+
+  _lockControlsTemporarily() {
+    if (this.controls && this.controls.enabled) {
+      this.controls.enabled = false;
+      const unlock = () => {
+        if (this.controls) this.controls.enabled = true;
+        window.removeEventListener('pointerup', unlock);
+        window.removeEventListener('pointercancel', unlock);
+      };
+      window.addEventListener('pointerup', unlock, { once: true });
+      window.addEventListener('pointercancel', unlock, { once: true });
+    }
   }
 
   initSwitchLever() {
@@ -72,6 +86,7 @@ export class InteractionController {
     );
 
     if (terminalHits.length > 0) {
+      this._lockControlsTemporarily();
       const termId = terminalHits[0].object.userData.terminalId;
       this.handleTerminalClick(termId);
       return;
@@ -81,6 +96,7 @@ export class InteractionController {
     if (this.switchLever) {
       const leverHits = this.raycaster.intersectObject(this.switchLever, true);
       if (leverHits.length > 0) {
+        this._lockControlsTemporarily();
         this.handleSwitchClick();
         return;
       }
@@ -90,6 +106,7 @@ export class InteractionController {
     if (this.extraClickables.length > 0) {
       const extraHits = this.raycaster.intersectObjects(this.extraClickables, false);
       if (extraHits.length > 0) {
+        this._lockControlsTemporarily();
         const obj = extraHits[0].object;
         if (obj.userData && typeof obj.userData.onPress === 'function') {
           obj.userData.onPress();
@@ -105,6 +122,7 @@ export class InteractionController {
     );
 
     if (wireHits.length > 0) {
+      this._lockControlsTemporarily();
       const wireGroup = wireHits[0].object.parent;
       if (wireGroup && wireGroup.userData && wireGroup.userData.connectionId) {
         this.handleWireClick(wireGroup.userData.connectionId);

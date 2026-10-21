@@ -8,9 +8,9 @@
 export const XR_CONFIG = {
   // 1. Pinch Detection & Hysteresis Thresholds
   // Start pinch when thumb tip and index tip are closer than 2.8 cm
-  pinchStartDistance: 0.028, // meters (~2.8 cm for natural pinch)
-  // Release pinch only when distance exceeds 4.0 cm (hysteresis prevents flicker)
-  pinchEndDistance: 0.040, // meters (~4.0 cm)
+  pinchStartDistance: 0.022, // meters (~2.2 cm for natural pinch)
+  // Release pinch only when distance exceeds 3.5 cm (hysteresis prevents flicker)
+  pinchEndDistance: 0.035, // meters (~3.5 cm)
 
   // 2. Interaction Proximity Radii (Direct Near-Hand Touch Zones)
   interactionMaxDistance: 2.0, // meters - safety cutoff

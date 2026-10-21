@@ -52,7 +52,7 @@ export class StartCurrentButton {
     simulation,
     narration,
     onFeedback,
-    position = new THREE.Vector3(-0.74, 0.825, 0.10)
+    position = new THREE.Vector3(-0.62, 0.835, 0.26)
   }) {
     this.scene = scene;
     this.circuitState = circuitState;
@@ -63,6 +63,7 @@ export class StartCurrentButton {
     this.group = new THREE.Group();
     this.group.name = 'StartCurrentButtonGroup';
     this.group.position.copy(position);
+    this.group.rotation.x = -0.32; // Angled comfortably towards the student's eyes
 
     // State
     this.currentState = 'disabled'; // disabled | ready | active | error
@@ -83,21 +84,28 @@ export class StartCurrentButton {
   }
 
   /**
-   * Snaps button position to corresponding 3D node in the loaded model.
+   * Snaps button position to front-left tabletop, clear of battery and wires.
    */
   syncWithModel(model) {
-    if (!model) return;
-    const mesh = model.getObjectByName('StartCurrentButton') || model.getObjectByName('StartButton_base');
-    if (mesh) {
-      const worldPos = new THREE.Vector3();
-      mesh.getWorldPosition(worldPos);
-      this.group.position.set(worldPos.x, worldPos.y + 0.012, worldPos.z);
-    }
+    // Keep clean tabletop mounting position on the front-left edge of the workbench:
+    // (x: -0.62, y: 0.835, z: 0.26) — in front of the battery eliminator, clear of all wires.
+    this.group.position.set(-0.62, 0.835, 0.26);
+    this.group.rotation.set(-0.32, 0, 0);
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
   _buildButton() {
+    // Heavy tabletop pedestal stand
+    const pedestalGeo = new THREE.BoxGeometry(BTN_W + 0.032, BTN_H + 0.024, 0.016);
+    const pedestalMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.6,
+      metalness: 0.85
+    });
+    this.pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+    this.pedestal.position.z = -0.008;
+    this.group.add(this.pedestal);
     // Base housing
     const housingGeo = new THREE.BoxGeometry(BTN_W + 0.016, BTN_H + 0.012, BTN_D + 0.012);
     const housingMat = new THREE.MeshStandardMaterial({
@@ -157,8 +165,8 @@ export class StartCurrentButton {
   }
 
   _buildHitBox() {
-    // Larger invisible hit volume for comfortable clicking/pinching
-    const hitGeo = new THREE.BoxGeometry(BTN_W + 0.04, BTN_H + 0.04, BTN_D + 0.06);
+    // Larger hit volume for comfortable clicking in desktop and pinching in VR
+    const hitGeo = new THREE.BoxGeometry(BTN_W + 0.05, BTN_H + 0.05, BTN_D + 0.07);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     this.hitBox = new THREE.Mesh(hitGeo, hitMat);
     this.hitBox.userData = {
@@ -171,6 +179,13 @@ export class StartCurrentButton {
   }
 
   // ─── Interaction ──────────────────────────────────────────────────────────
+
+  /**
+   * Alias for VR pinch & button controller
+   */
+  press() {
+    this.handlePress();
+  }
 
   /**
    * Called when button is pressed (mouse click or VR pinch).

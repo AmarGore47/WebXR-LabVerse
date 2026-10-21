@@ -228,6 +228,7 @@ const interaction = new InteractionController({
   terminalMarkers,
   modelLoader,
   simulation,
+  controls,
   onFeedback: (fb) => showFeedbackToast(fb),
   onSelectionChanged: (selectedId) => {
     if (circuitPanel) {
@@ -558,6 +559,7 @@ vrSessionManager = new VRSessionManager({
     camera.position.copy(DEFAULT_CAM_POS);
     controls.target.copy(DEFAULT_CAM_TARGET);
 
+    if (vrWorldPanel) vrWorldPanel.setVisible(false);
     if (vrHandCircuitHUD) vrHandCircuitHUD.hide();
     labels.setVisible(labels.visible);
 
