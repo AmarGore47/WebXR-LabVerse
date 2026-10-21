@@ -219,6 +219,65 @@ class LabAudio {
     osc.start(t);
     osc.stop(t + 0.13);
   }
+
+  // Futuristic holographic X-Ray mode laser hum & resonance
+  playXrayToggle(isOn = true) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(isOn ? 300 : 1800, t);
+    filter.frequency.exponentialRampToValueAtTime(isOn ? 2200 : 250, t + 0.28);
+    filter.Q.value = 4.0;
+
+    osc.type = isOn ? 'sawtooth' : 'sine';
+    osc.frequency.setValueAtTime(isOn ? 180 : 880, t);
+    osc.frequency.exponentialRampToValueAtTime(isOn ? 880 : 160, t + 0.28);
+
+    gain.gain.setValueAtTime(0.4 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.33);
+  }
+
+  // Tony Stark dark lab holographic warp resonance
+  playSciFiWarp(isDark = true) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const notes = isDark ? [150, 300, 600, 1200] : [1200, 600, 300, 150];
+
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.04);
+      osc.frequency.exponentialRampToValueAtTime(freq * (isDark ? 1.4 : 0.7), t + idx * 0.04 + 0.18);
+
+      gain.gain.setValueAtTime(0.25 * this.volume, t + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.04 + 0.22);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t + idx * 0.04);
+      osc.stop(t + idx * 0.04 + 0.24);
+    });
+  }
 }
 
 export const sound = new LabAudio();

@@ -2,7 +2,12 @@
  * wireRenderer.js
  * Renders physical 3D curved tube wires with realistic droop, color coding,
  * brass terminal crimps, connection animations, raycast picking, and
- * real-time animated electron streams drifting along the 3D curves.
+ * REAL-TIME X-RAY animated electron streams drifting along the 3D curves.
+ *
+ * X-Ray / Microscopic Mode:
+ *  - Wire insulation becomes transparent holographic neon glass
+ *  - Large glowing electron spheres drift inside representing live current
+ *  - Speed & density scale physically with electric current (I ∝ v_drift)
  */
 
 import * as THREE from 'three';
@@ -12,125 +17,155 @@ export class WireRenderer {
     this.scene = scene;
     this.wireMeshMap = new Map(); // connectionId -> Group
 
+    // --- X-Ray / Electron Mode State ---
+    this.xrayMode = false;
+
     // Shared reusable dummy for electron instanced transformations
     this.dummy = new THREE.Object3D();
 
-    // Insulated laboratory wire materials with vibrant, high-contrast colors and subtle glass sheen
+    // Standard insulated laboratory wire materials
     this.materials = {
       positive: new THREE.MeshStandardMaterial({
-        color: 0xef4444, // Vibrant Red
-        roughness: 0.25,
-        metalness: 0.15,
-        emissive: 0xb91c1c,
-        emissiveIntensity: 0.45,
-        transparent: true,
-        opacity: 0.88
+        color: 0xef4444, roughness: 0.22, metalness: 0.12,
+        emissive: 0xb91c1c, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.92
       }),
       negative: new THREE.MeshStandardMaterial({
-        color: 0x1e293b, // Dark Slate / Black
-        roughness: 0.3,
-        metalness: 0.25,
-        emissive: 0x475569, // High-contrast slate sheen so it stands out on dark tables
-        emissiveIntensity: 0.45,
-        transparent: true,
-        opacity: 0.88
+        color: 0x1e293b, roughness: 0.28, metalness: 0.22,
+        emissive: 0x475569, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.92
       }),
       series: new THREE.MeshStandardMaterial({
-        color: 0xf59e0b, // Vibrant Amber / Yellow
-        roughness: 0.25,
-        metalness: 0.15,
-        emissive: 0xd97706,
-        emissiveIntensity: 0.45,
-        transparent: true,
-        opacity: 0.88
+        color: 0xf59e0b, roughness: 0.22, metalness: 0.12,
+        emissive: 0xd97706, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.92
       }),
       meter: new THREE.MeshStandardMaterial({
-        color: 0x06b6d4, // Vibrant Cyan / Blue
-        roughness: 0.25,
-        metalness: 0.15,
-        emissive: 0x0891b2,
-        emissiveIntensity: 0.45,
-        transparent: true,
-        opacity: 0.88
+        color: 0x06b6d4, roughness: 0.22, metalness: 0.12,
+        emissive: 0x0891b2, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.92
       }),
       warning: new THREE.MeshStandardMaterial({
-        color: 0xf97316, // Orange warning
-        roughness: 0.3,
-        metalness: 0.2,
-        emissive: 0xc2410c,
-        emissiveIntensity: 0.5,
-        transparent: true,
-        opacity: 0.88
+        color: 0xf97316, roughness: 0.28, metalness: 0.18,
+        emissive: 0xc2410c, emissiveIntensity: 0.55,
+        transparent: true, opacity: 0.92
       }),
       error: new THREE.MeshStandardMaterial({
-        color: 0xdc2626, // Bright danger red
-        roughness: 0.3,
-        metalness: 0.2,
-        emissive: 0x991b1b,
-        emissiveIntensity: 0.6,
-        transparent: true,
-        opacity: 0.88
+        color: 0xdc2626, roughness: 0.28, metalness: 0.18,
+        emissive: 0x991b1b, emissiveIntensity: 0.65,
+        transparent: true, opacity: 0.92
+      })
+    };
+
+    // X-Ray Mode wire materials — neon holographic glow, very transparent
+    this.xrayMaterials = {
+      positive: new THREE.MeshStandardMaterial({
+        color: 0xff6b6b, roughness: 0.04, metalness: 0.85,
+        emissive: 0xff0040, emissiveIntensity: 2.8,
+        transparent: true, opacity: 0.18, depthWrite: false
+      }),
+      negative: new THREE.MeshStandardMaterial({
+        color: 0x00f0ff, roughness: 0.04, metalness: 0.85,
+        emissive: 0x00f0ff, emissiveIntensity: 2.8,
+        transparent: true, opacity: 0.18, depthWrite: false
+      }),
+      series: new THREE.MeshStandardMaterial({
+        color: 0xffd700, roughness: 0.04, metalness: 0.85,
+        emissive: 0xffaa00, emissiveIntensity: 2.8,
+        transparent: true, opacity: 0.18, depthWrite: false
+      }),
+      meter: new THREE.MeshStandardMaterial({
+        color: 0x00f0ff, roughness: 0.04, metalness: 0.85,
+        emissive: 0x00d4ff, emissiveIntensity: 2.8,
+        transparent: true, opacity: 0.18, depthWrite: false
+      }),
+      warning: new THREE.MeshStandardMaterial({
+        color: 0xff8c00, roughness: 0.04, metalness: 0.85,
+        emissive: 0xff6600, emissiveIntensity: 2.8,
+        transparent: true, opacity: 0.18, depthWrite: false
+      }),
+      error: new THREE.MeshStandardMaterial({
+        color: 0xff0000, roughness: 0.04, metalness: 0.85,
+        emissive: 0xff0000, emissiveIntensity: 3.2,
+        transparent: true, opacity: 0.22, depthWrite: false
       })
     };
 
     // Polished brass terminal lug ferrule material
     this.lugMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfbbf24,
-      roughness: 0.2,
-      metalness: 0.9,
-      emissive: 0x78350f,
-      emissiveIntensity: 0.2
+      color: 0xfbbf24, roughness: 0.2, metalness: 0.9,
+      emissive: 0x78350f, emissiveIntensity: 0.2
     });
 
-    // Luminous glowing electron particle sphere geometry & materials
-    this.electronGeo = new THREE.SphereGeometry(0.0048, 10, 10);
+    // Standard electron bead (smaller, subtle)
+    this.electronGeoStandard = new THREE.SphereGeometry(0.0045, 8, 8);
+    // X-Ray electron bead (large, dramatic, clearly visible)
+    this.electronGeoXray = new THREE.SphereGeometry(0.0095, 14, 14);
+
+    // Standard mode electron materials
     this.electronMaterials = {
-      cyan: new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+      cyan:  new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
       amber: new THREE.MeshBasicMaterial({ color: 0xfde047 }),
-      red: new THREE.MeshBasicMaterial({ color: 0xf87171 })
+      red:   new THREE.MeshBasicMaterial({ color: 0xf87171 })
+    };
+
+    // X-Ray mode electron materials — vivid plasma glow
+    this.xrayElectronMaterials = {
+      positive: new THREE.MeshBasicMaterial({ color: 0xffee44 }),  // Gold charge carriers
+      negative: new THREE.MeshBasicMaterial({ color: 0x00ffff }),  // Cyan plasma
+      series:   new THREE.MeshBasicMaterial({ color: 0x55ff99 }),  // Green energy
+      meter:    new THREE.MeshBasicMaterial({ color: 0x00ddff }),  // Blue photon
+      warning:  new THREE.MeshBasicMaterial({ color: 0xff8800 }),
+      error:    new THREE.MeshBasicMaterial({ color: 0xff2200 })
     };
   }
 
   getMaterialForConnection(conn) {
     if (conn.status === 'error') return this.materials.error;
     if (conn.status === 'warning') return this.materials.warning;
-
     switch (conn.wireType) {
-      case 'positive':
-        return this.materials.positive;
-      case 'negative':
-        return this.materials.negative;
-      case 'meter':
-        return this.materials.meter;
+      case 'positive': return this.materials.positive;
+      case 'negative': return this.materials.negative;
+      case 'meter':    return this.materials.meter;
       case 'series':
-      default:
-        return this.materials.series;
+      default:         return this.materials.series;
+    }
+  }
+
+  getXrayMaterialForConnection(conn) {
+    if (conn.status === 'error') return this.xrayMaterials.error;
+    if (conn.status === 'warning') return this.xrayMaterials.warning;
+    switch (conn.wireType) {
+      case 'positive': return this.xrayMaterials.positive;
+      case 'negative': return this.xrayMaterials.negative;
+      case 'meter':    return this.xrayMaterials.meter;
+      case 'series':
+      default:         return this.xrayMaterials.series;
+    }
+  }
+
+  _getXrayElectronMat(conn) {
+    if (conn.status === 'error') return this.xrayElectronMaterials.error;
+    if (conn.status === 'warning') return this.xrayElectronMaterials.warning;
+    switch (conn.wireType) {
+      case 'positive': return this.xrayElectronMaterials.positive;
+      case 'negative': return this.xrayElectronMaterials.negative;
+      case 'meter':    return this.xrayElectronMaterials.meter;
+      case 'series':
+      default:         return this.xrayElectronMaterials.series;
     }
   }
 
   /**
-   * Generates a 3D curved wire that arches gracefully ABOVE the table surface
-   * and loops over tabletop instruments without clipping.
+   * Generates a 3D curved wire that arches gracefully ABOVE the table surface.
    */
   createWireCurve(posA, posB) {
     const dist = posA.distanceTo(posB);
-    const TABLE_SURFACE_Y = 0.804;
-
-    // Midpoint between terminals
     const mid = posA.clone().lerp(posB, 0.5);
-
-    // Natural upward arch height: ensures wires never dip into tabletop or instruments
-    // Short wires loop up 7-10 cm, long spans loop up 14-22 cm
     const arch = Math.min(0.22, 0.07 + dist * 0.14);
-
-    // Bow forward (+Z) towards the user so long wires loop in front of table instruments
-    // instead of clipping straight through apparatus casings
     mid.z += Math.min(0.18, 0.04 + dist * 0.12);
-
-    // Midpoint Y must always clear the tabletop (0.804m) and highest apparatus (rheostat ~0.89m)
     mid.y = Math.max(0.92, Math.max(posA.y, posB.y) + arch);
 
-    // Cubic control points rising vertically from terminal binding posts before curving towards mid
     const cp1 = posA.clone();
     cp1.y += Math.max(0.06, arch * 0.6);
     cp1.lerp(mid, 0.35);
@@ -147,21 +182,24 @@ export class WireRenderer {
    */
   addWire(connection, posA, posB) {
     const curve = this.createWireCurve(posA, posB);
-    // Insulated 12.5mm laboratory patch cord (prominent, thick, clearly visible)
-    const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.0125, 12, false);
-    const material = this.getMaterialForConnection(connection).clone(); // Clone material so per-wire pulses work
+    const tubeGeo = new THREE.TubeGeometry(curve, 52, 0.0125, 12, false);
+
+    // Choose material based on current xray state
+    const stdMat  = this.getMaterialForConnection(connection).clone();
+    const xrayMat = this.getXrayMaterialForConnection(connection).clone();
+    const material = this.xrayMode ? xrayMat : stdMat;
 
     const wireGroup = new THREE.Group();
     wireGroup.name = `Wire_${connection.id}`;
 
     const tubeMesh = new THREE.Mesh(tubeGeo, material);
-    tubeMesh.castShadow = true;
-    tubeMesh.receiveShadow = true;
+    tubeMesh.castShadow = !this.xrayMode;
+    tubeMesh.receiveShadow = !this.xrayMode;
     tubeMesh.renderOrder = 4;
     tubeMesh.userData = { connectionId: connection.id, isWire: true };
     wireGroup.add(tubeMesh);
 
-    // Generous invisible hit tube (38mm radius) for responsive raycast and finger pinch picking
+    // Generous invisible hit tube for responsive raycast and finger pinch picking
     const hitGeo = new THREE.TubeGeometry(curve, 24, 0.038, 8, false);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     const hitMesh = new THREE.Mesh(hitGeo, hitMat);
@@ -171,32 +209,42 @@ export class WireRenderer {
     // Brass crimp terminal rings at both ends
     [posA, posB].forEach((pos) => {
       const lugGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.025, 16);
-      const lug = new THREE.Mesh(lugGeo, this.lugMaterial);
+      const lugM = this.xrayMode
+        ? new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffa000, emissiveIntensity: 2.2, transparent: true, opacity: 0.65 })
+        : this.lugMaterial;
+      const lug = new THREE.Mesh(lugGeo, lugM);
       lug.position.copy(pos);
       lug.rotation.x = Math.PI / 2;
       wireGroup.add(lug);
     });
 
-    // 🔬 Inner Live Electron Flow Stream (24 glowing spherical beads along the curve)
-    const ELECTRON_COUNT = 24;
-    const electronMat =
-      connection.wireType === 'positive'
-        ? this.electronMaterials.amber
-        : (connection.wireType === 'negative'
-            ? this.electronMaterials.cyan
-            : this.electronMaterials.cyan);
+    // ⚡ Electron Stream — X-Ray has dense volumetric electron swarm (56 per wire)
+    const ELECTRON_COUNT = this.xrayMode ? 56 : 24;
+    const electronGeo = this.xrayMode ? this.electronGeoXray : this.electronGeoStandard;
+    const electronMat = this.xrayMode
+      ? this._getXrayElectronMat(connection)
+      : (connection.wireType === 'positive' ? this.electronMaterials.amber : this.electronMaterials.cyan);
 
-    const instancedElectrons = new THREE.InstancedMesh(this.electronGeo, electronMat, ELECTRON_COUNT);
+    const instancedElectrons = new THREE.InstancedMesh(electronGeo, electronMat, ELECTRON_COUNT);
     instancedElectrons.renderOrder = 6;
     instancedElectrons.frustumCulled = false;
 
-    // Initialize progressive distribution along curve [0, 1]
     const electronProgress = new Float32Array(ELECTRON_COUNT);
+    const electronOffsets = new Float32Array(ELECTRON_COUNT * 2); // Radial X/Y offsets for volumetric swarm
     for (let i = 0; i < ELECTRON_COUNT; i++) {
       electronProgress[i] = i / ELECTRON_COUNT;
+      const angle = (i * 2.399) % (Math.PI * 2); // Golden ratio spiral
+      const radius = this.xrayMode ? 0.0035 : 0.001;
+      electronOffsets[i * 2]     = Math.cos(angle) * radius;
+      electronOffsets[i * 2 + 1] = Math.sin(angle) * radius;
+
       const pt = curve.getPointAt(electronProgress[i]);
-      this.dummy.position.copy(pt);
-      this.dummy.scale.set(0.7, 0.7, 0.7);
+      this.dummy.position.set(
+        pt.x + electronOffsets[i * 2],
+        pt.y + electronOffsets[i * 2 + 1],
+        pt.z
+      );
+      this.dummy.scale.set(1, 1, 1);
       this.dummy.updateMatrix();
       instancedElectrons.setMatrixAt(i, this.dummy.matrix);
     }
@@ -210,27 +258,30 @@ export class WireRenderer {
       hitMesh,
       curve,
       material,
+      stdMat,
+      xrayMat,
       baseEmissive: material.emissiveIntensity,
       instancedElectrons,
       electronProgress,
+      electronOffsets,
       electronCount: ELECTRON_COUNT,
       isWire: true
     };
 
-    // Connection electrical surge animation: flash emissive intensity
+    // Connection electrical surge animation
     const baseEmissive = material.emissiveIntensity;
-    material.emissiveIntensity = 1.4;
+    material.emissiveIntensity = this.xrayMode ? 4.5 : 1.6;
     let flashStep = 0;
     const flashInterval = setInterval(() => {
       flashStep++;
       if (material && material.emissiveIntensity !== undefined) {
-        material.emissiveIntensity = Math.max(baseEmissive, 1.4 - flashStep * 0.2);
+        material.emissiveIntensity = Math.max(baseEmissive, (this.xrayMode ? 4.5 : 1.6) - flashStep * 0.28);
       }
-      if (flashStep >= 6) {
+      if (flashStep >= 8) {
         if (material) material.emissiveIntensity = baseEmissive;
         clearInterval(flashInterval);
       }
-    }, 35);
+    }, 28);
 
     this.scene.add(wireGroup);
     this.wireMeshMap.set(connection.id, wireGroup);
@@ -238,54 +289,195 @@ export class WireRenderer {
   }
 
   /**
+   * Set Sci-Fi / Dark Lab theme for wires (neon laser threads).
+   */
+  setSciFiMode(isSciFi) {
+    this.sciFiMode = !!isSciFi;
+    this.wireMeshMap.forEach((wireGroup) => {
+      const data = wireGroup.userData;
+      if (!data || !data.material) return;
+      if (!this.xrayMode) {
+        // Boost emissive to neon laser thread in Dark Lab mode
+        data.material.emissiveIntensity = this.sciFiMode ? 1.4 : 0.5;
+        data.baseEmissive = data.material.emissiveIntensity;
+      }
+    });
+  }
+
+  /**
+   * Toggle X-Ray / Microscopic Electron Flow mode.
+   * Wires become transparent neon tubes; electrons become large glowing plasma beads.
+   * @returns {boolean} new xray state
+   */
+  toggleXrayMode() {
+    this.xrayMode = !this.xrayMode;
+    this._applyXrayToAll();
+    return this.xrayMode;
+  }
+
+  setXrayMode(enabled) {
+    this.xrayMode = !!enabled;
+    this._applyXrayToAll();
+  }
+
+  _applyXrayToAll() {
+    this.wireMeshMap.forEach((wireGroup) => {
+      const data = wireGroup.userData;
+      if (!data) return;
+
+      // Swap tube material
+      if (data.tubeMesh) {
+        const mat = this.xrayMode ? data.xrayMat : data.stdMat;
+        data.tubeMesh.material = mat;
+        data.tubeMesh.castShadow = !this.xrayMode;
+        data.material = mat;
+        data.baseEmissive = mat.emissiveIntensity;
+        // Quick surge on toggle
+        const targetGlow = this.xrayMode ? 4.5 : (this.sciFiMode ? 1.4 : 0.5);
+        mat.emissiveIntensity = targetGlow;
+        setTimeout(() => { mat.emissiveIntensity = data.baseEmissive; }, 400);
+      }
+
+      // Rebuild electron instanced mesh with new size/material/count
+      if (data.instancedElectrons && data.curve) {
+        wireGroup.remove(data.instancedElectrons);
+
+        const ELECTRON_COUNT = this.xrayMode ? 56 : 24;
+        const electronGeo = this.xrayMode ? this.electronGeoXray : this.electronGeoStandard;
+        const conn = data.connection;
+        const electronMat = this.xrayMode
+          ? this._getXrayElectronMat(conn)
+          : (conn.wireType === 'positive' ? this.electronMaterials.amber : this.electronMaterials.cyan);
+
+        const newInst = new THREE.InstancedMesh(electronGeo, electronMat, ELECTRON_COUNT);
+        newInst.renderOrder = 6;
+        newInst.frustumCulled = false;
+
+        const electronProgress = new Float32Array(ELECTRON_COUNT);
+        const electronOffsets = new Float32Array(ELECTRON_COUNT * 2);
+        for (let i = 0; i < ELECTRON_COUNT; i++) {
+          electronProgress[i] = i / ELECTRON_COUNT;
+          const angle = (i * 2.399) % (Math.PI * 2);
+          const radius = this.xrayMode ? 0.0035 : 0.001;
+          electronOffsets[i * 2]     = Math.cos(angle) * radius;
+          electronOffsets[i * 2 + 1] = Math.sin(angle) * radius;
+
+          const pt = data.curve.getPointAt(electronProgress[i]);
+          this.dummy.position.set(
+            pt.x + electronOffsets[i * 2],
+            pt.y + electronOffsets[i * 2 + 1],
+            pt.z
+          );
+          this.dummy.scale.set(1, 1, 1);
+          this.dummy.updateMatrix();
+          newInst.setMatrixAt(i, this.dummy.matrix);
+        }
+        newInst.instanceMatrix.needsUpdate = true;
+        wireGroup.add(newInst);
+
+        data.instancedElectrons = newInst;
+        data.electronProgress = electronProgress;
+        data.electronOffsets = electronOffsets;
+        data.electronCount = ELECTRON_COUNT;
+      }
+    });
+  }
+
+  /**
    * Update electrical energy pulse and real-time electron drift stream.
-   * @param {number} time - Elapsed time in seconds
+   * LIVE PHYSICS SYNC:
+   * - Rheostat resistance high -> Current low -> Electrons crawl in visible slow motion.
+   * - Rheostat resistance low -> High current -> Electrons fast sprint.
+   * - High current load (I > 0.35A) -> Wire warms with glowing thermal pulse.
+   * @param {number} time    - Elapsed time in seconds
    * @param {number} current - Live electric current in Amperes
-   * @param {number} delta - Frame delta time in seconds
+   * @param {number} delta   - Frame delta time in seconds
    */
   update(time, current = 0, delta = 0.016) {
     if (this.wireMeshMap.size === 0) return;
 
     const isFlowing = current > 0.005;
-    // Physical electron drift velocity proportional to electric current (I = n * e * A * v_d)
-    const driftSpeed = isFlowing ? Math.min(2.8, 0.25 + current * 1.65) : 0;
-    const wirePulse = isFlowing ? Math.sin(time * 7.0) * 0.14 : 0;
+
+    // Physical Drift Velocity (I = n * A * q * v_d)
+    // Scaled for dramatic educational perception in WebXR:
+    // Low current (e.g. 0.08A) -> driftSpeed ~ 0.22 (Slow motion crawl)
+    // High current (e.g. 0.60A) -> driftSpeed ~ 4.2 - 5.5 (Hypersonic sprint!)
+    let driftSpeed = 0;
+    if (isFlowing) {
+      if (this.xrayMode) {
+        // Dramatic dynamic range in X-Ray mode
+        driftSpeed = 0.18 + Math.pow(Math.min(current, 1.2), 1.3) * 6.8;
+      } else {
+        driftSpeed = 0.12 + Math.min(current, 1.0) * 1.8;
+      }
+    }
+
+    // Thermal Joule Heating effect (P = I^2 * R)
+    // Wire warms and emits a thermal throb when current exceeds 0.30 A
+    const heatLoad = isFlowing ? Math.min(1.0, Math.max(0.0, (current - 0.28) / 0.38)) : 0;
+    const isWarming = heatLoad > 0.05;
+    const thermalPulse = isWarming ? Math.sin(time * 9.0) * (0.4 + heatLoad * 0.8) : 0;
+
+    // Standard wire emissive breathing
+    const pulseAmp  = this.xrayMode ? 0.9 : (this.sciFiMode ? 0.35 : 0.14);
+    const pulseFreq = this.xrayMode ? 10.0 : 7.0;
+    const wirePulse = isFlowing ? Math.sin(time * pulseFreq) * pulseAmp : 0;
 
     this.wireMeshMap.forEach((wireGroup) => {
       const data = wireGroup.userData;
       if (!data) return;
 
-      // 1. Subtle wire material pulse with current
+      // 1. Wire material emissive pulse & Thermal Warming
       if (data.material) {
-        const base = data.baseEmissive || 0.45;
-        data.material.emissiveIntensity = base + wirePulse;
+        const base = data.baseEmissive || (this.xrayMode ? 2.8 : (this.sciFiMode ? 1.4 : 0.5));
+        data.material.emissiveIntensity = base + wirePulse + thermalPulse;
+
+        // If wire is warm, tint emissive towards fiery thermo-electric orange
+        if (isWarming && this.xrayMode) {
+          data.material.emissive.setHex(0xff3b00);
+        } else if (this.xrayMode) {
+          // Restore native connection emissive
+          const origXray = this.getXrayMaterialForConnection(data.connection);
+          data.material.emissive.copy(origXray.emissive);
+        }
       }
 
-      // 2. Animate Electron Stream along the 3D Bézier curve
+      // 2. Animate electron stream along the 3D Bézier curve
       const instancedElectrons = data.instancedElectrons;
-      const progress = data.electronProgress;
-      const curve = data.curve;
-      const count = data.electronCount || 24;
+      const progress           = data.electronProgress;
+      const offsets            = data.electronOffsets;
+      const curve              = data.curve;
+      const count              = data.electronCount || 24;
 
       if (instancedElectrons && progress && curve) {
         for (let i = 0; i < count; i++) {
+          const offX = offsets ? offsets[i * 2] : 0;
+          const offY = offsets ? offsets[i * 2 + 1] : 0;
+
           if (isFlowing) {
-            // Forward drift along curve towards target terminal
             progress[i] = (progress[i] + driftSpeed * delta) % 1.0;
             const pt = curve.getPointAt(progress[i]);
-            this.dummy.position.copy(pt);
+            this.dummy.position.set(pt.x + offX, pt.y + offY, pt.z);
 
-            // Subtle pulsing of electrons while in energetic motion
-            const pulseScale = 1.0 + Math.sin(time * 9.0 + i) * 0.18;
+            // Scale pulsing: electrons sprint and surge
+            let pulseScale;
+            if (this.xrayMode) {
+              const sprintFactor = Math.min(1.5, 1.0 + heatLoad * 0.5);
+              pulseScale = (1.0 + Math.sin(time * 16.0 + i * 0.6) * 0.45) * sprintFactor;
+            } else {
+              pulseScale = 1.0 + Math.sin(time * 9.0 + i) * 0.18;
+            }
             this.dummy.scale.set(pulseScale, pulseScale, pulseScale);
           } else {
-            // Stationary with microscopic thermal Brownian jiggle (< 0.4mm)
-            const pt = curve.getPointAt(progress[i]);
-            const jiggle = Math.sin(time * 4.0 + i) * 0.0003;
-            this.dummy.position.set(pt.x, pt.y + jiggle, pt.z);
-            this.dummy.scale.set(0.65, 0.65, 0.65);
+            // Stationary: microscopic Brownian thermal jiggle
+            const pt     = curve.getPointAt(progress[i]);
+            const jiggle = this.xrayMode
+              ? Math.sin(time * 6.0 + i) * 0.0012
+              : Math.sin(time * 4.0 + i) * 0.0003;
+            this.dummy.position.set(pt.x + offX, pt.y + offY + jiggle, pt.z);
+            const sz = this.xrayMode ? 0.5 : 0.65;
+            this.dummy.scale.set(sz, sz, sz);
           }
-
           this.dummy.updateMatrix();
           instancedElectrons.setMatrixAt(i, this.dummy.matrix);
         }

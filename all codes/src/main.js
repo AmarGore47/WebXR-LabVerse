@@ -47,6 +47,9 @@ import { StartCurrentButton } from './guidance/startCurrentButton.js';
 import { PracticalFlowPanel } from './guidance/practicalFlowPanel.js';
 import { GUIDED_NARRATION_EVENTS } from './guidance/guidedModeConfig.js';
 import { OrientationModal } from './ui/orientationModal.js';
+import { sound } from './audio.js';
+import { HolographicSwitches } from './scene/holographicSwitches.js';
+import { HolographicMetersHUD } from './scene/holographicMetersHUD.js';
 
 // 1. Canvas and Three.js Setup
 const canvas = document.getElementById('lab-canvas');
@@ -130,6 +133,10 @@ function showFeedbackToast(feedback) {
   }, 4200);
 }
 
+// 4b. 3D Floating Holographic Meters HUD & Tabletop Sci-Fi Consoles
+const holographicMetersHUD = new HolographicMetersHUD(scene);
+let holographicSwitches = null;
+
 // 6. Initialize Circuit State & Simulation Engine
 const circuitState = new CircuitState();
 const simulation = new OhmsLawSimulation();
@@ -139,6 +146,9 @@ const modelLoader = new ModelLoader(scene, {
     environment.adaptToGLBRoom(isFullRoom);
     if (vrHandCircuitHUD && modelLoader.model) {
       vrHandCircuitHUD.alignToScreen(modelLoader.model);
+    }
+    if (holographicMetersHUD && modelLoader.model) {
+      holographicMetersHUD.syncWithModel(modelLoader.model);
     }
   }
 });
@@ -236,6 +246,13 @@ const interaction = new InteractionController({
 interaction.onWireConnected = (from, to, isValid) => {
   guidedMode.onWireConnected(from, to, isValid);
 };
+
+// 7b. Tabletop 3D Holographic Switches (X-Ray & Sci-Fi Dark Lab)
+holographicSwitches = new HolographicSwitches(scene, {
+  onToggleXray: (isXray) => applyXrayMode(isXray),
+  onToggleTheme: (isDark) => applyThemeMode(isDark)
+});
+interaction.registerExtraClickables(holographicSwitches.getClickableObjects());
 
 // 8. Initialize Circuit Connections Panel
 circuitPanel = new CircuitPanel({
@@ -495,6 +512,7 @@ xrHandManager = new XRHandManager({
   vrHandCircuitHUD,
   measurementController: measurement,
   wireRenderer,
+  holographicSwitches,
   onFeedback: (fb) => showFeedbackToast(fb)
 });
 
@@ -631,18 +649,68 @@ const ui = new LabUI({
   }
 });
 
+// Helper function for unified X-Ray Flow mode toggle
+function applyXrayMode(isXray) {
+  wireRenderer.setXrayMode(isXray);
+  if (holographicSwitches) {
+    holographicSwitches.setStates(isXray, environment.currentTheme === 'scifi');
+  }
+  sound.playXrayToggle(isXray);
+
+  const toggleXrayBtn = document.getElementById('toggle-xray-btn');
+  if (toggleXrayBtn) {
+    toggleXrayBtn.classList.toggle('active', isXray);
+    toggleXrayBtn.innerHTML = `<span>⚛️</span> X-Ray: ${isXray ? 'ON' : 'OFF'}`;
+  }
+
+  showFeedbackToast({
+    type: 'success',
+    message: isXray
+      ? '⚛️ X-Ray Mode ON! Live electron drift synced: High R = Slow motion, Low R = Fast sprint!'
+      : '⚛️ X-Ray Mode OFF — Standard insulated wire view.'
+  });
+}
+
+// Helper function for unified Sci-Fi Dark Lab theme toggle
+function applyThemeMode(isSciFi) {
+  const newTheme = environment.setTheme(isSciFi ? 'scifi' : 'standard');
+  const isDark = newTheme === 'scifi';
+  wireRenderer.setSciFiMode(isDark);
+  if (holographicMetersHUD) {
+    holographicMetersHUD.setTheme(isDark);
+  }
+  if (holographicSwitches) {
+    holographicSwitches.setStates(wireRenderer.xrayMode, isDark);
+  }
+  sound.playSciFiWarp(isDark);
+
+  const toggleThemeBtn = document.getElementById('toggle-theme-btn');
+  if (toggleThemeBtn) {
+    toggleThemeBtn.classList.toggle('active', isDark);
+    toggleThemeBtn.innerHTML = `<span>🌌</span> Sci-Fi Lab: ${isDark ? 'ON' : 'OFF'}`;
+  }
+
+  showFeedbackToast({
+    type: 'info',
+    message: isDark
+      ? '🌌 Dark Lab Theme: Ceiling lights dimmed, Tony Stark HUD & Neon Lasers online!'
+      : '🏛️ Standard Lab Daylight Mode.'
+  });
+}
+
 // 10b. Sci-Fi Theme toolbar toggle
 const toggleThemeBtn = document.getElementById('toggle-theme-btn');
 if (toggleThemeBtn) {
   toggleThemeBtn.addEventListener('click', () => {
-    const newTheme = environment.toggleTheme();
-    const isSciFi = newTheme === 'scifi';
-    toggleThemeBtn.classList.toggle('active', isSciFi);
-    toggleThemeBtn.innerHTML = `<span>🌌</span> Sci-Fi Lab: ${isSciFi ? 'ON' : 'OFF'}`;
-    showFeedbackToast({
-      type: 'info',
-      message: isSciFi ? '🌌 Sci-Fi Dark Mode Activated!' : '🏛️ Standard Lab Mode Activated.'
-    });
+    applyThemeMode(environment.currentTheme !== 'scifi');
+  });
+}
+
+// 10b2. X-Ray Electron Flow mode toggle
+const toggleXrayBtn = document.getElementById('toggle-xray-btn');
+if (toggleXrayBtn) {
+  toggleXrayBtn.addEventListener('click', () => {
+    applyXrayMode(!wireRenderer.xrayMode);
   });
 }
 
@@ -798,6 +866,19 @@ function animate(time, frame) {
   // Update wire electrical surge / pulse & real-time electron drift stream
   if (wireRenderer) {
     wireRenderer.update(timeSec, simulation.current, delta);
+  }
+
+  // Update sci-fi environment animations (neon pulse, scan line, particles)
+  if (environment) {
+    environment.update(timeSec);
+  }
+
+  // Update 3D tabletop holographic consoles & floating meters HUD
+  if (holographicSwitches) {
+    holographicSwitches.update(timeSec, delta);
+  }
+  if (holographicMetersHUD) {
+    holographicMetersHUD.update(timeSec, simulation.voltage, simulation.current, wireRenderer.xrayMode);
   }
 
   // Update Start Current button (push animation, LED pulse)

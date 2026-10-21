@@ -78,6 +78,7 @@ export class XRHandManager {
     this.vrWorldPanel = options.vrWorldPanel;
     this.vrHandCircuitHUD = options.vrHandCircuitHUD;
     this.measurementController = options.measurementController;
+    this.holographicSwitches = options.holographicSwitches || null;
     this.onFeedback = options.onFeedback || (() => {});
 
     // Hand tracking state
@@ -88,6 +89,13 @@ export class XRHandManager {
     this.activeDrag = null; // { type: 'rheostat', handIndex, startX, startR }
     this.cooldowns = [0, 0];
     this.debugMode = false;
+
+    // Two-hand pinch expand gesture tracking for X-Ray toggle
+    this.pinchExpandTrack = {
+      isTracking: false,
+      startDist: 0,
+      lastTriggerTime: 0
+    };
 
     // Hand pointer raycaster with reach across the laboratory
     this.handRaycaster = new THREE.Raycaster();
@@ -113,6 +121,10 @@ export class XRHandManager {
 
   setStartCurrentButton(btn) {
     this.startCurrentButton = btn;
+  }
+
+  setHolographicSwitches(sw) {
+    this.holographicSwitches = sw;
   }
 
   setupHands() {
@@ -552,6 +564,9 @@ export class XRHandManager {
         }
         if (this.vrHandCircuitHUD.displayMesh) candidates.push(this.vrHandCircuitHUD.displayMesh);
       }
+      if (this.holographicSwitches) {
+        candidates.push(...this.holographicSwitches.getClickableObjects());
+      }
 
       const rayHits = this.handRaycaster.intersectObjects(candidates, true);
       let hitTarget = null;
@@ -571,6 +586,10 @@ export class XRHandManager {
           hitTarget = { type: 'terminal', id: obj.userData.terminalId, target: obj };
         } else if (obj.parent && obj.parent.userData && obj.parent.userData.connectionId) {
           hitTarget = { type: 'wire', id: obj.parent.userData.connectionId, target: obj };
+        } else if (obj.userData && obj.userData.isHoloSwitch) {
+          hitTarget = { type: 'holo_switch', switchType: obj.userData.switchType, target: obj };
+        } else if (obj.parent && obj.parent.userData && obj.parent.userData.isHoloSwitch) {
+          hitTarget = { type: 'holo_switch', switchType: obj.parent.userData.switchType, target: obj.parent };
         } else if (this.startCurrentButton && (obj === this.startCurrentButton.hitBox || obj === this.startCurrentButton.cap)) {
           hitTarget = { type: 'start_button', target: this.startCurrentButton };
         } else if (this.measurementController && (obj === this.measurementController.switchLever || obj.parent === this.measurementController.switchLever)) {
@@ -686,6 +705,41 @@ export class XRHandManager {
       this.vrHandCircuitHUD.update(null, delta);
     }
 
+    // Gesture: Two-Hand Pinch Expand (expand fingers while pinching to toggle X-Ray Flow)
+    if (this.hands.length >= 2 && this.hands[0].hasValidPose && this.hands[1].hasValidPose) {
+      const h0 = this.hands[0];
+      const h1 = this.hands[1];
+      const bothPinched = h0.pinched && h1.pinched;
+      const handDist = h0.smoothedIndexPos.distanceTo(h1.smoothedIndexPos);
+
+      if (bothPinched) {
+        if (!this.pinchExpandTrack.isTracking) {
+          this.pinchExpandTrack.isTracking = true;
+          this.pinchExpandTrack.startDist = handDist;
+        } else {
+          const expansion = handDist - this.pinchExpandTrack.startDist;
+          if (expansion > 0.12 && (now - this.pinchExpandTrack.lastTriggerTime > 1500)) {
+            this.pinchExpandTrack.lastTriggerTime = now;
+            this.pinchExpandTrack.isTracking = false;
+            if (this.wireRenderer) {
+              const isXray = this.wireRenderer.toggleXrayMode();
+              if (this.holographicSwitches) {
+                this.holographicSwitches.setStates(isXray, this.holographicSwitches.darkState);
+              }
+              this.onFeedback({
+                type: 'success',
+                message: isXray
+                  ? '👐 Gesture: ⚛️ X-Ray Microscopic Flow Activated!'
+                  : '👐 Gesture: ⚛️ X-Ray Flow Deactivated'
+              });
+            }
+          }
+        }
+      } else {
+        this.pinchExpandTrack.isTracking = false;
+      }
+    }
+
     // Keep floating VR rheostat label facing user
     if (this.rheoLabelMesh && this.rheoLabelMesh.visible) {
       if (cam) this.rheoLabelMesh.quaternion.copy(cam.quaternion);
@@ -770,6 +824,18 @@ export class XRHandManager {
       this.vrHandCircuitHUD.toggleTabBtn.getWorldPosition(this.tempTargetPos);
       if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius) {
         return { type: 'hud_button', id: 'toggle_view', target: this.vrHandCircuitHUD.toggleTabBtn };
+      }
+    }
+
+    // H. Check Tabletop Holographic Switches (X-Ray & Dark Lab)
+    if (this.holographicSwitches) {
+      const switchHits = this.holographicSwitches.getClickableObjects();
+      for (const obj of switchHits) {
+        obj.getWorldPosition(this.tempTargetPos);
+        if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.5) {
+          const swType = obj.userData.switchType || (obj.parent && obj.parent.userData && obj.parent.userData.switchType);
+          return { type: 'holo_switch', switchType: swType, target: obj };
+        }
       }
     }
 
@@ -863,6 +929,20 @@ export class XRHandManager {
     if (hoverInfo.type === 'button') {
       if (this.vrWorldPanel) {
         this.vrWorldPanel.pressButton(hoverInfo.id);
+      }
+      return;
+    }
+
+    // 7. Proximity or Ray pointing at Holographic Console Switch
+    if (hoverInfo.type === 'holo_switch') {
+      if (this.holographicSwitches) {
+        const nextState = this.holographicSwitches.trigger(hoverInfo.switchType);
+        this.onFeedback({
+          type: 'success',
+          message: hoverInfo.switchType === 'xray'
+            ? `⚛️ X-Ray Flow: ${nextState ? 'ON' : 'OFF'}`
+            : `🌌 Dark Lab Theme: ${nextState ? 'ON' : 'OFF'}`
+        });
       }
       return;
     }
