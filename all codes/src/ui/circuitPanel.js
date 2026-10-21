@@ -54,6 +54,14 @@ export class CircuitPanel {
       });
     }
 
+    const collapseBtn = document.getElementById('toggle-circuit-collapse-btn');
+    if (collapseBtn && this.panelContainer) {
+      collapseBtn.addEventListener('click', () => {
+        const isCollapsed = this.panelContainer.classList.toggle('collapsed');
+        collapseBtn.textContent = isCollapsed ? '+' : '−';
+      });
+    }
+
     if (this.toggleSchematicBtn && this.schematicModal) {
       this.toggleSchematicBtn.addEventListener('click', () => {
         this.schematicModal.classList.add('open');

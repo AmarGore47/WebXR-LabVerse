@@ -161,6 +161,7 @@ export class ModelLoader {
           identifiedApparatus.resistor.push(name);
         } else if (lower.includes('rheostat')) {
           identifiedApparatus.rheostat.push(name);
+          node.position.z += 0.085; // Bring rheostat forward so it is close and clearly visible
         } else if (lower.includes('table') || lower.includes('leg') || lower.includes('work surface') || lower.includes('trim')) {
           identifiedApparatus.table.push(name);
         } else if (lower.includes('wall') || lower.includes('ceiling') || lower.includes('shelf') || lower.includes('cabinet') || lower.includes('counter') || lower.includes('sign') || lower.includes('board') || lower.includes('beaker') || lower.includes('lens')) {

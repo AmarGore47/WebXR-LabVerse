@@ -63,9 +63,9 @@ cameraRig.name = 'XRCameraRig';
 cameraRig.add(camera);
 scene.add(cameraRig);
 
-// Default panoramic camera position overlooking the workbench
-const DEFAULT_CAM_POS = new THREE.Vector3(0, 1.85, 2.25);
-const DEFAULT_CAM_TARGET = new THREE.Vector3(0, 1.08, -0.05);
+// Default panoramic camera position overlooking the workbench (framed closer for clear apparatus visibility)
+const DEFAULT_CAM_POS = new THREE.Vector3(0, 1.34, 1.36);
+const DEFAULT_CAM_TARGET = new THREE.Vector3(0, 0.93, 0.08);
 camera.position.copy(DEFAULT_CAM_POS);
 
 const renderer = new THREE.WebGLRenderer({
@@ -637,13 +637,13 @@ const ui = new LabUI({
         animateCameraTo(DEFAULT_CAM_POS, DEFAULT_CAM_TARGET);
         break;
       case 'meters':
-        animateCameraTo(new THREE.Vector3(0.38, 1.62, 0.95), new THREE.Vector3(0.38, 1.35, 0.0));
+        animateCameraTo(new THREE.Vector3(0.40, 1.25, 0.52), new THREE.Vector3(0.40, 0.92, 0.10));
         break;
       case 'resistor_rheostat':
-        animateCameraTo(new THREE.Vector3(0.52, 1.68, 0.55), new THREE.Vector3(0.50, 1.28, -0.48));
+        animateCameraTo(new THREE.Vector3(0.10, 1.22, 0.52), new THREE.Vector3(0.08, 0.90, 0.06));
         break;
       case 'supply_key':
-        animateCameraTo(new THREE.Vector3(-0.95, 1.62, 1.10), new THREE.Vector3(-0.95, 1.20, 0.10));
+        animateCameraTo(new THREE.Vector3(-0.38, 1.25, 0.52), new THREE.Vector3(-0.38, 0.90, 0.04));
         break;
     }
   }

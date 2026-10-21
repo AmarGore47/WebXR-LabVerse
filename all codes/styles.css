@@ -340,6 +340,15 @@ body {
   color: var(--accent-aqua);
 }
 
+.circuit-panel.collapsed .connections-scroll,
+.circuit-panel.collapsed .panel-actions {
+  display: none !important;
+}
+
+.circuit-panel.collapsed {
+  padding-bottom: 8px;
+}
+
 .connections-scroll {
   max-height: 160px;
   overflow-y: auto;
@@ -761,6 +770,134 @@ kbd {
 .btn-icon:hover {
   background: rgba(22, 63, 104, 0.9);
   border-color: var(--accent-cyan);
+}
+
+/* Primary 3-Section Mode Selector Bar */
+.exp-mode-tabs-bar {
+  display: flex;
+  background: rgba(4, 14, 26, 0.92);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.18);
+  padding: 5px 8px;
+  gap: 5px;
+}
+
+.mode-tab-btn {
+  flex: 1;
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.mode-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.mode-tab-btn.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.22);
+}
+
+/* Hide separate floating practical flow panel to prevent collision */
+#practical-flow-panel {
+  display: none !important;
+}
+
+/* Detailed Step Cards in Mode 2 */
+.practical-steps-detail {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-card {
+  background: rgba(6, 18, 32, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  transition: all 0.2s ease;
+}
+
+.step-card.current {
+  border-color: #38bdf8;
+  background: rgba(8, 32, 56, 0.85);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.18);
+}
+
+.step-card.completed {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(5, 28, 20, 0.65);
+}
+
+.step-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.step-card-header strong {
+  font-size: 12px;
+  color: #f1f5f9;
+  flex: 1;
+}
+
+.step-badge {
+  font-size: 9.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.step-state-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.step-state-tag.done {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.step-state-tag.current {
+  background: rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  animation: pulse-active 1.5s infinite;
+}
+
+.step-state-tag.pending {
+  background: rgba(255, 255, 255, 0.06);
+  color: #64748b;
+}
+
+.step-card p {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .exp-panel-body {

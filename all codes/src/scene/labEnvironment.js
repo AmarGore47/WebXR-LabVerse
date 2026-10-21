@@ -177,25 +177,25 @@ export class LabEnvironment {
     const tableGridMat = new THREE.LineBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.38
+      opacity: 0.18
     });
-    const tableGrid = new THREE.GridHelper(1.85, 24, 0x00f0ff, 0x004466);
+    const tableGrid = new THREE.GridHelper(1.85, 24, 0x00c8e0, 0x002233);
     tableGrid.position.set(0, 0.808, 0.06);
     tableGrid.material = tableGridMat;
     this.scifiGroup.add(tableGrid);
     this._gridMat = tableGridMat;
 
     // ── 1B. Tony Stark Holographic Concentric CAD Rings ───────────────────
-    const ringMat1 = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.45 });
-    const ringGeo1 = new THREE.RingGeometry(0.52, 0.526, 48);
+    const ringMat1 = new THREE.LineBasicMaterial({ color: 0x00d4e8, transparent: true, opacity: 0.24 });
+    const ringGeo1 = new THREE.RingGeometry(0.52, 0.524, 48);
     const cadRingOuter = new THREE.Mesh(ringGeo1, ringMat1);
     cadRingOuter.rotation.x = -Math.PI / 2;
     cadRingOuter.position.set(0, 0.809, 0.06);
     this.scifiGroup.add(cadRingOuter);
     this._cadRingOuter = cadRingOuter;
 
-    const ringMat2 = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 });
-    const ringGeo2 = new THREE.RingGeometry(0.28, 0.285, 36);
+    const ringMat2 = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.28 });
+    const ringGeo2 = new THREE.RingGeometry(0.28, 0.284, 36);
     const cadRingInner = new THREE.Mesh(ringGeo2, ringMat2);
     cadRingInner.rotation.x = -Math.PI / 2;
     cadRingInner.position.set(0, 0.8095, 0.06);
@@ -450,14 +450,14 @@ export class LabEnvironment {
     this.frontRim.position.set(0, 1.5, 3.5);
     this.scene.add(this.frontRim);
 
-    // 5. Sci-Fi tabletop cyan point light (under the holographic grid)
-    this.scifiTableLight = new THREE.PointLight(0x00f0ff, 0, 2.5, 2.0);
-    this.scifiTableLight.position.set(0, 0.95, 0);
+    // 5. Sci-Fi soft under-table ambient uplight (placed UNDER the workbench, not on top)
+    this.scifiTableLight = new THREE.PointLight(0x00f0ff, 0, 3.2, 2.0);
+    this.scifiTableLight.position.set(0, 0.40, 0);
     this.scene.add(this.scifiTableLight);
 
-    // 6. Sci-Fi purple accent fill from above
-    this.scifiPurpleLight = new THREE.PointLight(0x8b00ff, 0, 4.0, 1.8);
-    this.scifiPurpleLight.position.set(-0.8, 2.2, 0.5);
+    // 6. Sci-Fi purple accent fill from high above
+    this.scifiPurpleLight = new THREE.PointLight(0x8b00ff, 0, 4.0, 2.0);
+    this.scifiPurpleLight.position.set(-0.8, 2.4, 0.5);
     this.scene.add(this.scifiPurpleLight);
   }
 
@@ -470,31 +470,31 @@ export class LabEnvironment {
 
     if (this.currentTheme === 'scifi') {
       // 🌌 Futuristic Cyberpunk / Tony Stark Mode
-      this.scene.background = new THREE.Color(0x01040a);
-      this.scene.fog = new THREE.FogExp2(0x01040a, 0.046);
+      this.scene.background = new THREE.Color(0x020813);
+      this.scene.fog = new THREE.FogExp2(0x020813, 0.038);
 
       if (this.renderer) {
-        this.renderer.toneMappingExposure = 1.22;
+        this.renderer.toneMappingExposure = 1.02;
       }
 
-      // Ceiling main lights dimmed dramatically for dark cyberpunk atmosphere
-      if (this.mainLight) this.mainLight.intensity = 0.22;
+      // Crisp directional key light so apparatus models remain razor-sharp and visible
+      if (this.mainLight) this.mainLight.intensity = 0.85;
       if (this.hemiLight) {
-        this.hemiLight.color.setHex(0x06b6d4);
+        this.hemiLight.color.setHex(0x38bdf8);
         this.hemiLight.groundColor.setHex(0x0a101d);
-        this.hemiLight.intensity = 0.45;
+        this.hemiLight.intensity = 0.65;
       }
       if (this.warmFill) {
-        this.warmFill.color.setHex(0x8b5cf6); // Neon purple
-        this.warmFill.intensity = 0.45;
+        this.warmFill.color.setHex(0xa855f7); // Soft purple fill
+        this.warmFill.intensity = 0.50;
       }
       if (this.frontRim) {
         this.frontRim.color.setHex(0x00f0ff);
-        this.frontRim.intensity = 0.85;
+        this.frontRim.intensity = 0.65;
       }
-      // Glowing under-table holographic CAD uplight
-      if (this.scifiTableLight)  this.scifiTableLight.intensity = 3.6;
-      if (this.scifiPurpleLight) this.scifiPurpleLight.intensity = 2.2;
+      // Gentle under-table glow (soft, zero glare on tabletop)
+      if (this.scifiTableLight)  this.scifiTableLight.intensity = 0.45;
+      if (this.scifiPurpleLight) this.scifiPurpleLight.intensity = 0.70;
       if (this.scifiGroup) this.scifiGroup.visible = true;
     } else {
       // 🏛️ Classic Standard Daylight Mode
