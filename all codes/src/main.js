@@ -631,7 +631,22 @@ const ui = new LabUI({
   }
 });
 
-// 10b. Guided Mode toolbar toggle
+// 10b. Sci-Fi Theme toolbar toggle
+const toggleThemeBtn = document.getElementById('toggle-theme-btn');
+if (toggleThemeBtn) {
+  toggleThemeBtn.addEventListener('click', () => {
+    const newTheme = environment.toggleTheme();
+    const isSciFi = newTheme === 'scifi';
+    toggleThemeBtn.classList.toggle('active', isSciFi);
+    toggleThemeBtn.innerHTML = `<span>🌌</span> Sci-Fi Lab: ${isSciFi ? 'ON' : 'OFF'}`;
+    showFeedbackToast({
+      type: 'info',
+      message: isSciFi ? '🌌 Sci-Fi Dark Mode Activated!' : '🏛️ Standard Lab Mode Activated.'
+    });
+  });
+}
+
+// 10c. Guided Mode toolbar toggle
 const toggleGuidedBtn = document.getElementById('toggle-guided-btn');
 if (toggleGuidedBtn) {
   toggleGuidedBtn.addEventListener('click', () => {
@@ -780,9 +795,9 @@ function animate(time, frame) {
   // Update guided mode (billboard tooltip, animated energy beam, 3D pins)
   guidedMode.update(camera);
 
-  // Update wire electrical surge / pulse when current flows
+  // Update wire electrical surge / pulse & real-time electron drift stream
   if (wireRenderer) {
-    wireRenderer.update(timeSec, simulation.current);
+    wireRenderer.update(timeSec, simulation.current, delta);
   }
 
   // Update Start Current button (push animation, LED pulse)

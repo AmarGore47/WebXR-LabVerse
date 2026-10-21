@@ -1,10 +1,9 @@
 /**
  * labEnvironment.js
- * Sets up a school physics laboratory environment:
- * - Sturdy wooden workbench
- * - Neutral lab floor and walls
- * - Realistic studio-grade PBR lighting with soft contact shadows
- * - Color-managed renderer tone mapping
+ * Sets up a school physics laboratory environment with dynamic theme support:
+ * - 'scifi': Futuristic Cyberpunk dark mode with holographic table grid and neon LED underglow
+ * - 'standard': Classic bright university physics laboratory with balanced studio PBR lighting
+ * - Color-managed renderer tone mapping and soft shadow maps
  */
 
 import * as THREE from 'three';
@@ -14,9 +13,15 @@ export class LabEnvironment {
     this.scene = scene;
     this.renderer = renderer;
 
+    this.currentTheme = 'scifi'; // Default to exciting futuristic cyberpunk theme
+    this.scifiGroup = new THREE.Group();
+    this.scifiGroup.name = 'SciFiEnvironmentElements';
+
     this.configureRenderer();
     this.createEnvironment();
     this.setupLighting();
+    this.createSciFiElements();
+    this.setTheme(this.currentTheme);
   }
 
   /**
@@ -36,8 +41,8 @@ export class LabEnvironment {
    */
   createEnvironment() {
     // 1. Atmosphere and background
-    this.scene.background = new THREE.Color(0x071526);
-    this.scene.fog = new THREE.FogExp2(0x071526, 0.04);
+    this.scene.background = new THREE.Color(0x030712);
+    this.scene.fog = new THREE.FogExp2(0x030712, 0.045);
 
     // 2. Physics laboratory floor (offset slightly below 0 for fallback mode)
     const floorGeo = new THREE.PlaneGeometry(24, 24);
@@ -100,7 +105,6 @@ export class LabEnvironment {
     this.frame = frame;
 
     // 4. Sturdy wooden workbench understructure
-    // Matches the GLB table bounds (W=2.6m, D=1.4m, H=0.97m)
     this.createWorkbench();
   }
 
@@ -155,6 +159,46 @@ export class LabEnvironment {
   }
 
   /**
+   * Create futuristic Sci-Fi elements:
+   * - Holographic CAD grid on the tabletop surface
+   * - Glowing Neon cyan underglow LED perimeter rim
+   */
+  createSciFiElements() {
+    // 1. Tabletop Holographic CAD Grid
+    // Tabletop is at Y = 0.798m to 0.804m; place grid at 0.806m
+    const tableGrid = new THREE.GridHelper(1.85, 22, 0x00f0ff, 0x1e3a8a);
+    tableGrid.position.set(0, 0.806, 0.06);
+    this.scifiGroup.add(tableGrid);
+
+    // 2. Futuristic Neon LED Perimeter Underglow on workbench apron
+    const neonPath = new THREE.CurvePath();
+    const halfW = 0.94;
+    const halfD = 0.42;
+    const neonY = 0.785;
+
+    const p1 = new THREE.Vector3(-halfW, neonY, -halfD);
+    const p2 = new THREE.Vector3(halfW, neonY, -halfD);
+    const p3 = new THREE.Vector3(halfW, neonY, halfD);
+    const p4 = new THREE.Vector3(-halfW, neonY, halfD);
+
+    neonPath.add(new THREE.LineCurve3(p1, p2));
+    neonPath.add(new THREE.LineCurve3(p2, p3));
+    neonPath.add(new THREE.LineCurve3(p3, p4));
+    neonPath.add(new THREE.LineCurve3(p4, p1));
+
+    const neonTubeGeo = new THREE.TubeGeometry(neonPath, 32, 0.0055, 8, true);
+    const neonMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.85
+    });
+    const neonStrip = new THREE.Mesh(neonTubeGeo, neonMat);
+    this.scifiGroup.add(neonStrip);
+
+    this.scene.add(this.scifiGroup);
+  }
+
+  /**
    * Hide duplicate procedural table & walls when a high-detail GLB room model is loaded.
    */
   adaptToGLBRoom(hasRoomModel = true) {
@@ -191,39 +235,94 @@ export class LabEnvironment {
   }
 
   /**
-   * Balanced studio lighting setup for crisp labels, soft shadows, and warm fill.
+   * Studio lighting setup for crisp labels, soft shadows, and warm fill.
    */
   setupLighting() {
-    // 1. Balanced ambient & hemisphere fill (labels and scale dials remain readable)
-    const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x0f2238, 1.6);
-    this.scene.add(hemiLight);
+    // 1. Balanced ambient & hemisphere fill
+    this.hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x0f2238, 1.6);
+    this.scene.add(this.hemiLight);
 
     // 2. Soft overhead white light (main directional sun with contact shadows)
-    const mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    mainLight.position.set(2.4, 4.8, 2.0);
-    mainLight.castShadow = true;
+    this.mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    this.mainLight.position.set(2.4, 4.8, 2.0);
+    this.mainLight.castShadow = true;
 
-    // Quest-friendly balanced shadow map (1024x1024 delivers crisp 4.3mm precision with high mobile GPU framerate)
-    mainLight.shadow.mapSize.width = 1024;
-    mainLight.shadow.mapSize.height = 1024;
-    mainLight.shadow.camera.near = 0.5;
-    mainLight.shadow.camera.far = 10.0;
-    mainLight.shadow.camera.left = -2.2;
-    mainLight.shadow.camera.right = 2.2;
-    mainLight.shadow.camera.top = 2.2;
-    mainLight.shadow.camera.bottom = -2.2;
-    mainLight.shadow.bias = -0.0004;
-    mainLight.shadow.radius = 2.0; // Soft blur
-    this.scene.add(mainLight);
+    this.mainLight.shadow.mapSize.width = 1024;
+    this.mainLight.shadow.mapSize.height = 1024;
+    this.mainLight.shadow.camera.near = 0.5;
+    this.mainLight.shadow.camera.far = 10.0;
+    this.mainLight.shadow.camera.left = -2.2;
+    this.mainLight.shadow.camera.right = 2.2;
+    this.mainLight.shadow.camera.top = 2.2;
+    this.mainLight.shadow.camera.bottom = -2.2;
+    this.mainLight.shadow.bias = -0.0004;
+    this.mainLight.shadow.radius = 2.0;
+    this.scene.add(this.mainLight);
 
-    // 3. Gentle warm fill light from opposite angle
-    const warmFill = new THREE.DirectionalLight(0xffecd1, 0.85);
-    warmFill.position.set(-3.0, 3.5, -1.2);
-    this.scene.add(warmFill);
+    // 3. Gentle warm / purple fill light
+    this.warmFill = new THREE.DirectionalLight(0xffecd1, 0.85);
+    this.warmFill.position.set(-3.0, 3.5, -1.2);
+    this.scene.add(this.warmFill);
 
     // 4. Subtle front bounce rim light
-    const frontRim = new THREE.DirectionalLight(0x38bdf8, 0.4);
-    frontRim.position.set(0, 1.5, 3.5);
-    this.scene.add(frontRim);
+    this.frontRim = new THREE.DirectionalLight(0x38bdf8, 0.4);
+    this.frontRim.position.set(0, 1.5, 3.5);
+    this.scene.add(this.frontRim);
+  }
+
+  /**
+   * Toggle or set the environment theme.
+   * @param {'scifi' | 'standard'} themeName
+   */
+  setTheme(themeName) {
+    this.currentTheme = themeName === 'standard' ? 'standard' : 'scifi';
+
+    if (this.currentTheme === 'scifi') {
+      // 🌌 Futuristic Cyberpunk Mode: Deep space background, glowing cyan accents
+      this.scene.background = new THREE.Color(0x030712);
+      this.scene.fog = new THREE.FogExp2(0x030712, 0.045);
+
+      if (this.mainLight) this.mainLight.intensity = 1.35;
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0x06b6d4);
+        this.hemiLight.groundColor.setHex(0x0f172a);
+        this.hemiLight.intensity = 1.1;
+      }
+      if (this.warmFill) {
+        this.warmFill.color.setHex(0x8b5cf6); // Cyberpunk neon purple
+        this.warmFill.intensity = 0.65;
+      }
+      if (this.frontRim) {
+        this.frontRim.color.setHex(0x00f0ff);
+        this.frontRim.intensity = 0.85;
+      }
+      if (this.scifiGroup) this.scifiGroup.visible = true;
+    } else {
+      // 🏛️ Classic Standard Mode: Bright neutral daylight studio
+      this.scene.background = new THREE.Color(0x071526);
+      this.scene.fog = new THREE.FogExp2(0x071526, 0.04);
+
+      if (this.mainLight) this.mainLight.intensity = 2.2;
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xe0f2fe);
+        this.hemiLight.groundColor.setHex(0x0f2238);
+        this.hemiLight.intensity = 1.6;
+      }
+      if (this.warmFill) {
+        this.warmFill.color.setHex(0xffecd1);
+        this.warmFill.intensity = 0.85;
+      }
+      if (this.frontRim) {
+        this.frontRim.color.setHex(0x38bdf8);
+        this.frontRim.intensity = 0.4;
+      }
+      if (this.scifiGroup) this.scifiGroup.visible = false;
+    }
+
+    return this.currentTheme;
+  }
+
+  toggleTheme() {
+    return this.setTheme(this.currentTheme === 'scifi' ? 'standard' : 'scifi');
   }
 }

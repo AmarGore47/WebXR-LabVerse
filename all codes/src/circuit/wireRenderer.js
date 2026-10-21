@@ -1,7 +1,8 @@
 /**
  * wireRenderer.js
  * Renders physical 3D curved tube wires with realistic droop, color coding,
- * brass terminal crimps, connection animations, and raycast picking for wire removal.
+ * brass terminal crimps, connection animations, raycast picking, and
+ * real-time animated electron streams drifting along the 3D curves.
  */
 
 import * as THREE from 'three';
@@ -11,49 +12,64 @@ export class WireRenderer {
     this.scene = scene;
     this.wireMeshMap = new Map(); // connectionId -> Group
 
-    // Insulated laboratory wire materials with vibrant, high-contrast colors and emissive glows
+    // Shared reusable dummy for electron instanced transformations
+    this.dummy = new THREE.Object3D();
+
+    // Insulated laboratory wire materials with vibrant, high-contrast colors and subtle glass sheen
     this.materials = {
       positive: new THREE.MeshStandardMaterial({
         color: 0xef4444, // Vibrant Red
-        roughness: 0.3,
+        roughness: 0.25,
         metalness: 0.15,
         emissive: 0xb91c1c,
-        emissiveIntensity: 0.45
+        emissiveIntensity: 0.45,
+        transparent: true,
+        opacity: 0.88
       }),
       negative: new THREE.MeshStandardMaterial({
         color: 0x1e293b, // Dark Slate / Black
-        roughness: 0.35,
+        roughness: 0.3,
         metalness: 0.25,
         emissive: 0x475569, // High-contrast slate sheen so it stands out on dark tables
-        emissiveIntensity: 0.45
+        emissiveIntensity: 0.45,
+        transparent: true,
+        opacity: 0.88
       }),
       series: new THREE.MeshStandardMaterial({
         color: 0xf59e0b, // Vibrant Amber / Yellow
-        roughness: 0.3,
+        roughness: 0.25,
         metalness: 0.15,
         emissive: 0xd97706,
-        emissiveIntensity: 0.45
+        emissiveIntensity: 0.45,
+        transparent: true,
+        opacity: 0.88
       }),
       meter: new THREE.MeshStandardMaterial({
         color: 0x06b6d4, // Vibrant Cyan / Blue
-        roughness: 0.3,
+        roughness: 0.25,
         metalness: 0.15,
         emissive: 0x0891b2,
-        emissiveIntensity: 0.45
+        emissiveIntensity: 0.45,
+        transparent: true,
+        opacity: 0.88
       }),
       warning: new THREE.MeshStandardMaterial({
         color: 0xf97316, // Orange warning
-        roughness: 0.35,
+        roughness: 0.3,
         metalness: 0.2,
         emissive: 0xc2410c,
-        emissiveIntensity: 0.5
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.88
       }),
       error: new THREE.MeshStandardMaterial({
         color: 0xdc2626, // Bright danger red
-        roughness: 0.35,
+        roughness: 0.3,
         metalness: 0.2,
         emissive: 0x991b1b,
-        emissiveIntensity: 0.6
+        emissiveIntensity: 0.6,
+        transparent: true,
+        opacity: 0.88
       })
     };
 
@@ -65,6 +81,14 @@ export class WireRenderer {
       emissive: 0x78350f,
       emissiveIntensity: 0.2
     });
+
+    // Luminous glowing electron particle sphere geometry & materials
+    this.electronGeo = new THREE.SphereGeometry(0.0048, 10, 10);
+    this.electronMaterials = {
+      cyan: new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+      amber: new THREE.MeshBasicMaterial({ color: 0xfde047 }),
+      red: new THREE.MeshBasicMaterial({ color: 0xf87171 })
+    };
   }
 
   getMaterialForConnection(conn) {
@@ -119,7 +143,7 @@ export class WireRenderer {
   }
 
   /**
-   * Render a virtual wire between two 3D positions.
+   * Render a virtual wire between two 3D positions with an inner live electron stream.
    */
   addWire(connection, posA, posB) {
     const curve = this.createWireCurve(posA, posB);
@@ -153,6 +177,32 @@ export class WireRenderer {
       wireGroup.add(lug);
     });
 
+    // 🔬 Inner Live Electron Flow Stream (24 glowing spherical beads along the curve)
+    const ELECTRON_COUNT = 24;
+    const electronMat =
+      connection.wireType === 'positive'
+        ? this.electronMaterials.amber
+        : (connection.wireType === 'negative'
+            ? this.electronMaterials.cyan
+            : this.electronMaterials.cyan);
+
+    const instancedElectrons = new THREE.InstancedMesh(this.electronGeo, electronMat, ELECTRON_COUNT);
+    instancedElectrons.renderOrder = 6;
+    instancedElectrons.frustumCulled = false;
+
+    // Initialize progressive distribution along curve [0, 1]
+    const electronProgress = new Float32Array(ELECTRON_COUNT);
+    for (let i = 0; i < ELECTRON_COUNT; i++) {
+      electronProgress[i] = i / ELECTRON_COUNT;
+      const pt = curve.getPointAt(electronProgress[i]);
+      this.dummy.position.copy(pt);
+      this.dummy.scale.set(0.7, 0.7, 0.7);
+      this.dummy.updateMatrix();
+      instancedElectrons.setMatrixAt(i, this.dummy.matrix);
+    }
+    instancedElectrons.instanceMatrix.needsUpdate = true;
+    wireGroup.add(instancedElectrons);
+
     wireGroup.userData = {
       connectionId: connection.id,
       connection,
@@ -161,10 +211,13 @@ export class WireRenderer {
       curve,
       material,
       baseEmissive: material.emissiveIntensity,
+      instancedElectrons,
+      electronProgress,
+      electronCount: ELECTRON_COUNT,
       isWire: true
     };
 
-    // Connection electrical surge animation: flash emissive intensity without displacing wire geometry!
+    // Connection electrical surge animation: flash emissive intensity
     const baseEmissive = material.emissiveIntensity;
     material.emissiveIntensity = 1.4;
     let flashStep = 0;
@@ -185,17 +238,58 @@ export class WireRenderer {
   }
 
   /**
-   * Update electrical energy pulse when current flows through the circuit.
+   * Update electrical energy pulse and real-time electron drift stream.
+   * @param {number} time - Elapsed time in seconds
+   * @param {number} current - Live electric current in Amperes
+   * @param {number} delta - Frame delta time in seconds
    */
-  update(time, current = 0) {
-    if (current <= 0.01 || this.wireMeshMap.size === 0) return;
+  update(time, current = 0, delta = 0.016) {
+    if (this.wireMeshMap.size === 0) return;
 
-    const pulse = Math.sin(time * 6.0) * 0.12;
+    const isFlowing = current > 0.005;
+    // Physical electron drift velocity proportional to electric current (I = n * e * A * v_d)
+    const driftSpeed = isFlowing ? Math.min(2.8, 0.25 + current * 1.65) : 0;
+    const wirePulse = isFlowing ? Math.sin(time * 7.0) * 0.14 : 0;
+
     this.wireMeshMap.forEach((wireGroup) => {
-      const mat = wireGroup.userData.material;
-      const base = wireGroup.userData.baseEmissive || 0.45;
-      if (mat) {
-        mat.emissiveIntensity = base + pulse;
+      const data = wireGroup.userData;
+      if (!data) return;
+
+      // 1. Subtle wire material pulse with current
+      if (data.material) {
+        const base = data.baseEmissive || 0.45;
+        data.material.emissiveIntensity = base + wirePulse;
+      }
+
+      // 2. Animate Electron Stream along the 3D Bézier curve
+      const instancedElectrons = data.instancedElectrons;
+      const progress = data.electronProgress;
+      const curve = data.curve;
+      const count = data.electronCount || 24;
+
+      if (instancedElectrons && progress && curve) {
+        for (let i = 0; i < count; i++) {
+          if (isFlowing) {
+            // Forward drift along curve towards target terminal
+            progress[i] = (progress[i] + driftSpeed * delta) % 1.0;
+            const pt = curve.getPointAt(progress[i]);
+            this.dummy.position.copy(pt);
+
+            // Subtle pulsing of electrons while in energetic motion
+            const pulseScale = 1.0 + Math.sin(time * 9.0 + i) * 0.18;
+            this.dummy.scale.set(pulseScale, pulseScale, pulseScale);
+          } else {
+            // Stationary with microscopic thermal Brownian jiggle (< 0.4mm)
+            const pt = curve.getPointAt(progress[i]);
+            const jiggle = Math.sin(time * 4.0 + i) * 0.0003;
+            this.dummy.position.set(pt.x, pt.y + jiggle, pt.z);
+            this.dummy.scale.set(0.65, 0.65, 0.65);
+          }
+
+          this.dummy.updateMatrix();
+          instancedElectrons.setMatrixAt(i, this.dummy.matrix);
+        }
+        instancedElectrons.instanceMatrix.needsUpdate = true;
       }
     });
   }
@@ -209,6 +303,10 @@ export class WireRenderer {
       this.scene.remove(wireGroup);
       wireGroup.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+          else child.material.dispose();
+        }
       });
       this.wireMeshMap.delete(connectionId);
     }
@@ -222,6 +320,10 @@ export class WireRenderer {
       this.scene.remove(wireGroup);
       wireGroup.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+          else child.material.dispose();
+        }
       });
     });
     this.wireMeshMap.clear();

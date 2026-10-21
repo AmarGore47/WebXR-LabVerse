@@ -4,6 +4,7 @@
  * - Analog meter needle deflections (Ammeter & Voltmeter) with physical inertia
  * - Rheostat 3D slider handle translation along winding rail
  * - Physical plug key lever articulation
+ * - Dynamic Resistor Thermal Heating & Joule Glow Effect (H = I²Rt) with live 3D temperature badge
  * - Synchronization with OhmsLawSimulation live electrical state
  */
 
@@ -39,6 +40,15 @@ export class MeasurementController {
     this.switchInitialPos = null;
     this.switchProgress = 0.0;
 
+    // Resistor Thermal Heating & Joule's Law (H = I²Rt)
+    this.resistorCoils = [];
+    this.resistorTemp = 25.0; // Ambient 25 °C
+    this.thermalBadge = null;
+    this.thermalCanvas = null;
+    this.thermalCtx = null;
+    this.thermalTexture = null;
+    this.lastDrawnTemp = -999;
+
     // Needle physics values (smoothed)
     this.displayedCurrent = 0.0;
     this.displayedVoltage = 0.0;
@@ -50,14 +60,17 @@ export class MeasurementController {
     this.NEEDLE_SWEEP_ANGLE_RAD = THREE.MathUtils.degToRad(-102.0); // Sweep clockwise
 
     this.initModelNodes();
+    this.initThermalBadge();
     this.setupRheostatPointerInteraction();
   }
 
   /**
-   * Traverse model and cache needle and slider objects.
+   * Traverse model and cache needle, slider, and resistor coil objects.
    */
   initModelNodes() {
     if (!this.modelLoader || !this.modelLoader.model) return;
+
+    this.resistorCoils = [];
 
     this.modelLoader.model.traverse((node) => {
       if (node.isMesh) {
@@ -85,9 +98,90 @@ export class MeasurementController {
           this.switchLever = node;
           this.switchInitialRot = node.rotation.clone();
           this.switchInitialPos = node.position.clone();
+        } else if (lowerName.includes('resistor_coil') || node.name === 'Resistor_mandrel') {
+          // Clone material so changing emissive heating doesn't taint shared materials
+          if (node.material && !node.userData.isClonedForHeating) {
+            node.material = node.material.clone();
+            node.userData.isClonedForHeating = true;
+          }
+          this.resistorCoils.push(node);
         }
       }
     });
+  }
+
+  /**
+   * Initializes floating 3D thermal temperature indicator badge above the resistor.
+   */
+  initThermalBadge() {
+    if (typeof document === 'undefined') return;
+
+    this.thermalCanvas = document.createElement('canvas');
+    this.thermalCanvas.width = 300;
+    this.thermalCanvas.height = 70;
+    this.thermalCtx = this.thermalCanvas.getContext('2d');
+
+    this.thermalTexture = new THREE.CanvasTexture(this.thermalCanvas);
+    this.thermalTexture.minFilter = THREE.LinearFilter;
+
+    const spriteMat = new THREE.SpriteMaterial({
+      map: this.thermalTexture,
+      transparent: true,
+      depthTest: true
+    });
+
+    this.thermalBadge = new THREE.Sprite(spriteMat);
+    this.thermalBadge.scale.set(0.18, 0.042, 1.0);
+    // Position directly above Resistor board (x=0.10, y=0.88, z=0.16)
+    this.thermalBadge.position.set(0.10, 0.885, 0.16);
+    this.thermalBadge.visible = false;
+    this.scene.add(this.thermalBadge);
+
+    this.updateThermalBadgeCanvas(25.0, false);
+  }
+
+  /**
+   * Render dynamic 2D canvas texture for the 3D thermal badge.
+   */
+  updateThermalBadgeCanvas(tempC, isHot) {
+    if (!this.thermalCtx) return;
+    const ctx = this.thermalCtx;
+    ctx.clearRect(0, 0, 300, 70);
+
+    const isWarm = tempC >= 45.0;
+    const isBlazing = tempC >= 85.0;
+
+    // Background pill container
+    ctx.fillStyle = isBlazing
+      ? 'rgba(69, 10, 10, 0.92)'
+      : isWarm
+        ? 'rgba(67, 20, 7, 0.90)'
+        : 'rgba(8, 20, 36, 0.85)';
+    ctx.strokeStyle = isBlazing ? '#f87171' : (isWarm ? '#fb923c' : '#38bdf8');
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(6, 6, 288, 58, 14) : ctx.fillRect(6, 6, 288, 58);
+    ctx.fill();
+    ctx.stroke();
+
+    // Temperature text & Joule Law status
+    const tempStr = `${tempC.toFixed(1)} °C`;
+    const labelStr = isBlazing ? '🔥 H = I²Rt (HOT)' : (isWarm ? '⚡ Heating...' : '❄️ 25 °C Normal');
+
+    ctx.fillStyle = isBlazing ? '#fef08a' : (isWarm ? '#fdba74' : '#ffffff');
+    ctx.font = 'bold 24px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(tempStr, 22, 42);
+
+    ctx.fillStyle = isBlazing ? '#fca5a5' : (isWarm ? '#fed7aa' : '#94a3b8');
+    ctx.font = 'bold 15px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(labelStr, 280, 42);
+
+    if (this.thermalTexture) {
+      this.thermalTexture.needsUpdate = true;
+    }
   }
 
   /**
@@ -99,72 +193,67 @@ export class MeasurementController {
     let isDraggingRheo = false;
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0.48); // Table plane
+    let dragStartX = 0;
+    let dragStartR = 12.0;
 
-    const getRaycast = (e) => {
+    this.canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || !this.rheostatHandle || !this.camera) return;
+
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       raycaster.setFromCamera(mouse, this.camera);
-      return raycaster;
-    };
 
-    this.canvas.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || !this.rheostatHandle) return;
-      const ray = getRaycast(e);
-      const hits = ray.intersectObject(this.rheostatHandle, true);
+      const hits = raycaster.intersectObject(this.rheostatHandle, true);
       if (hits.length > 0) {
         isDraggingRheo = true;
-        this.canvas.setPointerCapture(e.pointerId);
+        dragStartX = e.clientX;
+        dragStartR = this.simulation ? this.simulation.rheostatResistance : 12.0;
+        this.canvas.style.cursor = 'ew-resize';
       }
     });
 
-    this.canvas.addEventListener('pointermove', (e) => {
-      if (!isDraggingRheo) return;
-      const ray = getRaycast(e);
-      const intersection = new THREE.Vector3();
-      if (ray.ray.intersectPlane(plane, intersection)) {
-        // Map intersection.x to resistance
-        const clampedX = THREE.MathUtils.clamp(intersection.x, this.RHEO_X_MIN, this.RHEO_X_MAX);
-        const frac = (clampedX - this.RHEO_X_MIN) / (this.RHEO_X_MAX - this.RHEO_X_MIN);
-        const newR = this.simulation.config.rheostatMinimumResistance +
-          frac * (this.simulation.config.rheostatMaximumResistance - this.simulation.config.rheostatMinimumResistance);
-        this.simulation.setRheostatResistance(newR);
-      }
+    window.addEventListener('pointermove', (e) => {
+      if (!isDraggingRheo || !this.simulation) return;
+
+      const deltaPixelX = e.clientX - dragStartX;
+      const resistanceRange =
+        this.simulation.config.rheostatMaximumResistance -
+        this.simulation.config.rheostatMinimumResistance;
+      const sensitivity = 0.05;
+
+      const newR = THREE.MathUtils.clamp(
+        dragStartR + deltaPixelX * sensitivity,
+        this.simulation.config.rheostatMinimumResistance,
+        this.simulation.config.rheostatMaximumResistance
+      );
+
+      this.simulation.setRheostatResistance(newR);
     });
 
-    const endDrag = (e) => {
+    window.addEventListener('pointerup', () => {
       if (isDraggingRheo) {
         isDraggingRheo = false;
-        try {
-          this.canvas.releasePointerCapture(e.pointerId);
-        } catch (_) {}
+        if (this.canvas) this.canvas.style.cursor = 'default';
       }
-    };
-
-    this.canvas.addEventListener('pointerup', endDrag);
-    this.canvas.addEventListener('pointercancel', endDrag);
+    });
   }
 
   /**
-   * Update all 3D physics animations in the main render loop.
+   * Synchronize physical needle rotations, rheostat handle, and resistor heating.
    */
-  update(delta) {
-    if (!this.ammeterNeedle && this.modelLoader && this.modelLoader.model) {
-      this.initModelNodes();
-    }
+  update(delta = 0.016) {
+    if (!this.simulation) return;
 
     const state = this.simulation.getState();
+    const targetI = state.keyClosed ? (state.current || 0.0) : 0.0;
+    const targetV = state.keyClosed ? (state.voltage || 0.0) : 0.0;
 
-    // 1. Smoothly interpolate displayed values towards targets
-    const targetI = state.current;
-    const targetV = state.resistorVoltage;
-
+    // 1. Smooth needle transitions
     this.displayedCurrent = THREE.MathUtils.lerp(
       this.displayedCurrent,
       targetI,
       Math.min(delta * this.needleDamping, 1.0)
     );
-
     this.displayedVoltage = THREE.MathUtils.lerp(
       this.displayedVoltage,
       targetV,
@@ -175,8 +264,6 @@ export class MeasurementController {
     if (this.ammeterNeedle && this.ammeterInitialRot) {
       const fracI = THREE.MathUtils.clamp(this.displayedCurrent / this.AMMETER_FULL_SCALE, 0, 1.15);
       const deflectionAngle = fracI * this.NEEDLE_SWEEP_ANGLE_RAD;
-
-      // Rotate around Z axis of initial orientation
       this.ammeterNeedle.rotation.z = this.ammeterInitialRot.z + deflectionAngle;
     }
 
@@ -184,8 +271,6 @@ export class MeasurementController {
     if (this.voltmeterNeedle && this.voltmeterInitialRot) {
       const fracV = THREE.MathUtils.clamp(this.displayedVoltage / this.VOLTMETER_FULL_SCALE, 0, 1.15);
       const deflectionAngle = fracV * this.NEEDLE_SWEEP_ANGLE_RAD;
-
-      // Rotate around Z axis of initial orientation
       this.voltmeterNeedle.rotation.z = this.voltmeterInitialRot.z + deflectionAngle;
     }
 
@@ -215,6 +300,50 @@ export class MeasurementController {
       const closeAngle = THREE.MathUtils.degToRad(-38.0 * this.switchProgress);
       this.switchLever.rotation.x = this.switchInitialRot.x + closeAngle;
       this.switchLever.position.y = this.switchInitialPos.y - 0.02 * this.switchProgress;
+    }
+
+    // 6. 🔥 Dynamic Resistor Thermal Heating & Joule Glow (H = I²Rt)
+    const isCurrentActive = state.keyClosed && state.current > 0.01;
+    const powerWatts = isCurrentActive ? Math.pow(state.current, 2) * (state.circuitResistance || 10.0) : 0;
+    // Equilibrium target temperature based on power dissipation: 25 °C ambient up to ~115 °C at max current
+    const targetTemp = isCurrentActive ? (25.0 + powerWatts * 13.5) : 25.0;
+    const tempLerpSpeed = isCurrentActive ? 0.85 : 0.45;
+    this.resistorTemp = THREE.MathUtils.lerp(this.resistorTemp, targetTemp, Math.min(delta * tempLerpSpeed, 1.0));
+
+    // Update floating thermal badge
+    if (this.thermalBadge) {
+      this.thermalBadge.visible = isCurrentActive || this.resistorTemp > 26.5;
+      if (Math.abs(this.resistorTemp - this.lastDrawnTemp) > 0.4) {
+        this.updateThermalBadgeCanvas(this.resistorTemp, this.resistorTemp >= 80.0);
+        this.lastDrawnTemp = this.resistorTemp;
+      }
+    }
+
+    // Apply glowing thermal emissive colors to the physical resistor coils
+    if (this.resistorCoils.length > 0) {
+      const heatFrac = THREE.MathUtils.clamp((this.resistorTemp - 32.0) / 70.0, 0, 1.0);
+      let glowHex = 0x000000;
+      let glowIntensity = 0.0;
+
+      if (heatFrac > 0.01) {
+        if (heatFrac < 0.35) {
+          glowHex = 0x7f1d1d; // Dark burgundy red
+          glowIntensity = heatFrac * 1.5;
+        } else if (heatFrac < 0.70) {
+          glowHex = 0xdc2626; // Glowing crimson red
+          glowIntensity = 0.5 + (heatFrac - 0.35) * 2.2;
+        } else {
+          glowHex = 0xf59e0b; // Incandescent fiery orange-gold
+          glowIntensity = 1.3 + (heatFrac - 0.70) * 2.5;
+        }
+      }
+
+      this.resistorCoils.forEach((coil) => {
+        if (coil.material && coil.material.emissive) {
+          coil.material.emissive.setHex(glowHex);
+          coil.material.emissiveIntensity = glowIntensity;
+        }
+      });
     }
   }
 }
