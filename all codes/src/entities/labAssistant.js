@@ -50,7 +50,7 @@ export const COMIC_HIT_TEXTS = [
 ];
 
 export class LabAssistant {
-  constructor({ scene, narration, position = new THREE.Vector3(-2.25, 0.0, 0.25) } = {}) {
+  constructor({ scene, narration, position = new THREE.Vector3(1.25, 0.0, 0.35) } = {}) {
     this.scene = scene;
     this.narration = narration;
     this.position = position;
@@ -60,7 +60,7 @@ export class LabAssistant {
     this.group.position.copy(this.position);
 
     // Face student and experiment table naturally
-    const targetLook = new THREE.Vector3(0.0, 0.85, 0.40);
+    const targetLook = new THREE.Vector3(0.0, 0.85, 0.70);
     const angleToTable = Math.atan2(targetLook.x - this.position.x, targetLook.z - this.position.z);
     this.group.rotation.y = angleToTable;
 

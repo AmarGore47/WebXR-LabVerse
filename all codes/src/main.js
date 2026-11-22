@@ -110,8 +110,9 @@ let targetCamPos = null;
 let targetCamLook = null;
 
 function animateCameraTo(newPos, newTarget) {
-  targetCamPos = newPos.clone();
-  targetCamLook = newTarget.clone();
+  if (!newPos || !newTarget) return;
+  targetCamPos = new THREE.Vector3(newPos.x, newPos.y, newPos.z);
+  targetCamLook = new THREE.Vector3(newTarget.x, newTarget.y, newTarget.z);
 }
 
 function updateCameraTransition(delta) {
@@ -640,11 +641,11 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Positioned beside wall-mounted AI interface at x = -2.25, y = 0.0, z = 0.25)
+// 3D Animated Lab Assistant (Restored to original location inside VR lab at x = 1.25, z = 0.35)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(-2.25, 0.0, 0.25)
+  position: new THREE.Vector3(1.25, 0.0, 0.35)
 });
 
 // Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
@@ -1456,8 +1457,11 @@ renderer.setAnimationLoop(animate);
 
 // Expose lab circuit systems to window for inspection and testing
 window.labCircuit = {
+  THREE,
   scene,
   camera,
+  controls,
+  animateCameraTo,
   circuitState,
   wireRenderer,
   interaction,

@@ -26,7 +26,7 @@ export class VRAITutorPanel {
     this.sound = options.sound || null;
     this.speechRecognition = options.speechRecognition || null;
     this.speechService = options.speechService || null;
-    this.onFeedback = options.onFeedback || (() => {});
+    this.onFeedback = options.onFeedback || (() => { });
 
     // Root Group positioned beside the Lab Assistant
     this.group = new THREE.Group();
@@ -38,8 +38,8 @@ export class VRAITutorPanel {
     const angleToStudent = Math.atan2(targetLook.x - 0.92, targetLook.z - 0.42);
     this.group.rotation.set(0, angleToStudent, 0);
 
-    // Initial visibility
-    this.group.visible = true;
+    // Initial visibility (hidden by default until toggled)
+    this.group.visible = false;
     this.isMinimized = false;
 
     // State tracking

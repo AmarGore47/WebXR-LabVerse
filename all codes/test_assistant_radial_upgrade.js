@@ -59,14 +59,13 @@ const bridge = new SimulationStateBridge({ simulation, circuitState, workflowMan
 runTest('1. LabAssistant reuses existing character, positions naturally and attaches interactive hitbox', () => {
   const assistant = new LabAssistant({
     scene,
-    position: new THREE.Vector3(-2.25, 0, 0.25)
+    position: new THREE.Vector3(1.25, 0.0, 0.35)
   });
 
   assert.ok(assistant.group, 'LabAssistant group must exist in scene');
-  assert.strictEqual(assistant.position.x, -2.25, 'Assistant must be positioned at x = -2.25m');
+  assert.strictEqual(assistant.position.x, 1.25, 'Assistant must be positioned at original x = 1.25m');
   assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet must be on floor at y = 0.0m');
-  assert.strictEqual(assistant.position.z, 0.25, 'Assistant must be positioned at z = 0.25m');
-  assert.ok(assistant.position.x < -1.34, 'Assistant position must be fully clear of workbench edge (-1.34m)');
+  assert.strictEqual(assistant.position.z, 0.35, 'Assistant must be positioned at original z = 0.35m');
 
   const hitbox = assistant.getHitbox();
   assert.ok(hitbox, 'Hitbox must exist');
@@ -351,19 +350,20 @@ runTest('13. Ask Anything handles backend failure gracefully with error display 
   assert.strictEqual(assistant.tutorState, 'warning', 'Tutor badge should show warning posture on error');
 });
 
-runTest('14. Assistant Placement and Wall Display coordinates are clear of wooden workbench and left table', () => {
+runTest('14. Assistant Restored to Original Position and Wall Display Properly Proportioned', () => {
   const assistant = new LabAssistant({ scene });
-  // Workbench spans x in [-1.34, 1.34], left table spans x in [-2.68, -1.82] and z in [-0.57, 0.07]
-  assert.ok(assistant.position.x <= -1.34, 'Assistant must be positioned outside workbench bounds (x <= -1.34m)');
-  assert.strictEqual(assistant.position.x, -2.25, 'Assistant positioned at x = -2.25m');
+  // Assistant restored to original location
+  assert.strictEqual(assistant.position.x, 1.25, 'Assistant positioned at original x = 1.25m');
   assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet aligned with floor at y = 0.0m');
-  assert.strictEqual(assistant.position.z, 0.25, 'Assistant positioned clear of left table at z = 0.25m');
+  assert.strictEqual(assistant.position.z, 0.35, 'Assistant positioned at original z = 0.35m');
 
-  // Wall Display mounted on left wall
+  // Wall Display mounted on left wall with 16:9 laboratory proportions
   const wallDisplay = assistant.subpanels.group;
-  assert.strictEqual(wallDisplay.position.x, -2.95, 'Wall display mounted on left wall at x = -2.95m');
-  assert.strictEqual(wallDisplay.position.y, 1.55, 'Wall display center at eye height y = 1.55m');
+  assert.strictEqual(wallDisplay.position.x, -2.96, 'Wall display mounted on left wall at x = -2.96m');
+  assert.strictEqual(wallDisplay.position.y, 1.48, 'Wall display center at eye height y = 1.48m');
   assert.strictEqual(wallDisplay.position.z, 1.15, 'Wall display centered along z = 1.15m in red-marked area');
+  assert.strictEqual(assistant.subpanels.panelW, 1.44, 'Display width is 1.44m');
+  assert.strictEqual(assistant.subpanels.panelH, 0.81, 'Display height is 0.81m (exact 16:9 ratio)');
 });
 
 console.log('\n================================================================');

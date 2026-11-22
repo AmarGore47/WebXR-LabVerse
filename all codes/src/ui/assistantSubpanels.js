@@ -1,19 +1,21 @@
 /**
  * assistantSubpanels.js
- * Dedicated 3D Floating Glass Holographic Subpanels for LabVerse AI Assistant.
+ * Professional Wall-Mounted Scientific Information Display for LabVerse Physics Laboratory.
  *
- * Renders the 6 primary educational feature panels:
- * 1. Ask Anything (text question input, suggested questions, AI response, TTS)
- * 2. Hints (3-tier progressive hints: Conceptual, Directional, Actionable)
- * 3. Next Step (authoritative workflow manager stage, explanation, apparatus needed)
- * 4. AI Video (practical demonstration with chapters, playback controls)
- * 5. Examples (Ohm's law calculation cards, formula, graph slope, real-world)
- * 6. Questions & Answers (MCQs with 4 options, verified answer keys, explanations, score)
+ * Designed as a precision laboratory digital console mounted flush on the left wall:
+ * - Matte dark graphite/slate aluminum bezel (1.44m x 0.81m, 16:9 ratio).
+ * - High-DPI 1600x900 canvas texture with architectural laboratory typography.
+ * - Restrained cyan (#0284c7) and teal (#0d9488) accents, white primary text (#ffffff), light slate secondary text (#94a3b8).
+ * - Thin 1px borders, subtle 4-6px corner radii, clean rectangular buttons.
+ * - Single consistent visual system across Standby, 6-Option Menu Grid, and all Feature Views.
  *
- * Visual styling:
- * - Dark navy holographic glass chassis with cyan-blue accents.
- * - Positioned beside the 3D Lab Assistant (x ~ 0.88, y ~ 1.28, z ~ 0.42), facing student.
- * - Never covers the workbench, circuit, or apparatus.
+ * 6 Primary Educational Guidance Modules:
+ * 1. Ask Anything (Socratic AI dialogue, suggested question chips, voice speech)
+ * 2. Hints (3-tier progressive guidance: Conceptual, Directional, Actionable)
+ * 3. Next Step (Authoritative workflow manager stage progression & apparatus checklist)
+ * 4. AI Video (Laboratory practical demonstration with 5 chapters & playback scrubber)
+ * 5. Examples (4 verified Ohm's law calculation cards: formula, 10 Ω resistor, graph slope, safety fuses)
+ * 6. Questions & Answers (5 curriculum MCQs with instant feedback, scoring & textbook explanations)
  */
 
 import * as THREE from 'three';
@@ -155,12 +157,14 @@ export class AssistantSubpanels {
     this.onBackToMenu = options.onBackToMenu || (() => { });
     this.onClose = options.onClose || (() => { });
 
-    // Wall-Mounted 2D AI Assistant Interface on left wall (inside red-marked wall area)
+    // Wall-Mounted 2D AI Assistant Interface on left wall
     this.group = new THREE.Group();
     this.group.name = 'AssistantWallDisplay';
-    this.group.position.set(-2.95, 1.55, 1.15);
-    // Parallel to left wall, angled slightly (4.5 deg) towards student at workbench (0, 1.25, 0.82)
-    this.group.rotation.set(0, Math.PI / 2 - 0.08, 0);
+
+    // Flush mounted on left wall inside red-marked area, centered at adult eye level
+    this.group.position.set(-2.96, 1.48, 1.15);
+    // Parallel to left wall, subtle 2.8 deg tilt inward toward student at workbench (0, 1.25, 0.82)
+    this.group.rotation.set(0, Math.PI / 2 - 0.05, 0);
 
     // Permanent laboratory wall-mounted display: always present in scene
     this.group.visible = true;
@@ -198,11 +202,11 @@ export class AssistantSubpanels {
     this.isAnswerSubmitted = false;
     this.sessionScore = { correct: 0, total: 0 };
 
-    // High-DPI Landscape Wall Display: 1600x920 canvas texture on 1.70m x 0.98m plane
+    // Widescreen 16:9 Display: 1600x900 canvas texture on 1.44m x 0.81m precision plane
     this.canvasW = 1600;
-    this.canvasH = 920;
-    this.panelW = 1.70;
-    this.panelH = 0.98;
+    this.canvasH = 900;
+    this.panelW = 1.44;
+    this.panelH = 0.81;
     this.clickableButtons = [];
 
     this._buildPhysicalFrame();
@@ -236,29 +240,15 @@ export class AssistantSubpanels {
   }
 
   _buildPhysicalFrame() {
-    // Wall-Mounted Outer Sleek Metallic Chassis
-    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.04, this.panelH + 0.04, 0.02);
+    // Professional Thin-Bezel Laboratory Wall Chassis (Dark matte aluminum / slate)
+    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.024, this.panelH + 0.024, 0.014);
     const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x071326,
-      roughness: 0.35,
-      metalness: 0.85,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.06
+      color: 0x141a24,
+      roughness: 0.6,
+      metalness: 0.5
     });
     this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
     this.group.add(this.frameMesh);
-
-    // Subtle Glowing Cyan Trim Border
-    const trimGeo = new THREE.BoxGeometry(this.panelW + 0.045, this.panelH + 0.045, 0.005);
-    const trimMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.4
-    });
-    const trimMesh = new THREE.Mesh(trimGeo, trimMat);
-    trimMesh.position.z = 0.008;
-    this.group.add(trimMesh);
   }
 
   _initCanvas() {
@@ -274,7 +264,7 @@ export class AssistantSubpanels {
     const screenGeo = new THREE.PlaneGeometry(this.panelW, this.panelH);
     const screenMat = new THREE.MeshBasicMaterial({ map: this.texture, side: THREE.DoubleSide });
     this.screenMesh = new THREE.Mesh(screenGeo, screenMat);
-    this.screenMesh.position.z = 0.011;
+    this.screenMesh.position.z = 0.008;
     this.group.add(this.screenMesh);
   }
 
@@ -400,6 +390,41 @@ export class AssistantSubpanels {
     this.clickableButtons = [];
   }
 
+  _drawButton(ctx, x, y, w, h, text, bg = '#142337', border = '#0284c7', fg = '#38bdf8', font = '600 14px "Inter", "Segoe UI", sans-serif') {
+    ctx.fillStyle = bg;
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = font;
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+  }
+
+  _drawTag(ctx, x, y, w, h, text, bg = '#1e293b', fg = '#94a3b8', font = '600 11px "JetBrains Mono", monospace') {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 3);
+    ctx.fill();
+
+    ctx.font = font;
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+  }
+
+  _drawPillButton(ctx, x, y, w, h, text, bg, fg) {
+    this._drawButton(ctx, x, y, w, h, text, bg, '#0284c7', fg);
+  }
+
   redraw() {
     if (!this.ctx) return;
     this._clearColliders();
@@ -408,24 +433,21 @@ export class AssistantSubpanels {
     const w = this.canvasW;
     const h = this.canvasH;
 
-    // 1. Dark navy glass background
+    // 1. Dark charcoal/navy matte background
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#06101e';
+    ctx.fillStyle = '#0d131f';
     ctx.fillRect(0, 0, w, h);
 
-    // Subtle header gradient
-    const headerGrad = ctx.createLinearGradient(0, 0, w, 0);
-    headerGrad.addColorStop(0, '#0c2340');
-    headerGrad.addColorStop(1, '#07162c');
-    ctx.fillStyle = headerGrad;
-    ctx.fillRect(0, 0, w, 90);
+    // Subtle dark header background
+    ctx.fillStyle = '#111a29';
+    ctx.fillRect(0, 0, w, 70);
 
-    // Bottom border for header
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    // Thin 1px bottom border for header
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, 90);
-    ctx.lineTo(w, 90);
+    ctx.moveTo(0, 70);
+    ctx.lineTo(w, 70);
     ctx.stroke();
 
     // 2. Render Global Navigation Header
@@ -465,147 +487,212 @@ export class AssistantSubpanels {
   }
 
   _renderHeader(ctx, w) {
+    // Top-left breadcrumb & title
+    ctx.font = '500 11px "JetBrains Mono", Consolas, monospace';
+    ctx.fillStyle = '#0d9488';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MAHARASHTRA SSC STD. 10 • SCIENCE & TECHNOLOGY PART 1', 32, 24);
+
     if (this.currentView === 'standby') {
-      ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🤖  AI Lab Assistant | Physics Practical Guide', 32, 42);
+      ctx.font = '600 20px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('Ohm’s Law Virtual Laboratory • Interactive Assistant', 32, 48);
 
-      ctx.font = '16px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('Maharashtra State Board • SSC Std. 10 Physics • Ohm’s Law Practical', 78, 68);
+      // Status indicator tag
+      this._drawTag(ctx, w - 340, 20, 110, 30, '● READY', '#064e3b', '#34d399');
 
-      this._drawPillButton(ctx, w - 240, 22, 200, 46, '▶ Open Guidance', '#0284c7', '#ffffff');
-      this._registerButton('hdr_open_menu', w - 240, 22, 200, 46, 'Open Menu', () => this.openMenu());
+      // Standby CTA button
+      this._drawButton(ctx, w - 210, 16, 178, 38, 'Open Assistant →', '#13253d', '#0284c7', '#38bdf8');
+      this._registerButton('hdr_open_menu', w - 210, 16, 178, 38, 'Open Menu', () => this.openMenu());
       return;
     }
 
     if (this.currentView === 'menu') {
-      ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('⚡  AI Assistant — Select Practical Guidance', 32, 42);
+      ctx.font = '600 20px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('Laboratory AI Assistant • Select Practical Guidance Module', 32, 48);
 
-      ctx.font = '16px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('Choose one of the 6 educational options below to explore Ohm’s Law', 78, 68);
+      this._drawTag(ctx, w - 290, 20, 130, 30, '6 MODULES ACTIVE', '#1e293b', '#94a3b8');
 
-      this._drawPillButton(ctx, w - 180, 22, 140, 46, '✖ Standby', '#475569', '#ffffff');
-      this._registerButton('hdr_standby', w - 180, 22, 140, 46, 'Standby', () => this.openStandby());
+      this._drawButton(ctx, w - 145, 16, 115, 38, 'Standby', '#1a2332', '#334155', '#94a3b8');
+      this._registerButton('hdr_standby', w - 145, 16, 115, 38, 'Standby', () => this.openStandby());
       return;
     }
 
     const titles = {
-      ask_anything: { icon: '💬', title: 'Ask Your AI Assistant', sub: 'Context-Aware Socratic Tutor' },
-      hints: { icon: '💡', title: 'Progressive Hints', sub: '3-Tier Guidance (Maharashtra SSC)' },
-      next_step: { icon: '👣', title: 'Next Practical Step', sub: 'Ohm’s Law Workflow Progression' },
-      video: { icon: '🎥', title: 'AI Practical Video', sub: 'Laboratory Demonstration & Chapters' },
-      examples: { icon: '📐', title: 'Ohm’s Law Examples', sub: 'Calculations, Formulas & Real-World' },
-      qna: { icon: '❓', title: 'Questions & Answers', sub: 'Interactive MCQs with Instant Feedback' }
+      ask_anything: { code: '01 / AI TUTOR', title: 'Ask Anything — Socratic Physics Dialogue' },
+      hints: { code: '02 / GUIDANCE', title: 'Progressive Hints — 3-Tier Scaffolding' },
+      next_step: { code: '03 / WORKFLOW', title: 'Next Practical Step — Workflow Progression' },
+      video: { code: '04 / MEDIA', title: 'Practical Demonstration Video & Chapter Navigation' },
+      examples: { code: '05 / THEORY', title: 'Ohm’s Law Calculation Examples & Graph Slope' },
+      qna: { code: '06 / EVALUATION', title: 'Questions & Answers — Curriculum Assessment' }
     };
 
     const cur = titles[this.currentView] || titles.ask_anything;
 
-    // Title & Icon
-    ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${cur.icon}  ${cur.title}`, 32, 42);
+    ctx.font = '500 11px "JetBrains Mono", Consolas, monospace';
+    ctx.fillStyle = '#0284c7';
+    ctx.fillText(cur.code, 32, 24);
 
-    ctx.font = '16px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(cur.sub, 78, 68);
+    ctx.font = '600 20px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(cur.title, 32, 48);
 
-    // Top Controls: "⬅ All Options" and "✖ Standby"
-    this._drawPillButton(ctx, w - 370, 22, 180, 46, '⬅ All Options', '#0284c7', '#ffffff');
-    this._registerButton('hdr_back', w - 370, 22, 180, 46, 'Back', () => this.backToMenu());
+    // Top Controls: "← All Options" and "Standby"
+    this._drawButton(ctx, w - 280, 16, 140, 38, '← All Options', '#13253d', '#0284c7', '#38bdf8');
+    this._registerButton('hdr_back', w - 280, 16, 140, 38, 'Back', () => this.backToMenu());
 
-    this._drawPillButton(ctx, w - 170, 22, 130, 46, '✖ Standby', '#475569', '#ffffff');
-    this._registerButton('hdr_close', w - 170, 22, 130, 46, 'Close', () => this.close(true));
+    this._drawButton(ctx, w - 125, 16, 95, 38, 'Standby', '#1a2332', '#334155', '#94a3b8');
+    this._registerButton('hdr_close', w - 125, 16, 95, 38, 'Close', () => this.close(true));
   }
 
   // ─── Standby View ─────────────────────────────────────────────────────────
 
   _renderStandbyView(ctx, w, h) {
-    const cardX = 120;
-    const cardY = 130;
-    const cardW = w - 240;
-    const cardH = 710;
+    const cardX = 80;
+    const cardY = 95;
+    const cardW = w - 160;
+    const cardH = 760;
 
-    // Outer card
-    ctx.fillStyle = '#07152b';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    // Outer console panel
+    ctx.fillStyle = '#111a28';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+    ctx.roundRect(cardX, cardY, cardW, cardH, 6);
     ctx.fill();
     ctx.stroke();
 
-    // Inner header band
-    ctx.fillStyle = '#0c2242';
+    // Top subtle bar inside panel
+    ctx.fillStyle = '#162235';
+    ctx.fillRect(cardX, cardY, cardW, 54);
+    ctx.strokeStyle = '#20324d';
     ctx.beginPath();
-    ctx.roundRect(cardX + 4, cardY + 4, cardW - 8, 140, [18, 18, 0, 0]);
-    ctx.fill();
+    ctx.moveTo(cardX, cardY + 54);
+    ctx.lineTo(cardX + cardW, cardY + 54);
+    ctx.stroke();
 
-    // Welcome title & subtitle
-    ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
+    ctx.font = '600 16px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#f8fafc';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🤖  AI Laboratory Assistant Standby', cardX + 40, cardY + 55);
+    ctx.fillText('LABORATORY AI TUTOR TERMINAL', cardX + 24, cardY + 27);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
+    this._drawTag(ctx, cardX + cardW - 130, cardY + 14, 106, 26, '● OPERATIONAL', '#064e3b', '#34d399');
+
+    // Main content: Two Columns
+    // Left Column: Practical Overview & Verification Target
+    const leftColX = cardX + 36;
+    const leftColW = 660;
+    const colStartY = cardY + 84;
+
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText('PRACTICAL SPECIFICATION', leftColX, colStartY);
+
+    ctx.font = '600 24px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Verification of Ohm’s Law (V = I × R)', leftColX, colStartY + 32);
+
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('Interactive Socratic Science Tutor for Maharashtra SSC Class 10 Physics', cardX + 40, cardY + 105);
+    const specDesc = 'This interactive scientific simulation guides Class 10 students through circuit wiring, taking 5 sets of voltage and current observations, plotting the linear V-I relationship, and verifying resistance via slope R = ΔV / ΔI.';
+    this._wrapText(ctx, specDesc, leftColX, colStartY + 64, leftColW, 22);
 
-    // Feature highlights preview
-    const features = [
-      { icon: '💬', title: 'Ask Anything', desc: 'Real-time Socratic AI dialogue for questions on meters, circuits & laws' },
-      { icon: '💡', title: 'Progressive Hints', desc: '3-tier guided clues (Conceptual ➔ Directional ➔ Actionable)' },
-      { icon: '👣', title: 'Next Practical Step', desc: 'Authoritative workflow progression and step-by-step guidance' },
-      { icon: '🎥', title: 'AI Practical Video', desc: 'Demonstration video with chapter markers and procedure walkthrough' },
-      { icon: '📐', title: 'Ohm’s Law Examples', desc: 'Detailed calculation cards, formulas, and V-I graph slope calculations' },
-      { icon: '❓', title: 'Questions & Answers', desc: 'Maharashtra SSC curriculum MCQs with instant feedback and score' }
+    // Apparatus checklist box
+    const appY = colStartY + 155;
+    ctx.fillStyle = '#0e1622';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(leftColX, appY, leftColW, 210, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('REQUIRED APPARATUS & INSTRUMENTS', leftColX + 20, appY + 26);
+
+    const apparatusList = [
+      '• Standard Resistor Coil (10 Ω calibrated load)',
+      '• DC Power Supply Battery (0 – 10 V adjustable)',
+      '• DC Ammeter (0 – 1 A, connected in series)',
+      '• DC Voltmeter (0 – 10 V, connected in parallel)',
+      '• Rheostat (Variable sliding resistor for current adjustment)',
+      '• Plug Key Switch (Single-pole circuit contact)'
+    ];
+    ctx.font = '13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    apparatusList.forEach((item, idx) => {
+      ctx.fillText(item, leftColX + 20, appY + 56 + idx * 24);
+    });
+
+    // Right Column: 6 Modules Overview
+    const rightColX = cardX + 740;
+    const rightColW = cardW - 776;
+
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText('INTEGRATED GUIDANCE MODULES', rightColX, colStartY);
+
+    const modules = [
+      { id: '01', title: 'Ask Anything', desc: 'Real-time Socratic AI dialogue for theory & errors' },
+      { id: '02', title: 'Progressive Hints', desc: '3-tier guided clues (Conceptual → Directional → Actionable)' },
+      { id: '03', title: 'Next Practical Step', desc: 'Authoritative 11-stage workflow manager progression' },
+      { id: '04', title: 'AI Practical Video', desc: 'Practical demonstration video & chapter markers' },
+      { id: '05', title: 'Ohm’s Law Examples', desc: 'Calculation cards, formulas, and graph slope method' },
+      { id: '06', title: 'Questions & Answers', desc: 'Curriculum MCQs with instant validation & scoring' }
     ];
 
-    const colW = (cardW - 120) / 2;
-    const startY = cardY + 175;
-    features.forEach((feat, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const fx = cardX + 40 + col * (colW + 40);
-      const fy = startY + row * 110;
-
-      ctx.fillStyle = '#0a1a33';
-      ctx.strokeStyle = '#1e3a5f';
-      ctx.lineWidth = 1.5;
+    modules.forEach((mod, idx) => {
+      const my = colStartY + 24 + idx * 64;
+      ctx.fillStyle = '#0e1622';
+      ctx.strokeStyle = '#1e2d42';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(fx, fy, colW, 92, 12);
+      ctx.roundRect(rightColX, my, rightColW, 54, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${feat.icon}  ${feat.title}`, fx + 20, fy + 32);
+      ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#0284c7';
+      ctx.fillText(mod.id, rightColX + 16, my + 27);
 
-      ctx.font = '15px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#cbd5e1';
-      this._wrapText(ctx, feat.desc, fx + 24, fy + 62, colW - 40, 20);
+      ctx.font = '600 14px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(mod.title, rightColX + 46, my + 20);
+
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(mod.desc, rightColX + 46, my + 38);
     });
 
-    // Primary Call to Action Button at bottom
-    const ctaW = 560;
-    const ctaH = 68;
-    const ctaX = cardX + (cardW - ctaW) / 2;
-    const ctaY = cardY + cardH - 100;
+    // Bottom Action Strip across panel
+    const botY = cardY + cardH - 120;
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardX, botY);
+    ctx.lineTo(cardX + cardW, botY);
+    ctx.stroke();
 
-    this._drawPillButton(ctx, ctaX, ctaY, ctaW, ctaH, '▶  Click Avatar or Tap Here to Open Assistant', '#0284c7', '#ffffff');
-    this._registerButton('standby_cta', ctaX, ctaY, ctaW, ctaH, 'Open Assistant', () => this.activateSession());
-    this._registerButton('standby_card', cardX, cardY, cardW, cardH - 110, 'Card Tap', () => this.activateSession());
+    const ctaW = 460;
+    const ctaH = 48;
+    const ctaX = cardX + (cardW - ctaW) / 2;
+    const ctaY = botY + 24;
+
+    this._drawButton(ctx, ctaX, ctaY, ctaW, ctaH, 'Activate Practical Guidance Display →', '#13253d', '#0284c7', '#38bdf8', '600 15px "Inter", sans-serif');
+    this._registerButton('standby_cta', ctaX, ctaY, ctaW, ctaH, 'Open Menu', () => this.activateSession());
+
+    ctx.font = '13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('Tap this display or click the 3D Lab Assistant to open the guidance menu.', cardX + cardW / 2, botY + 90);
+    ctx.textAlign = 'left';
+
+    // Register full card area
+    this._registerButton('standby_card', cardX, cardY, cardW, cardH, 'Card Tap', () => this.activateSession());
   }
 
   // ─── Menu View: 6 Options Grid ───────────────────────────────────────────
@@ -614,71 +701,47 @@ export class AssistantSubpanels {
     const cards = [
       {
         id: 'ask_anything',
-        icon: '💬',
+        code: '01 / AI TUTOR',
         title: 'Ask Anything',
-        subtitle: 'Socratic AI Dialogue',
-        desc: 'Ask any question about Ohm’s law, meter connections, rheostat controls, or experiment theory. Powered by Gemini Socratic tutor.',
-        badge: 'AI Powered',
-        badgeColor: '#38bdf8',
-        btnText: 'Open Chat & Voice ➔'
+        desc: 'Ask questions regarding circuit connections, meter polarities, rheostat function, or Ohm’s law theory. Powered by Gemini Socratic tutor.'
       },
       {
         id: 'hints',
-        icon: '💡',
+        code: '02 / GUIDANCE',
         title: 'Progressive Hints',
-        subtitle: '3-Tier Scaffolding',
-        desc: 'Step through Conceptual, Directional, and Actionable guidance without giving away direct answers immediately.',
-        badge: 'Curriculum',
-        badgeColor: '#f59e0b',
-        btnText: 'View Clues ➔'
+        desc: 'Receive structured, step-by-step scaffolding clues (Conceptual, Directional, and Actionable) without revealing solutions immediately.'
       },
       {
         id: 'next_step',
-        icon: '👣',
+        code: '03 / WORKFLOW',
         title: 'Next Practical Step',
-        subtitle: 'Workflow Progression',
-        desc: 'Check current stage status, next apparatus to connect, rheostat setting, or observation recording task.',
-        badge: 'Live State',
-        badgeColor: '#10b981',
-        btnText: 'See Next Step ➔'
+        desc: 'Inspect current experiment stage progress, prerequisite checklist, apparatus requirements, and stage validation gates.'
       },
       {
         id: 'video',
-        icon: '🎥',
+        code: '04 / MEDIA',
         title: 'AI Practical Video',
-        subtitle: 'Demonstration & Chapters',
-        desc: 'Watch laboratory demonstration video with navigable chapters covering aim, apparatus, wiring, and graph slope.',
-        badge: 'Multimedia',
-        badgeColor: '#ec4899',
-        btnText: 'Watch Video ➔'
+        desc: 'Review practical laboratory video demonstration with navigable chapters covering aim, apparatus, wiring, readings, and graph slope.'
       },
       {
         id: 'examples',
-        icon: '📐',
+        code: '05 / THEORY',
         title: 'Ohm’s Law Examples',
-        subtitle: 'Formulas & Calculations',
-        desc: 'Explore 4 detailed calculation cards: fundamental formula, 10 Ω resistor calculation, V-I graph slope, and fuse engineering.',
-        badge: 'Math & Practice',
-        badgeColor: '#a855f7',
-        btnText: 'Explore Examples ➔'
+        desc: 'Review 4 verified calculation cards: fundamental formula, standard 10 Ω resistor, V-I graph slope method, and real-world safety fuses.'
       },
       {
         id: 'qna',
-        icon: '❓',
+        code: '06 / EVALUATION',
         title: 'Questions & Answers',
-        subtitle: 'Curriculum MCQs',
-        desc: 'Test your understanding with 5 Maharashtra SSC multiple choice questions featuring instant feedback and scoring.',
-        badge: 'Assessment',
-        badgeColor: '#06b6d4',
-        btnText: 'Start Quiz ➔'
+        desc: 'Test your understanding with 5 curriculum multiple-choice questions featuring instant verification, explanations, and scoring.'
       }
     ];
 
-    const cardW = 480;
+    const cardW = 470;
     const cardH = 360;
-    const startX = 45;
-    const gapX = 35;
-    const startY = 120;
+    const startX = 60;
+    const gapX = 45;
+    const startY = 100;
     const gapY = 35;
 
     cards.forEach((card, index) => {
@@ -687,99 +750,84 @@ export class AssistantSubpanels {
       const cx = startX + col * (cardW + gapX);
       const cy = startY + row * (cardH + gapY);
 
-      // Card Background
-      ctx.fillStyle = '#0b1d38';
-      ctx.strokeStyle = '#1e4370';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, cardW, cardH, 16);
-      ctx.fill();
-      ctx.stroke();
-
-      // Top accent strip
-      ctx.fillStyle = card.badgeColor;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, cardW, 6, [16, 16, 0, 0]);
-      ctx.fill();
-
-      // Header: Icon + Title
-      ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(card.icon, cx + 24, cy + 50);
-
-      ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(card.title, cx + 78, cy + 42);
-
-      ctx.font = '14px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(card.subtitle, cx + 78, cy + 66);
-
-      // Badge
-      ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-      const badgeText = card.badge.toUpperCase();
-      const badgeW = ctx.measureText(badgeText).width + 18;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-      ctx.strokeStyle = card.badgeColor;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(cx + cardW - badgeW - 20, cy + 28, badgeW, 26, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = card.badgeColor;
-      ctx.textAlign = 'center';
-      ctx.fillText(badgeText, cx + cardW - badgeW / 2 - 20, cy + 41);
-      ctx.textAlign = 'left';
-
-      // Divider
-      ctx.strokeStyle = '#1e385b';
+      // Card Background: Single consistent dark slate styling
+      ctx.fillStyle = '#111b2b';
+      ctx.strokeStyle = '#20324d';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx + 20, cy + 92);
-      ctx.lineTo(cx + cardW - 20, cy + 92);
+      ctx.roundRect(cx, cy, cardW, cardH, 6);
+      ctx.fill();
       ctx.stroke();
 
-      // Description
-      ctx.font = '16px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#cbd5e1';
-      this._wrapText(ctx, card.desc, cx + 24, cy + 128, cardW - 48, 24);
+      // Top subtle accent line in uniform lab cyan (1px)
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + 1, cy + 1);
+      ctx.lineTo(cx + cardW - 1, cy + 1);
+      ctx.stroke();
 
-      // Card Action Button
-      const btnH = 50;
+      // Card Header: Code & Title
+      ctx.font = '500 11px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#0284c7';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(card.code, cx + 24, cy + 32);
+
+      ctx.font = '600 20px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(card.title, cx + 24, cy + 62);
+
+      // Divider line
+      ctx.strokeStyle = '#1a2638';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 24, cy + 88);
+      ctx.lineTo(cx + cardW - 24, cy + 88);
+      ctx.stroke();
+
+      // Description text: Light slate, clean line-height
+      ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      this._wrapText(ctx, card.desc, cx + 24, cy + 118, cardW - 48, 22);
+
+      // Clean rectangular action button across bottom
       const btnW = cardW - 48;
+      const btnH = 42;
       const btnX = cx + 24;
       const btnY = cy + cardH - btnH - 24;
-      this._drawPillButton(ctx, btnX, btnY, btnW, btnH, card.btnText, '#0284c7', '#ffffff');
 
-      // Register collider for both the button and whole card
+      this._drawButton(ctx, btnX, btnY, btnW, btnH, 'Open Module →', '#142337', '#0284c7', '#38bdf8', '600 14px "Inter", sans-serif');
+
+      // Register click collider for button and entire card
       this._registerButton(`menu_btn_${card.id}`, btnX, btnY, btnW, btnH, card.title, () => this.openView(card.id));
-      this._registerButton(`menu_card_${card.id}`, cx, cy, cardW, cardH - btnH - 30, card.title, () => this.openView(card.id));
+      this._registerButton(`menu_card_${card.id}`, cx, cy, cardW, cardH - btnH - 28, card.title, () => this.openView(card.id));
     });
   }
 
   // ─── 1. View: Ask Anything ────────────────────────────────────────────────
 
   _renderAskAnythingView(ctx, w, h) {
+    const startX = 60;
+    const contentW = w - 120;
+
     // 1. Text Input Bar
-    ctx.fillStyle = '#0f1f38';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, 110, w - 48, 64, 12);
+    ctx.roundRect(startX, 95, contentW, 54, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.font = '500 16px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#f8fafc';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Q: "${this.currentQuestionText}"`, 44, 142);
+    ctx.fillText(`Question: "${this.currentQuestionText}"`, startX + 20, 122);
 
     // Register click on text bar for custom question input
-    this._registerButton('ask_input_bar', 24, 110, w - 245, 64, 'Input Bar', () => {
+    this._registerButton('ask_input_bar', startX, 95, contentW - 170, 54, 'Input Bar', () => {
       const customQ = window.prompt('Type your question for the AI Physics Assistant:', this.currentQuestionText);
       if (customQ && customQ.trim()) {
         this.currentQuestionText = customQ.trim();
@@ -788,15 +836,15 @@ export class AssistantSubpanels {
     });
 
     // Send Button
-    const sendLabel = this.isLoadingAI ? '⏳ Thinking...' : '🚀 Ask AI';
+    const sendLabel = this.isLoadingAI ? 'Thinking...' : 'Submit Question →';
     const sendBg = this.isLoadingAI ? '#78350f' : '#0284c7';
-    this._drawPillButton(ctx, w - 210, 118, 170, 48, sendLabel, sendBg, '#ffffff');
-    this._registerButton('ask_btn_send', w - 210, 118, 170, 48, 'Send', () => this.submitQuestion());
+    this._drawButton(ctx, startX + contentW - 160, 102, 150, 40, sendLabel, sendBg, '#38bdf8', '#ffffff', '600 13px "Inter", sans-serif');
+    this._registerButton('ask_btn_send', startX + contentW - 160, 102, 150, 40, 'Send', () => this.submitQuestion());
 
     // 2. Suggested Questions Chips
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('Suggested Topics & Questions:', 24, 205);
+    ctx.font = '500 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText('QUICK SUGGESTIONS:', startX, 172);
 
     const suggestions = [
       'Why is ammeter in series?',
@@ -806,103 +854,108 @@ export class AssistantSubpanels {
       'What happens if resistance increases?'
     ];
 
-    let chipX = 24;
-    let chipY = 225;
+    let chipX = startX;
+    let chipY = 190;
     suggestions.forEach((sug, idx) => {
-      const chipW = ctx.measureText(sug).width + 36;
-      if (chipX + chipW > w - 24) {
-        chipX = 24;
-        chipY += 46;
+      ctx.font = '13px "Inter", "Segoe UI", sans-serif';
+      const chipW = ctx.measureText(sug).width + 30;
+      if (chipX + chipW > startX + contentW) {
+        chipX = startX;
+        chipY += 38;
       }
-      this._drawPillButton(ctx, chipX, chipY, chipW, 36, `⚡ ${sug}`, '#1e293b', '#bae6fd');
+      this._drawButton(ctx, chipX, chipY, chipW, 30, sug, '#0e1622', '#1e2d42', '#cbd5e1', '13px "Inter", sans-serif');
       const sugText = sug;
-      this._registerButton(`sug_${idx}`, chipX, chipY, chipW, 36, sug, () => {
+      this._registerButton(`sug_${idx}`, chipX, chipY, chipW, 30, sug, () => {
         this.currentQuestionText = sugText;
         this.submitQuestion();
       });
-      chipX += chipW + 12;
+      chipX += chipW + 10;
     });
 
     // 3. AI Response Area Card
-    const cardY = 330;
-    const cardH = 560;
-    ctx.fillStyle = '#0b192e';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 3;
+    const cardY = 280;
+    const cardH = 580;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, cardY, w - 48, cardH, 16);
+    ctx.roundRect(startX, cardY, contentW, cardH, 6);
     ctx.fill();
     ctx.stroke();
 
     // Response Header
-    ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('🤖 Socratic Physics Tutor Response', 48, cardY + 38);
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0284c7';
+    ctx.fillText('SOCRATIC PHYSICS TUTOR RESPONSE', startX + 24, cardY + 28);
 
     // Audio Voice Controls & Retry Button
-    let voiceBtnX = w - 220;
+    let voiceBtnX = startX + contentW - 150;
     if (this.aiError) {
-      voiceBtnX = w - 200;
-      this._drawPillButton(ctx, w - 370, cardY + 20, 155, 42, '🔄 Retry', '#d97706', '#ffffff');
-      this._registerButton('ask_btn_retry', w - 370, cardY + 20, 155, 42, 'Retry', () => this.submitQuestion());
+      voiceBtnX = startX + contentW - 140;
+      this._drawButton(ctx, startX + contentW - 260, cardY + 16, 110, 34, 'Retry', '#78350f', '#f59e0b', '#ffffff', '600 13px "Inter", sans-serif');
+      this._registerButton('ask_btn_retry', startX + contentW - 260, cardY + 16, 110, 34, 'Retry', () => this.submitQuestion());
     }
 
-    const voiceLabel = this.isSpeakingVoice ? '⏹️ Stop Voice' : '🔊 Listen Voice';
-    const voiceBg = this.isSpeakingVoice ? '#ef4444' : '#10b981';
-    this._drawPillButton(ctx, voiceBtnX, cardY + 20, 175, 42, voiceLabel, voiceBg, '#ffffff');
-    this._registerButton('ask_btn_voice', voiceBtnX, cardY + 20, 175, 42, 'Voice', () => this.toggleVoiceSpeech());
+    const voiceLabel = this.isSpeakingVoice ? 'Stop Voice' : 'Listen Voice';
+    const voiceBg = this.isSpeakingVoice ? '#451a1a' : '#142337';
+    const voiceBorder = this.isSpeakingVoice ? '#ef4444' : '#0284c7';
+    const voiceFg = this.isSpeakingVoice ? '#fca5a5' : '#38bdf8';
+    this._drawButton(ctx, voiceBtnX, cardY + 16, 130, 34, voiceLabel, voiceBg, voiceBorder, voiceFg, '600 13px "Inter", sans-serif');
+    this._registerButton('ask_btn_voice', voiceBtnX, cardY + 16, 130, 34, 'Voice', () => this.toggleVoiceSpeech());
 
-    // Response Content
-    ctx.font = '20px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#e2e8f0';
-    this._wrapText(ctx, this.aiResponse.message || '', 48, cardY + 90, w - 96, 28);
+    // Response Primary Message
+    ctx.font = '600 18px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    this._wrapText(ctx, this.aiResponse.message || '', startX + 24, cardY + 75, contentW - 48, 26);
 
     // Physics Explanation Box
-    const explY = cardY + 200;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 2;
+    const explY = cardY + 175;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(44, explY, w - 88, 140, 12);
+    ctx.roundRect(startX + 24, explY, contentW - 48, 160, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText('📖 Detailed Physics Explanation:', 60, explY + 30);
+    ctx.fillText('DETAILED EXPLANATION', startX + 44, explY + 28);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
+    ctx.font = '15px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#cbd5e1';
-    this._wrapText(ctx, this.aiResponse.explanation || '', 60, explY + 60, w - 120, 26);
+    this._wrapText(ctx, this.aiResponse.explanation || '', startX + 44, explY + 60, contentW - 88, 24);
 
     // Suggested Action Box
-    const actY = cardY + 360;
-    ctx.fillStyle = '#0f291e';
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = 2;
+    const actY = explY + 180;
+    ctx.fillStyle = '#081a1a';
+    ctx.strokeStyle = '#0f766e';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(44, actY, w - 88, 80, 12);
+    ctx.roundRect(startX + 24, actY, contentW - 48, 90, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#34d399';
-    ctx.fillText('🎯 Recommended Next Practical Action:', 60, actY + 28);
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#2dd4bf';
+    ctx.fillText('RECOMMENDED PRACTICAL ACTION', startX + 44, actY + 28);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
+    ctx.font = '15px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#e2e8f0';
-    this._wrapText(ctx, this.aiResponse.suggestedAction || 'Check your connections matching schematic.', 60, actY + 56, w - 120, 24);
+    this._wrapText(ctx, this.aiResponse.suggestedAction || 'Verify tabletop instruments and observe readings.', startX + 44, actY + 56, contentW - 88, 22);
 
     // Status Footer
-    ctx.font = '16px "Segoe UI", Arial, sans-serif';
+    ctx.font = '12px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#64748b';
-    ctx.fillText('Connected to Secure Gemini Tutor API · Authoritative Maharashtra SSC Physics Model', 48, cardY + cardH - 24);
+    ctx.fillText('Verified Maharashtra SSC Class 10 Physics Model • Gemini AI Service', startX + 24, cardY + cardH - 20);
   }
 
   // ─── 2. View: Hints ───────────────────────────────────────────────────────
 
   _renderHintsView(ctx, w, h) {
-    // Determine active mistake or current stage hint
+    const startX = 60;
+    const contentW = w - 120;
+
     let topicName = "Ohm's Law Circuit Guidance";
     let tier1 = "Think about how current flows through the circuit loop like water in a pipe.";
     let tier2 = "Verify whether the ammeter measures total current and voltmeter measures potential difference across the coil.";
@@ -919,110 +972,103 @@ export class AssistantSubpanels {
       }
     }
 
-    // Tier Selector / Indicator Bar
+    // Tier Selector Tabs
     const tiers = [
-      { num: 1, label: 'Level 1: Conceptual', desc: 'Guiding clue without revealing direct answer', bg: '#0369a1' },
-      { num: 2, label: 'Level 2: Directional', desc: 'Points toward apparatus & connections', bg: '#0284c7' },
-      { num: 3, label: 'Level 3: Actionable', desc: 'Specific corrective instruction', bg: '#0ea5e9' }
+      { num: 1, label: 'Tier 1: Conceptual', desc: 'Guiding clue without revealing direct answer' },
+      { num: 2, label: 'Tier 2: Directional', desc: 'Points toward apparatus & connections' },
+      { num: 3, label: 'Tier 3: Actionable', desc: 'Specific corrective instruction' }
     ];
 
+    const tabW = (contentW - 30) / 3;
     tiers.forEach((t, idx) => {
-      const bx = 24 + idx * 324;
+      const bx = startX + idx * (tabW + 15);
       const isCur = this.currentHintTier === t.num;
-      const bg = isCur ? t.bg : '#0f172a';
-      const border = isCur ? '#38bdf8' : '#334155';
+      const bg = isCur ? '#142337' : '#0e1622';
+      const border = isCur ? '#0284c7' : '#1e2d42';
 
       ctx.fillStyle = bg;
       ctx.strokeStyle = border;
-      ctx.lineWidth = isCur ? 4 : 2;
+      ctx.lineWidth = isCur ? 1.5 : 1;
       ctx.beginPath();
-      ctx.roundRect(bx, 110, 310, 70, 12);
+      ctx.roundRect(bx, 95, tabW, 64, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = isCur ? '#ffffff' : '#94a3b8';
-      ctx.fillText(t.label, bx + 16, 138);
+      ctx.font = '600 15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = isCur ? '#38bdf8' : '#94a3b8';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t.label, bx + 16, 118);
 
-      ctx.font = '14px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = isCur ? '#bae6fd' : '#64748b';
-      ctx.fillText(t.desc, bx + 16, 162);
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = isCur ? '#cbd5e1' : '#64748b';
+      ctx.fillText(t.desc, bx + 16, 142);
 
-      this._registerButton(`hint_tier_${t.num}`, bx, 110, 310, 70, t.label, () => {
+      this._registerButton(`hint_tab_${t.num}`, bx, 95, tabW, 64, t.label, () => {
         this.currentHintTier = t.num;
         this.redraw();
       });
     });
 
-    // Main Hint Card
-    const cardY = 210;
-    const cardH = 670;
-    ctx.fillStyle = '#0b192e';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    // Main Clue Card
+    const cardY = 180;
+    const cardH = 680;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, cardY, w - 48, cardH, 16);
+    ctx.roundRect(startX, cardY, contentW, cardH, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`💡 Progressive Guidance: Level ${this.currentHintTier} of 3`, 48, cardY + 45);
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText('DIAGNOSTIC GUIDANCE CONTEXT', startX + 24, cardY + 32);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(topicName, 48, cardY + 80);
-
-    // Active Hint Content Box
-    let activeHintText = tier1;
-    let hintBadge = 'CONCEPTUAL REFLECTION';
-    let badgeColor = '#38bdf8';
-    if (this.currentHintTier === 2) {
-      activeHintText = tier2;
-      hintBadge = 'DIRECTIONAL ORIENTATION';
-      badgeColor = '#fbbf24';
-    } else if (this.currentHintTier === 3) {
-      activeHintText = tier3;
-      hintBadge = 'ACTIONABLE RESOLUTION';
-      badgeColor = '#34d399';
-    }
-
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = badgeColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(44, cardY + 120, w - 88, 320, 14);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = badgeColor;
-    ctx.fillText(`[ ${hintBadge} ]`, 64, cardY + 160);
-
-    ctx.font = '22px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 22px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#ffffff';
-    this._wrapText(ctx, activeHintText, 64, cardY + 210, w - 128, 36);
+    ctx.fillText(topicName, startX + 24, cardY + 68);
+
+    // Clue Content Box
+    const clueBoxY = cardY + 110;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(startX + 24, clueBoxY, contentW - 48, 220, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    const activeHintText = this.currentHintTier === 1 ? tier1 : (this.currentHintTier === 2 ? tier2 : tier3);
+
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(`ACTIVE TIER ${this.currentHintTier} CLUE`, startX + 44, clueBoxY + 32);
+
+    ctx.font = '18px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    this._wrapText(ctx, activeHintText, startX + 44, clueBoxY + 74, contentW - 88, 28);
 
     // Navigation Controls
-    const btnY = cardY + 480;
+    const btnY = cardY + cardH - 80;
     if (this.currentHintTier > 1) {
-      this._drawPillButton(ctx, 48, btnY, 240, 56, '⬅ Previous Hint', '#1e293b', '#ffffff');
-      this._registerButton('hint_prev', 48, btnY, 240, 56, 'Prev', () => {
+      this._drawButton(ctx, startX + 24, btnY, 180, 44, '← Previous Tier', '#0e1622', '#1e2d42', '#cbd5e1');
+      this._registerButton('hint_prev', startX + 24, btnY, 180, 44, 'Prev', () => {
         this.currentHintTier--;
         this.redraw();
       });
     }
 
     if (this.currentHintTier < 3) {
-      this._drawPillButton(ctx, 320, btnY, 260, 56, 'Show Next Hint ➡', '#0284c7', '#ffffff');
-      this._registerButton('hint_next', 320, btnY, 260, 56, 'Next', () => {
+      this._drawButton(ctx, startX + 220, btnY, 180, 44, 'Next Tier →', '#142337', '#0284c7', '#38bdf8');
+      this._registerButton('hint_next', startX + 220, btnY, 180, 44, 'Next', () => {
         this.currentHintTier++;
         this.redraw();
       });
     }
 
-    this._drawPillButton(ctx, w - 340, btnY, 290, 56, '🔄 Refresh Circuit Status', '#065f46', '#34d399');
-    this._registerButton('hint_refresh', w - 340, btnY, 290, 56, 'Refresh', () => {
+    this._drawButton(ctx, startX + contentW - 224, btnY, 200, 44, 'Refresh Status ↻', '#0e1622', '#1e2d42', '#38bdf8');
+    this._registerButton('hint_refresh', startX + contentW - 224, btnY, 200, 44, 'Refresh', () => {
       this.redraw();
     });
   }
@@ -1030,115 +1076,94 @@ export class AssistantSubpanels {
   // ─── 3. View: Next Step ───────────────────────────────────────────────────
 
   _renderNextStepView(ctx, w, h) {
+    const startX = 60;
+    const contentW = w - 120;
+
     let stageInfo = null;
     let stepNum = 4;
     let totalSteps = 11;
-    let stageTitle = 'Circuit Assembly';
-    let instruction = 'Connect the 7 circuit wires according to the schematic.';
-    let explanation = 'Ohm’s Law requires a closed series circuit with a parallel voltmeter across the resistor coil.';
-    let apparatus = 'Battery, Resistor, Rheostat, Plug Key, Ammeter, Voltmeter';
-    let prerequisites = 'Identify all 6 instruments on the table.';
-
     if (this.workflowManager && typeof this.workflowManager.getCurrentStageInfo === 'function') {
       stageInfo = this.workflowManager.getCurrentStageInfo();
-      if (stageInfo) {
-        stepNum = stageInfo.step || 4;
-        totalSteps = stageInfo.totalStages || 11;
-        stageTitle = stageInfo.title || stageTitle;
-        instruction = stageInfo.description || instruction;
-        prerequisites = stageInfo.prerequisites || prerequisites;
-      }
+      stepNum = stageInfo.step;
+      totalSteps = stageInfo.total;
     }
 
-    // Progress Bar
-    const pct = Math.round((stepNum / totalSteps) * 100);
-    ctx.fillStyle = '#0f172a';
+    const title = stageInfo ? stageInfo.title : "Circuit Assembly & Wiring Verification";
+    const desc = stageInfo ? stageInfo.objective : "Connect all 7 circuit wires in sequence according to the Maharashtra SSC standard schematic.";
+    const prerequisites = stageInfo ? stageInfo.prerequisites : "1. Wire battery to key switch.\n2. Connect ammeter in series.\n3. Connect voltmeter in parallel.";
+
+    const cardY = 95;
+    const cardH = 765;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, 110, w - 48, 20, 10);
+    ctx.roundRect(startX, cardY, contentW, cardH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Stage Progress Header
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText(`WORKFLOW PROGRESSION • STAGE ${stepNum} OF ${totalSteps}`, startX + 24, cardY + 32);
+
+    ctx.font = '600 24px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(title, startX + 24, cardY + 68);
+
+    // Progress Bar
+    const progY = cardY + 100;
+    ctx.fillStyle = '#0a111a';
+    ctx.beginPath();
+    ctx.roundRect(startX + 24, progY, contentW - 48, 8, 4);
     ctx.fill();
 
+    const pct = Math.min(1.0, stepNum / totalSteps);
     ctx.fillStyle = '#0284c7';
     ctx.beginPath();
-    ctx.roundRect(24, 110, (w - 48) * (pct / 100), 20, 10);
+    ctx.roundRect(startX + 24, progY, (contentW - 48) * pct, 8, 4);
     ctx.fill();
 
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+    // Objective Box
+    const objY = progY + 36;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(startX + 24, objY, contentW - 48, 120, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`Stage ${stepNum} of ${totalSteps} (${pct}% Complete)`, 24, 155);
+    ctx.fillText('CURRENT STAGE OBJECTIVE', startX + 44, objY + 28);
 
-    // Main Stage Card
-    const cardY = 175;
-    const cardH = 705;
-    ctx.fillStyle = '#0b192e';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    ctx.font = '15px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    this._wrapText(ctx, desc, startX + 44, objY + 60, contentW - 88, 24);
+
+    // Prerequisite Checklist Box
+    const preY = objY + 144;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, cardY, w - 48, cardH, 16);
+    ctx.roundRect(startX + 24, preY, contentW - 48, 140, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText(`Current Practical Stage: ${stageTitle}`, 48, cardY + 45);
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText('PREREQUISITE VALIDATION GATES', startX + 44, preY + 28);
 
-    // Next Instruction Box
-    const boxY = cardY + 75;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(44, boxY, w - 88, 140, 12);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('📋 Next Required Action / Instruction:', 64, boxY + 36);
-
-    ctx.font = '20px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    this._wrapText(ctx, instruction, 64, boxY + 70, w - 128, 28);
-
-    // Apparatus Needed
-    const appY = boxY + 160;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(44, appY, w - 88, 100, 12);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('🔬 Relevant Apparatus:', 64, appY + 32);
-
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText(apparatus, 64, appY + 65);
-
-    // Prerequisites Checklist
-    const preY = appY + 120;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(44, preY, w - 88, 120, 12);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText('⚠️ Prerequisite Validation Gate:', 64, preY + 34);
-
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#e2e8f0';
-    this._wrapText(ctx, prerequisites, 64, preY + 68, w - 128, 26);
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    this._wrapText(ctx, prerequisites, startX + 44, preY + 58, contentW - 88, 24);
 
     // Action Buttons
-    const btnY = cardY + 520;
-    this._drawPillButton(ctx, 48, btnY, 320, 56, 'Advance Stage (Validate)', '#059669', '#ffffff');
-    this._registerButton('step_advance', 48, btnY, 320, 56, 'Advance', () => {
+    const btnY = cardY + cardH - 80;
+    this._drawButton(ctx, startX + 24, btnY, 240, 44, 'Advance Stage (Validate)', '#142337', '#0284c7', '#38bdf8', '600 14px "Inter", sans-serif');
+    this._registerButton('step_advance', startX + 24, btnY, 240, 44, 'Advance', () => {
       if (this.workflowManager && typeof this.workflowManager.advanceStage === 'function') {
         const res = this.workflowManager.advanceStage();
         if (this.assistant && this.assistant.setTutorState) {
@@ -1150,8 +1175,8 @@ export class AssistantSubpanels {
       }
     });
 
-    this._drawPillButton(ctx, 400, btnY, 260, 56, '🔄 Check Circuit State', '#0284c7', '#ffffff');
-    this._registerButton('step_check', 400, btnY, 260, 56, 'Check', () => {
+    this._drawButton(ctx, startX + 280, btnY, 200, 44, 'Check Circuit State ↻', '#0e1622', '#1e2d42', '#cbd5e1', '14px "Inter", sans-serif');
+    this._registerButton('step_check', startX + 280, btnY, 200, 44, 'Check', () => {
       this.redraw();
     });
   }
@@ -1159,83 +1184,85 @@ export class AssistantSubpanels {
   // ─── 4. View: Video ───────────────────────────────────────────────────────
 
   _renderVideoView(ctx, w, h) {
+    const startX = 60;
+    const contentW = w - 120;
     const vid = PRACTICAL_VIDEOS.ohmsLaw;
 
-    // Video Screen Simulation Frame
-    const screenY = 110;
-    const screenH = 420;
-    ctx.fillStyle = '#000000';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 3;
+    // Simulated Video Monitor Viewport
+    const screenY = 95;
+    const screenH = 380;
+    ctx.fillStyle = '#060a12';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, screenY, w - 48, screenH, 16);
+    ctx.roundRect(startX, screenY, contentW, screenH, 4);
     ctx.fill();
     ctx.stroke();
 
     // Video Graphics / Watermark
-    ctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
+    ctx.font = '600 22px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(`🎥 ${vid.title}`, w / 2, screenY + 160);
+    ctx.fillText(vid.title, startX + contentW / 2, screenY + 140);
 
-    ctx.font = '20px "Segoe UI", Arial, sans-serif';
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#94a3b8';
     const curChapter = vid.chapters.find((c) => c.id === this.videoState.currentChapter) || vid.chapters[0];
-    ctx.fillText(`Current Chapter: ${curChapter.title}`, w / 2, screenY + 210);
+    ctx.fillText(`Active Chapter: ${curChapter.title}`, startX + contentW / 2, screenY + 175);
 
-    // Play / Pause Icon
-    const playIcon = this.videoState.isPlaying ? '⏸️ PAUSE' : '▶️ PLAY VIDEO';
-    this._drawPillButton(ctx, w / 2 - 120, screenY + 270, 240, 54, playIcon, '#0284c7', '#ffffff');
-    this._registerButton('vid_play', w / 2 - 120, screenY + 270, 240, 54, 'Play', () => {
+    // Play / Pause Button
+    const playIcon = this.videoState.isPlaying ? '⏸ Pause' : '▶ Play Demonstration';
+    this._drawButton(ctx, startX + contentW / 2 - 100, screenY + 220, 200, 42, playIcon, '#142337', '#0284c7', '#38bdf8', '600 14px "Inter", sans-serif');
+    this._registerButton('vid_play', startX + contentW / 2 - 100, screenY + 220, 200, 42, 'Play', () => {
       this.videoState.isPlaying = !this.videoState.isPlaying;
       this.redraw();
     });
 
     // Timeline Scrubber Bar
-    const scrubY = screenY + screenH - 45;
-    ctx.fillStyle = '#1e293b';
+    const scrubY = screenY + screenH - 30;
+    ctx.fillStyle = '#111a28';
     ctx.beginPath();
-    ctx.roundRect(48, scrubY, w - 96, 12, 6);
+    ctx.roundRect(startX + 24, scrubY, contentW - 48, 6, 3);
     ctx.fill();
 
     const progPct = this.videoState.duration > 0 ? this.videoState.currentTime / this.videoState.duration : 0.25;
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = '#0284c7';
     ctx.beginPath();
-    ctx.roundRect(48, scrubY, (w - 96) * progPct, 12, 6);
+    ctx.roundRect(startX + 24, scrubY, (contentW - 48) * progPct, 6, 3);
     ctx.fill();
 
-    // Chapter Buttons List
-    const chapY = 560;
-    ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
+    // Chapter List Table
+    const chapY = screenY + screenH + 24;
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
     ctx.textAlign = 'left';
-    ctx.fillText('Select Chapter / Practical Demonstration:', 24, chapY);
+    ctx.fillText('DEMONSTRATION CHAPTER MARKERS', startX, chapY);
 
     vid.chapters.forEach((chap, idx) => {
-      const cy = chapY + 20 + idx * 62;
+      const cy = chapY + 18 + idx * 56;
       const isCur = this.videoState.currentChapter === chap.id;
-      const bg = isCur ? '#0284c7' : '#0f172a';
-      const border = isCur ? '#38bdf8' : '#1e293b';
+      const bg = isCur ? '#142337' : '#111b2b';
+      const border = isCur ? '#0284c7' : '#1e2d42';
 
       ctx.fillStyle = bg;
       ctx.strokeStyle = border;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(24, cy, w - 48, 52, 10);
+      ctx.roundRect(startX, cy, contentW, 46, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = isCur ? '#ffffff' : '#e2e8f0';
-      ctx.fillText(chap.title, 48, cy + 32);
+      ctx.font = '600 14px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = isCur ? '#38bdf8' : '#e2e8f0';
+      ctx.fillText(chap.title, startX + 20, cy + 24);
 
-      ctx.font = '15px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = isCur ? '#bae6fd' : '#94a3b8';
+      ctx.font = '13px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = isCur ? '#cbd5e1' : '#94a3b8';
       ctx.textAlign = 'right';
-      ctx.fillText(chap.desc, w - 48, cy + 32);
+      ctx.fillText(chap.desc, startX + contentW - 20, cy + 24);
       ctx.textAlign = 'left';
 
-      this._registerButton(`vid_chap_${chap.id}`, 24, cy, w - 48, 52, chap.title, () => {
+      this._registerButton(`vid_chap_${chap.id}`, startX, cy, contentW, 46, chap.title, () => {
         this.videoState.currentChapter = chap.id;
         this.videoState.currentTime = chap.time;
         this.videoState.isPlaying = true;
@@ -1247,125 +1274,133 @@ export class AssistantSubpanels {
   // ─── 5. View: Examples ────────────────────────────────────────────────────
 
   _renderExamplesView(ctx, w, h) {
+    const startX = 60;
+    const contentW = w - 120;
     const ex = EXAMPLES_DATA[this.currentExampleIndex] || EXAMPLES_DATA[0];
 
     // Example Tabs
+    const tabW = (contentW - 30) / EXAMPLES_DATA.length;
     EXAMPLES_DATA.forEach((item, idx) => {
-      const tx = 24 + idx * 242;
+      const tx = startX + idx * (tabW + 10);
       const isCur = this.currentExampleIndex === idx;
-      const bg = isCur ? '#0284c7' : '#0f172a';
-      const border = isCur ? '#38bdf8' : '#1e293b';
+      const bg = isCur ? '#142337' : '#0e1622';
+      const border = isCur ? '#0284c7' : '#1e2d42';
 
       ctx.fillStyle = bg;
       ctx.strokeStyle = border;
-      ctx.lineWidth = isCur ? 3 : 1;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(tx, 110, 230, 50, 10);
+      ctx.roundRect(tx, 95, tabW, 44, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 17px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = isCur ? '#ffffff' : '#94a3b8';
+      ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = isCur ? '#38bdf8' : '#94a3b8';
       ctx.textAlign = 'center';
-      ctx.fillText(`Card ${idx + 1}: ${item.topic.split(' ')[0]}`, tx + 115, 140);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Card ${idx + 1}: ${item.topic.split(' ')[0]}`, tx + tabW / 2, 117);
+      ctx.textAlign = 'left';
 
-      this._registerButton(`ex_tab_${idx}`, tx, 110, 230, 50, item.title, () => {
+      this._registerButton(`ex_tab_${idx}`, tx, 95, tabW, 44, item.title, () => {
         this.currentExampleIndex = idx;
         this.redraw();
       });
     });
 
     // Main Card
-    const cardY = 180;
-    const cardH = 700;
-    ctx.fillStyle = '#0b192e';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    const cardY = 155;
+    const cardH = 705;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, cardY, w - 48, cardH, 16);
+    ctx.roundRect(startX, cardY, contentW, cardH, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`${ex.title} — ${ex.topic}`, 48, cardY + 45);
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText(`THEORY CARD 0${ex.id} / 04`, startX + 24, cardY + 28);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#cbd5e1';
-    this._wrapText(ctx, ex.description, 48, cardY + 85, w - 96, 26);
+    ctx.font = '600 22px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`${ex.title} — ${ex.topic}`, startX + 24, cardY + 58);
+
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    this._wrapText(ctx, ex.description, startX + 24, cardY + 92, contentW - 48, 22);
 
     // Formula & Given Values Box
-    const fY = cardY + 150;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 2;
+    const fY = cardY + 140;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(44, fY, w - 88, 120, 12);
+    ctx.roundRect(startX + 24, fY, contentW - 48, 95, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`📐 Mathematical Formula:  ${ex.formula}`, 64, fY + 40);
+    ctx.fillText(`MATHEMATICAL FORMULA: ${ex.formula}`, startX + 44, fY + 28);
 
-    ctx.font = '18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#f8fafc';
-    this._wrapText(ctx, `Given: ${ex.given}`, 64, fY + 80, w - 128, 24);
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    this._wrapText(ctx, `Given parameters: ${ex.given}`, startX + 44, fY + 58, contentW - 88, 22);
 
     // Step-by-Step Calculation Box
-    const cY = fY + 145;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#34d399';
-    ctx.lineWidth = 2;
+    const cY = fY + 115;
+    ctx.fillStyle = '#0a141d';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(44, cY, w - 88, 140, 12);
+    ctx.roundRect(startX + 24, cY, contentW - 48, 120, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#34d399';
-    ctx.fillText('🧮 Step-by-Step Calculation & Final Result:', 64, cY + 36);
+    ctx.fillText('STEP-BY-STEP CALCULATION', startX + 44, cY + 28);
 
-    ctx.font = '20px "Consolas", monospace, sans-serif';
+    ctx.font = '500 15px "Consolas", monospace';
     ctx.fillStyle = '#ffffff';
-    this._wrapText(ctx, ex.calculation, 64, cY + 75, w - 128, 28);
+    this._wrapText(ctx, ex.calculation, startX + 44, cY + 58, contentW - 88, 24);
 
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 14px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText(`Result: ${ex.result}`, 64, cY + 115);
+    ctx.fillText(`Result: ${ex.result}`, startX + 44, cY + 96);
 
-    // Explanation Box
-    const eY = cY + 165;
-    ctx.fillStyle = '#07162c';
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 2;
+    // Pedagogical Explanation Box
+    const eY = cY + 140;
+    ctx.fillStyle = '#0a111a';
+    ctx.strokeStyle = '#1e2d42';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(44, eY, w - 88, 100, 12);
+    ctx.roundRect(startX + 24, eY, contentW - 48, 100, 4);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('💡 Pedagogical Explanation:', 64, eY + 30);
+    ctx.fillText('CURRICULUM PEDAGOGICAL CONTEXT', startX + 44, eY + 28);
 
-    ctx.font = '17px "Segoe UI", Arial, sans-serif';
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#cbd5e1';
-    this._wrapText(ctx, ex.explanation, 64, eY + 62, w - 128, 24);
+    this._wrapText(ctx, ex.explanation, startX + 44, eY + 56, contentW - 88, 22);
 
     // Navigation Buttons
-    const btnY = cardY + 590;
+    const btnY = cardY + cardH - 70;
     if (this.currentExampleIndex > 0) {
-      this._drawPillButton(ctx, 48, btnY, 240, 54, '⬅ Previous Card', '#1e293b', '#ffffff');
-      this._registerButton('ex_prev', 48, btnY, 240, 54, 'Prev', () => {
+      this._drawButton(ctx, startX + 24, btnY, 180, 42, '← Previous Card', '#0e1622', '#1e2d42', '#cbd5e1');
+      this._registerButton('ex_prev', startX + 24, btnY, 180, 42, 'Prev', () => {
         this.currentExampleIndex--;
         this.redraw();
       });
     }
 
     if (this.currentExampleIndex < EXAMPLES_DATA.length - 1) {
-      this._drawPillButton(ctx, w - 288, btnY, 240, 54, 'Next Card ➡', '#0284c7', '#ffffff');
-      this._registerButton('ex_next', w - 288, btnY, 240, 54, 'Next', () => {
+      this._drawButton(ctx, startX + contentW - 204, btnY, 180, 42, 'Next Card →', '#142337', '#0284c7', '#38bdf8');
+      this._registerButton('ex_next', startX + contentW - 204, btnY, 180, 42, 'Next', () => {
         this.currentExampleIndex++;
         this.redraw();
       });
@@ -1375,46 +1410,47 @@ export class AssistantSubpanels {
   // ─── 6. View: Questions & Answers (MCQs) ──────────────────────────────────
 
   _renderQnAView(ctx, w, h) {
+    const startX = 60;
+    const contentW = w - 120;
     const q = MCQS_DATA[this.currentMCQIndex] || MCQS_DATA[0];
 
-    // Score Badge
+    // Score & Progress Header
     const scorePct = this.sessionScore.total > 0 ? Math.round((this.sessionScore.correct / this.sessionScore.total) * 100) : 0;
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Question ${this.currentMCQIndex + 1} of ${MCQS_DATA.length}`, 24, 135);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#34d399';
-    ctx.fillText(`Session Score: ${this.sessionScore.correct} / ${this.sessionScore.total} (${scorePct}%)`, w - 24, 135);
-    ctx.textAlign = 'left';
-
-    // Main Card
-    const cardY = 160;
-    const cardH = 720;
-    ctx.fillStyle = '#0b192e';
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
+    const cardY = 95;
+    const cardH = 765;
+    ctx.fillStyle = '#111b2b';
+    ctx.strokeStyle = '#20324d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(24, cardY, w - 48, cardH, 16);
+    ctx.roundRect(startX, cardY, contentW, cardH, 6);
     ctx.fill();
     ctx.stroke();
 
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText(`CURRICULUM ASSESSMENT • QUESTION ${this.currentMCQIndex + 1} OF ${MCQS_DATA.length}`, startX + 24, cardY + 30);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(`SCORE: ${this.sessionScore.correct} / ${this.sessionScore.total} (${scorePct}%)`, startX + contentW - 24, cardY + 30);
+    ctx.textAlign = 'left';
+
     // Question Prompt
-    ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+    ctx.font = '600 20px "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = '#ffffff';
-    this._wrapText(ctx, `Q: ${q.question}`, 48, cardY + 45, w - 96, 30);
+    this._wrapText(ctx, q.question, startX + 24, cardY + 68, contentW - 48, 28);
 
     // 4 Selectable Options
-    const optStartY = cardY + 115;
+    const optStartY = cardY + 130;
     q.options.forEach((optText, idx) => {
-      const oy = optStartY + idx * 72;
+      const oy = optStartY + idx * 64;
       const isSelected = this.selectedOptionIndex === idx;
       const isCorrect = idx === q.correctIndex;
 
-      let bg = '#07162c';
-      let border = '#334155';
-      let textCol = '#e2e8f0';
+      let bg = '#0e1622';
+      let border = '#1e2d42';
+      let textCol = '#cbd5e1';
 
       if (this.isAnswerSubmitted) {
         if (isCorrect) {
@@ -1422,30 +1458,30 @@ export class AssistantSubpanels {
           border = '#10b981';
           textCol = '#a7f3d0';
         } else if (isSelected) {
-          bg = '#7f1d1d';
+          bg = '#451a1a';
           border = '#ef4444';
           textCol = '#fecaca';
         }
       } else if (isSelected) {
-        bg = '#0284c7';
-        border = '#38bdf8';
-        textCol = '#ffffff';
+        bg = '#142337';
+        border = '#0284c7';
+        textCol = '#38bdf8';
       }
 
       ctx.fillStyle = bg;
       ctx.strokeStyle = border;
-      ctx.lineWidth = (isSelected || (this.isAnswerSubmitted && isCorrect)) ? 3 : 1;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(44, oy, w - 88, 58, 12);
+      ctx.roundRect(startX + 24, oy, contentW - 48, 50, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+      ctx.font = '500 15px "Inter", "Segoe UI", sans-serif';
       ctx.fillStyle = textCol;
-      ctx.fillText(optText, 64, oy + 34);
+      ctx.fillText(optText, startX + 44, oy + 26);
 
       if (!this.isAnswerSubmitted) {
-        this._registerButton(`mcq_opt_${idx}`, 44, oy, w - 88, 58, optText, () => {
+        this._registerButton(`mcq_opt_${idx}`, startX + 24, oy, contentW - 48, 50, optText, () => {
           this.selectedOptionIndex = idx;
           this.isAnswerSubmitted = true;
           this.sessionScore.total++;
@@ -1467,38 +1503,38 @@ export class AssistantSubpanels {
     // Explanation Box (Shown after submission)
     if (this.isAnswerSubmitted) {
       const isCorrect = this.selectedOptionIndex === q.correctIndex;
-      const explY = optStartY + 305;
+      const explY = optStartY + 276;
 
       ctx.fillStyle = isCorrect ? '#06291a' : '#2b1212';
-      ctx.strokeStyle = isCorrect ? '#10b981' : '#ef4444';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isCorrect ? '#059669' : '#dc2626';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(44, explY, w - 88, 130, 12);
+      ctx.roundRect(startX + 24, explY, contentW - 48, 140, 4);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+      ctx.font = '600 13px "Inter", "Segoe UI", sans-serif';
       ctx.fillStyle = isCorrect ? '#34d399' : '#f87171';
-      ctx.fillText(isCorrect ? '✅ Correct Answer!' : '❌ Incorrect Selection', 64, explY + 30);
+      ctx.fillText(isCorrect ? 'CORRECT ASSESSMENT' : 'INCORRECT ASSESSMENT', startX + 44, explY + 28);
 
-      ctx.font = '17px "Segoe UI", Arial, sans-serif';
+      ctx.font = '14px "Inter", "Segoe UI", sans-serif';
       ctx.fillStyle = '#f8fafc';
-      this._wrapText(ctx, q.explanation, 64, explY + 62, w - 128, 24);
+      this._wrapText(ctx, q.explanation, startX + 44, explY + 58, contentW - 88, 22);
 
       // Bottom Navigation Buttons
-      const btnY = cardY + 580;
+      const btnY = cardY + cardH - 70;
       if (!isCorrect) {
-        this._drawPillButton(ctx, 48, btnY, 220, 54, '🔄 Try Again', '#d97706', '#ffffff');
-        this._registerButton('mcq_retry', 48, btnY, 220, 54, 'Retry', () => {
+        this._drawButton(ctx, startX + 24, btnY, 180, 42, 'Try Again ↻', '#142337', '#0284c7', '#38bdf8');
+        this._registerButton('mcq_retry', startX + 24, btnY, 180, 42, 'Retry', () => {
           this.isAnswerSubmitted = false;
           this.selectedOptionIndex = null;
           this.redraw();
         });
       }
 
-      const nextLabel = (this.currentMCQIndex < MCQS_DATA.length - 1) ? 'Next Question ➡' : '🔄 Restart Quiz';
-      this._drawPillButton(ctx, w - 288, btnY, 240, 54, nextLabel, '#0284c7', '#ffffff');
-      this._registerButton('mcq_next', w - 288, btnY, 240, 54, 'Next', () => {
+      const nextLabel = (this.currentMCQIndex < MCQS_DATA.length - 1) ? 'Next Question →' : 'Restart Assessment ↻';
+      this._drawButton(ctx, startX + contentW - 204, btnY, 180, 42, nextLabel, '#142337', '#0284c7', '#38bdf8');
+      this._registerButton('mcq_next', startX + contentW - 204, btnY, 180, 42, 'Next', () => {
         if (this.currentMCQIndex < MCQS_DATA.length - 1) {
           this.currentMCQIndex++;
         } else {
@@ -1512,23 +1548,6 @@ export class AssistantSubpanels {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  _drawPillButton(ctx, x, y, w, h, text, bg, fg) {
-    ctx.fillStyle = bg;
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, h / 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = fg;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, x + w / 2, y + h / 2);
-    ctx.textAlign = 'left';
-  }
 
   _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     if (!text) return;
@@ -1553,72 +1572,53 @@ export class AssistantSubpanels {
 
   async submitQuestion() {
     if (!this.currentQuestionText || this.isLoadingAI) return;
-    this.isLoadingAI = true;
-    this.currentRequestId = (this.currentRequestId || 0) + 1;
-    const reqId = this.currentRequestId;
 
-    if (this.assistant) {
-      if (this.assistant.state) this.assistant.state.aiRequestState = 'loading';
+    this.isLoadingAI = true;
+    this.aiError = null;
+    const reqId = ++this.currentRequestId;
+    this.redraw();
+
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.aiRequestState = 'loading';
       if (typeof this.assistant.setTutorState === 'function') {
-        this.assistant.setTutorState('thinking');
+        this.assistant.setTutorState('thinking', { text: `Thinking about: "${this.currentQuestionText}"` });
       }
     }
-    this.redraw();
 
     try {
       if (this.tutorClient && typeof this.tutorClient.askQuestion === 'function') {
-        const simContext = (this.bridge && typeof this.bridge.getAIContext === 'function')
-          ? this.bridge.getAIContext()
-          : null;
-
-        const res = await this.tutorClient.askQuestion({
+        const payload = {
           question: this.currentQuestionText,
-          language: 'English',
-          simulationContext: simContext,
-          customContext: simContext
-        });
+          stage: this.workflowManager ? this.workflowManager.currentStage : 'UNKNOWN',
+          context: 'ohms_law_practical'
+        };
 
-        if (this.currentRequestId !== reqId) return; // Stale request, ignore
+        const res = await this.tutorClient.askQuestion(payload);
+        if (this.currentRequestId !== reqId) return;
 
-        // Check whether request succeeded and has valid payload
-        const payload = (res && res.response) ? res.response : res;
-        const isSuccess = Boolean(res && (res.success !== false) && (payload.message || payload.answer));
-
-        if (isSuccess) {
-          this.aiError = null;
+        if (res && res.success && res.response) {
           this.aiResponse = {
-            message: payload.message || payload.answer || 'Thank you for your question.',
-            explanation: payload.explanation || 'Ohm’s Law establishes V = I * R across a metallic conductor.',
-            hint: payload.hint || 'Check circuit connections.',
-            suggestedAction: payload.suggestedAction || 'Observe instrument needles.'
+            message: res.response.message || 'Under Ohm’s law, V = I * R.',
+            explanation: res.response.explanation || 'Potential difference across a conductor is proportional to current.',
+            hint: res.response.hint || 'Check terminal connections.',
+            suggestedAction: res.response.suggestedAction || 'Observe instrument readings.'
           };
-
+          this.aiError = null;
           if (this.assistant) {
             if (this.assistant.state) this.assistant.state.aiRequestState = 'success';
             if (typeof this.assistant.setTutorState === 'function') {
               this.assistant.setTutorState('speaking', { text: this.aiResponse.message });
             }
           }
-
-          // Trigger voice speech
-          if (this.speechService && typeof this.speechService.speak === 'function') {
-            this.speechService.speak(this.aiResponse.message);
-            this.isSpeakingVoice = true;
-            if (this.assistant && this.assistant.state) {
-              this.assistant.state.speechState = 'speaking';
-            }
-          }
         } else {
-          // Failure / server error
-          const errMsg = res?.error?.message || 'Server returned error or invalid response.';
-          this.aiError = { code: res?.error?.code || 'ERROR', message: errMsg };
+          const errObj = (res && res.error) ? res.error : { code: 'AI_UNAVAILABLE', message: 'Tutor backend unavailable' };
+          this.aiError = errObj;
           this.aiResponse = {
-            message: `Notice: ${errMsg}`,
-            explanation: 'Curriculum Fallback (Maharashtra SSC Std. 10 Ch. 4): Potential difference V is directly proportional to current I (V = I × R).',
-            hint: 'Use the progressive hints tab or click Retry to reconnect.',
-            suggestedAction: 'Check your circuit wiring and ensure plug key is closed.'
+            message: 'AI Tutor service is temporarily unreachable. Standard curriculum guidance active.',
+            explanation: 'Under Maharashtra SSC Std. 10 Ch. 4: Ohm’s Law establishes V = I * R for metallic conductors at constant temperature.',
+            hint: 'Review the apparatus connections and observe tabletop meter readings.',
+            suggestedAction: 'Click on Progressive Hints tab or Retry Question.'
           };
-
           if (this.assistant) {
             if (this.assistant.state) this.assistant.state.aiRequestState = 'error';
             if (typeof this.assistant.setTutorState === 'function') {
@@ -1627,7 +1627,6 @@ export class AssistantSubpanels {
           }
         }
       } else {
-        // Fallback when tutorClient is unassigned
         this.aiError = null;
         this.aiResponse = {
           message: 'An ammeter has very low internal resistance (~0.2 Ω) and is connected in series.',
