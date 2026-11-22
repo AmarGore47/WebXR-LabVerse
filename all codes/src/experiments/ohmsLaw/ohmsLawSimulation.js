@@ -7,8 +7,8 @@
 import { OHMS_LAW_CONFIG } from './ohmsLawConfig.js';
 
 export class OhmsLawSimulation {
-  constructor() {
-    this.config = OHMS_LAW_CONFIG;
+  constructor(customConfig = {}) {
+    this.config = { ...OHMS_LAW_CONFIG, ...customConfig };
 
     // Simulation State
     this.circuitReady = false;
@@ -221,6 +221,14 @@ export class OhmsLawSimulation {
     this.isOverRange = I >= this.config.safeCurrentLimit;
   }
 
+  get voltage() {
+    return this.resistorVoltage;
+  }
+
+  getReadings() {
+    return this.readings || [];
+  }
+
   /**
    * Record a reading in the observation table.
    */
@@ -235,7 +243,7 @@ export class OhmsLawSimulation {
     if (!this.keyClosed) {
       return {
         success: false,
-        message: 'Close the plug key to start current before recording a reading.'
+        message: 'Close the plug key (or click Start Practical) before recording a reading.'
       };
     }
 
@@ -253,12 +261,12 @@ export class OhmsLawSimulation {
       };
     }
 
-    // Duplicate reading check
+    // Duplicate reading check: Only reject if BOTH current and rheostat are virtually unchanged
     const isDuplicate = this.readings.some((r) => {
       const dCurrent = Math.abs(r.current - this.current);
       const dRheo = Math.abs(r.rheostatResistance - this.rheostatResistance);
       return (
-        dCurrent < this.config.duplicateToleranceCurrent ||
+        dCurrent < this.config.duplicateToleranceCurrent &&
         dRheo < this.config.duplicateToleranceResistance
       );
     });
@@ -266,7 +274,7 @@ export class OhmsLawSimulation {
     if (isDuplicate) {
       return {
         success: false,
-        message: 'Change the rheostat before recording another reading.'
+        message: 'Move the rheostat to a different resistance before recording another reading.'
       };
     }
 
@@ -299,6 +307,7 @@ export class OhmsLawSimulation {
     return {
       success: true,
       message: milestoneMsg,
+      count: this.readings.length,
       reading
     };
   }

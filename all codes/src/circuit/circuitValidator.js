@@ -79,7 +79,7 @@ export class CircuitValidator {
         status: 'warning',
         role: 'voltmeter_in_series',
         wireType: 'warning',
-        message: '⚠️ Voltmeter in Series! A voltmeter has very high internal resistance (~10,000 Ω) and will block current if placed in series. Voltmeter must be connected in PARALLEL across the resistor.'
+        message: '⚠️ Voltmeter in Series! A voltmeter has very high internal resistance (~1 MΩ / 1,000,000 Ω) and will block current if placed in series. Voltmeter must be connected in PARALLEL across the resistor.'
       };
     }
 
@@ -174,12 +174,16 @@ export class CircuitValidator {
       circuitState.hasConnection('voltmeter_positive', 'resistor_left') &&
       circuitState.hasConnection('voltmeter_negative', 'resistor_right');
 
+    const instruments = CircuitValidator.validateInstruments(circuitState);
+
     const isFullyValid =
       missing.length === 0 &&
       errorWires.length === 0 &&
       warningWires.length === 0 &&
       seriesPathComplete &&
-      voltmeterParallelComplete;
+      voltmeterParallelComplete &&
+      instruments.ammeter.isCorrect &&
+      instruments.voltmeter.isCorrect;
 
     let feedbackMessage = '';
     if (hasShortCircuit) {
@@ -205,7 +209,102 @@ export class CircuitValidator {
       requiredSatisfiedCount: satisfied.length,
       requiredTotalCount: REQUIRED_CONNECTIONS.length,
       missingConnections: missing,
-      feedbackMessage
+      feedbackMessage,
+      instruments
+    };
+  }
+
+  /**
+   * Authoritative validation of instrument connections (Ammeter and Voltmeter).
+   * Provides single source of truth for instrument status and scientific correctness.
+   */
+  static validateInstruments(circuitState) {
+    if (!circuitState || !Array.isArray(circuitState.connections)) {
+      return {
+        ammeter: {
+          status: 'DISCONNECTED',
+          inSeries: false,
+          hasShortError: false,
+          isCorrect: false
+        },
+        voltmeter: {
+          status: 'DISCONNECTED',
+          inParallel: false,
+          inSeriesWarning: false,
+          reversedPolarity: false,
+          isCorrect: false
+        }
+      };
+    }
+
+    const conns = circuitState.connections;
+
+    // 1. Ammeter Validation
+    const hasAmmeterShort = conns.some(
+      (c) => c.role === 'ammeter_short' || (c.status === 'error' && (c.from.startsWith('ammeter') || c.to.startsWith('ammeter')))
+    );
+    const hasSwitchAmmeter = circuitState.hasConnection('switch_right', 'ammeter_positive');
+    const hasAmmeterRheo = circuitState.hasConnection('ammeter_negative', 'rheostat_in');
+    const ammeterConnCount =
+      circuitState.getConnectionCountForTerminal('ammeter_positive') +
+      circuitState.getConnectionCountForTerminal('ammeter_negative');
+
+    let ammeterStatus = 'DISCONNECTED';
+    let ammeterInSeries = false;
+
+    if (hasAmmeterShort) {
+      ammeterStatus = 'CONNECTED_PARALLEL_ERROR';
+    } else if (hasSwitchAmmeter && hasAmmeterRheo) {
+      ammeterStatus = 'CONNECTED_SERIES';
+      ammeterInSeries = true;
+    } else if (ammeterConnCount > 0) {
+      const isMisplaced = conns.some(
+        (c) => (c.from.startsWith('ammeter') || c.to.startsWith('ammeter')) && (c.role === 'non_standard' || c.status === 'warning')
+      );
+      ammeterStatus = isMisplaced ? 'MISPLACED' : 'PARTIALLY_CONNECTED';
+    }
+
+    // 2. Voltmeter Validation
+    const hasVoltSeries = conns.some((c) => c.role === 'voltmeter_in_series');
+    const hasVoltReversed = conns.some((c) => c.role === 'reversed_polarity');
+    const hasVoltPosValid = circuitState.hasConnection('voltmeter_positive', 'resistor_left');
+    const hasVoltNegValid = circuitState.hasConnection('voltmeter_negative', 'resistor_right');
+    const voltConnCount =
+      circuitState.getConnectionCountForTerminal('voltmeter_positive') +
+      circuitState.getConnectionCountForTerminal('voltmeter_negative');
+
+    let voltmeterStatus = 'DISCONNECTED';
+    let voltmeterInParallel = false;
+
+    if (hasVoltSeries) {
+      voltmeterStatus = 'CONNECTED_SERIES_WARNING';
+    } else if (hasVoltReversed) {
+      voltmeterStatus = 'REVERSED_POLARITY';
+      voltmeterInParallel = true;
+    } else if (hasVoltPosValid && hasVoltNegValid) {
+      voltmeterStatus = 'CONNECTED_PARALLEL';
+      voltmeterInParallel = true;
+    } else if (voltConnCount > 0) {
+      const isMisplaced = conns.some(
+        (c) => (c.from.startsWith('voltmeter') || c.to.startsWith('voltmeter')) && (c.role === 'non_standard' || c.status === 'warning')
+      );
+      voltmeterStatus = isMisplaced ? 'MISPLACED' : 'PARTIALLY_CONNECTED';
+    }
+
+    return {
+      ammeter: {
+        status: ammeterStatus,
+        inSeries: ammeterInSeries,
+        hasShortError: hasAmmeterShort,
+        isCorrect: ammeterInSeries && !hasAmmeterShort
+      },
+      voltmeter: {
+        status: voltmeterStatus,
+        inParallel: voltmeterInParallel,
+        inSeriesWarning: hasVoltSeries,
+        reversedPolarity: hasVoltReversed,
+        isCorrect: voltmeterInParallel && !hasVoltSeries && !hasVoltReversed
+      }
     };
   }
 }

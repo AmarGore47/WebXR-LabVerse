@@ -1,0 +1,187 @@
+{
+  "audio_test": {
+    "file": "./audio/narration/audio_test.wav",
+    "text": "Audio test successful. Physics virtual practical lab ready.",
+    "size": 230404
+  },
+  "step_1": {
+    "file": "./audio/narration/step_1.wav",
+    "text": "Step 1. Connect the positive terminal of the battery to the plug key. The plug key acts as a safety switch that safely opens or closes the circuit before current flows.",
+    "size": 511274
+  },
+  "step_2": {
+    "file": "./audio/narration/step_2.wav",
+    "text": "Step 2. Connect the other terminal of the plug key to the positive terminal of the ammeter. An ammeter measures electric current, so it must always be placed in series, directly in the main current path.",
+    "size": 609358
+  },
+  "step_3": {
+    "file": "./audio/narration/step_3.wav",
+    "text": "Step 3. Connect the negative terminal of the ammeter to the input of the rheostat. The rheostat is a variable resistor. By changing its resistance, we can safely vary the current through the circuit and record multiple readings.",
+    "size": 679028
+  },
+  "step_4": {
+    "file": "./audio/narration/step_4.wav",
+    "text": "Step 4. Connect the output of the rheostat to the left terminal of the resistor. The resistor is the main component of this experiment. We will study the relationship between voltage across it and the current through it.",
+    "size": 623244
+  },
+  "step_5": {
+    "file": "./audio/narration/step_5.wav",
+    "text": "Step 5. Connect the right terminal of the resistor to the negative terminal of the battery. This completes the main series circuit path, forming a closed loop through battery, key, ammeter, rheostat, and resistor.",
+    "size": 680810
+  },
+  "step_6": {
+    "file": "./audio/narration/step_6.wav",
+    "text": "Step 6. Connect the positive terminal of the voltmeter to the left terminal of the resistor. A voltmeter measures electrical potential difference. Its positive terminal must connect to the high-potential side of the resistor.",
+    "size": 654318
+  },
+  "step_7": {
+    "file": "./audio/narration/step_7.wav",
+    "text": "Step 7. Connect the negative terminal of the voltmeter to the right terminal of the resistor. The voltmeter is now connected in parallel across the resistor. This is essential, a voltmeter has very high internal resistance and would block current if placed in series.",
+    "size": 760150
+  },
+  "circuit_complete_msg": {
+    "file": "./audio/narration/circuit_complete_msg.wav",
+    "text": "Excellent! The circuit is now complete. The ammeter is connected in series to measure current, and the voltmeter is connected in parallel across the resistor to measure potential difference. Now press the Start Current button to close the plug key and begin the experiment.",
+    "size": 774492
+  },
+  "welcome": {
+    "file": "./audio/narration/welcome.wav",
+    "text": "Welcome to the Ohm's Law virtual practical. We will connect the circuit step by step and understand why each component is used.",
+    "size": 364884
+  },
+  "correct_wire": {
+    "file": "./audio/narration/correct_wire.wav",
+    "text": "Correct connection!",
+    "size": 80714
+  },
+  "wrong_connection": {
+    "file": "./audio/narration/wrong_connection.wav",
+    "text": "This connection is not correct for Ohm's Law. Follow the highlighted terminals and check whether the component must be in series or in parallel.",
+    "size": 388458
+  },
+  "circuit_complete": {
+    "file": "./audio/narration/circuit_complete.wav",
+    "text": "The circuit is complete. The ammeter is in series and the voltmeter is connected in parallel across the resistor.",
+    "size": 329836
+  },
+  "current_start": {
+    "file": "./audio/narration/current_start.wav",
+    "text": "Current is now flowing through the circuit. The ammeter shows current, while the voltmeter shows the potential difference across the resistor.",
+    "size": 390670
+  },
+  "rheostat_adjust": {
+    "file": "./audio/narration/rheostat_adjust.wav",
+    "text": "As rheostat resistance increases, current decreases. This helps us record different voltage and current values safely.",
+    "size": 377448
+  },
+  "reading_saved": {
+    "file": "./audio/narration/reading_saved.wav",
+    "text": "Reading recorded. Change the rheostat before recording the next reading.",
+    "size": 236572
+  },
+  "five_readings": {
+    "file": "./audio/narration/five_readings.wav",
+    "text": "The V I graph is approximately a straight line. Voltage is directly proportional to current, so Ohm's Law is verified.",
+    "size": 374586
+  },
+  "wire_removed_active": {
+    "file": "./audio/narration/wire_removed_active.wav",
+    "text": "A wire was removed while current was flowing. The circuit is now open and current has stopped for safety. Please reconnect the wire to continue.",
+    "size": 433446
+  },
+  "wire_removed": {
+    "file": "./audio/narration/wire_removed.wav",
+    "text": "Wire removed.",
+    "size": 76304
+  },
+  "confirm_remove": {
+    "file": "./audio/narration/confirm_remove.wav",
+    "text": "Pinch again to confirm wire removal.",
+    "size": 123920
+  },
+  "practical_stopped": {
+    "file": "./audio/narration/practical_stopped.wav",
+    "text": "Practical stopped. Key opened.",
+    "size": 149726
+  },
+  "practical_started": {
+    "file": "./audio/narration/practical_started.wav",
+    "text": "Practical started! Current is flowing.",
+    "size": 163610
+  },
+  "incomplete_circuit": {
+    "file": "./audio/narration/incomplete_circuit.wav",
+    "text": "Connect all seven circuit wires first.",
+    "size": 136706
+  },
+  "first_reading": {
+    "file": "./audio/narration/first_reading.wav",
+    "text": "First observation recorded successfully.",
+    "size": 141996
+  },
+  "reading_2": {
+    "file": "./audio/narration/reading_2.wav",
+    "text": "Observation number 2 recorded.",
+    "size": 119076
+  },
+  "reading_3": {
+    "file": "./audio/narration/reading_3.wav",
+    "text": "Observation number 3 recorded.",
+    "size": 118414
+  },
+  "reading_4": {
+    "file": "./audio/narration/reading_4.wav",
+    "text": "Observation number 4 recorded.",
+    "size": 118852
+  },
+  "reading_complete": {
+    "file": "./audio/narration/reading_complete.wav",
+    "text": "All 5 observations complete! Ohm's law verified.",
+    "size": 208592
+  },
+  "assistant_ouch": {
+    "file": "./audio/narration/assistant_ouch.wav",
+    "text": "Ouch! Why are you throwing things at me?! Focus on the practical!",
+    "size": 260618
+  },
+  "assistant_stop": {
+    "file": "./audio/narration/assistant_stop.wav",
+    "text": "Hey! Stop throwing objects across the physics laboratory!",
+    "size": 219606
+  },
+  "assistant_hurts": {
+    "file": "./audio/narration/assistant_hurts.wav",
+    "text": "Oww! That really hurts! Pay attention to the resistor circuit!",
+    "size": 253788
+  },
+  "assistant_not_target": {
+    "file": "./audio/narration/assistant_not_target.wav",
+    "text": "Ow! I am your laboratory assistant, not target practice!",
+    "size": 231962
+  },
+  "assistant_enough": {
+    "file": "./audio/narration/assistant_enough.wav",
+    "text": "Enough! If you throw one more item, I will turn off the main battery power!",
+    "size": 269878
+  },
+  "assistant_direct_hit": {
+    "file": "./audio/narration/assistant_direct_hit.wav",
+    "text": "Aaargh! Direct hit! Oww ow ow!",
+    "size": 192064
+  },
+  "assistant_professor": {
+    "file": "./audio/narration/assistant_professor.wav",
+    "text": "What did I do to deserve this?! Should I call the physics professor?!",
+    "size": 224682
+  },
+  "assistant_stung": {
+    "file": "./audio/narration/assistant_stung.wav",
+    "text": "Oof! Why would you aim right there?! That really stung!",
+    "size": 232848
+  },
+  "assistant_mercy": {
+    "file": "./audio/narration/assistant_mercy.wav",
+    "text": "Mercy, please! Have some sympathy for your assistant!",
+    "size": 220270
+  }
+}

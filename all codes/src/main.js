@@ -11,7 +11,7 @@
  */
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LabEnvironment } from './scene/labEnvironment.js';
 import { ModelLoader } from './models/modelLoader.js';
 import { ApparatusLabels } from './scene/apparatusLabels.js';
@@ -27,6 +27,7 @@ import { CircuitPanel } from './ui/circuitPanel.js';
 
 // Simulation & Measurement Engine
 import { OhmsLawSimulation } from './experiments/ohmsLaw/ohmsLawSimulation.js';
+import { OhmsLawWorkflowManager, WORKFLOW_STAGES } from './experiments/ohmsLaw/ohmsLawWorkflowManager.js';
 import { MeasurementController } from './experiments/ohmsLaw/measurementController.js';
 import { ExperimentPanel } from './ui/experimentPanel.js';
 import { OHMS_LAW_CONFIG } from './experiments/ohmsLaw/ohmsLawConfig.js';
@@ -36,9 +37,19 @@ import { XR_CONFIG } from './xr/xrConfig.js';
 import { VRSessionManager } from './xr/vrSessionManager.js';
 import { VRWorldPanel } from './xr/vrWorldPanel.js';
 import { VRHandCircuitHUD } from './xr/vrHandCircuitHUD.js';
+import { VRWrist3DController } from './xr/vrWrist3DController.js';
 import { XRHandManager } from './xr/xrHandManager.js';
 import { DiagnosticsPanel } from './ui/diagnosticsPanel.js';
 import { auditScene } from './scene/sceneAudit.js';
+import { BatterySparkEffect } from './scene/batterySparkEffect.js';
+import { VROrientationSystem } from './xr/vrOrientationSystem.js';
+import { VRObservationStation } from './xr/vrObservationStation.js';
+import { VRAITutorPanel } from './xr/vrAITutorPanel.js';
+import { LabAssistant } from './entities/labAssistant.js';
+import { ThrowableManager } from './interaction/throwableManager.js';
+import { AITutorClient } from './guidance/aiTutorClient.js';
+import { SpeechRecognitionService } from './audio/speechRecognitionService.js';
+import { AITutorSpeechService } from './audio/aiTutorSpeechService.js';
 
 // Part 6: Guided Mode, Narration, Flow Panel, Start Button
 import { NarrationSystem } from './guidance/narrationSystem.js';
@@ -47,7 +58,9 @@ import { StartCurrentButton } from './guidance/startCurrentButton.js';
 import { PracticalFlowPanel } from './guidance/practicalFlowPanel.js';
 import { GUIDED_NARRATION_EVENTS } from './guidance/guidedModeConfig.js';
 import { OrientationModal } from './ui/orientationModal.js';
-import { sound } from './audio.js';
+import { ApparatusGuide } from './guidance/apparatusGuide.js';
+import { SimulationStateBridge } from './guidance/simulationStateBridge.js';
+import { sound, runAudioDiagnosticTest } from './audio.js';
 import { HolographicSwitches } from './scene/holographicSwitches.js';
 import { HolographicMetersHUD } from './scene/holographicMetersHUD.js';
 
@@ -56,6 +69,10 @@ const canvas = document.getElementById('lab-canvas');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.08, 50);
+
+// Attach Three.js AudioListener to the active XR camera, linked to shared AudioContext
+const xrAudioListener = new THREE.AudioListener();
+camera.add(xrAudioListener);
 
 // Human-scale camera rig for WebXR (anchors user in front of workbench at z=1.15m)
 const cameraRig = new THREE.Group();
@@ -143,12 +160,24 @@ const simulation = new OhmsLawSimulation();
 const wireRenderer = new WireRenderer(scene);
 const modelLoader = new ModelLoader(scene, {
   onRoomLoaded: (isFullRoom) => {
-    environment.adaptToGLBRoom(isFullRoom);
-    if (vrHandCircuitHUD && modelLoader.model) {
-      vrHandCircuitHUD.alignToScreen(modelLoader.model);
+    try {
+      environment.adaptToGLBRoom(isFullRoom);
+    } catch (envErr) {
+      console.warn('[Main] Non-fatal error adapting environment to GLB room:', envErr);
     }
-    if (holographicMetersHUD && modelLoader.model) {
-      holographicMetersHUD.syncWithModel(modelLoader.model);
+    try {
+      if (vrHandCircuitHUD && modelLoader.model) {
+        vrHandCircuitHUD.alignToScreen(modelLoader.model);
+      }
+    } catch (hudErr) {
+      console.warn('[Main] Non-fatal error aligning vrHandCircuitHUD:', hudErr);
+    }
+    try {
+      if (holographicMetersHUD && modelLoader.model) {
+        holographicMetersHUD.syncWithModel(modelLoader.model);
+      }
+    } catch (meterErr) {
+      console.warn('[Main] Non-fatal error syncing holographicMetersHUD:', meterErr);
     }
   }
 });
@@ -162,6 +191,19 @@ const narration = new NarrationSystem({
     if (barEl) barEl.classList.remove('hidden');
   }
 });
+
+// Auto-unlock Web Audio and Narration on the very first user interaction
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    sound.unlock();
+    narration.init();
+    narration._ensureAudioCtx();
+  };
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+}
 
 // Connect Circuit State validation directly to Simulation engine
 circuitState.subscribe(() => {
@@ -248,6 +290,24 @@ interaction.onWireConnected = (from, to, isValid) => {
   guidedMode.onWireConnected(from, to, isValid);
 };
 
+// 7b. Practical Workflow Manager & State Telemetry Bridge
+const workflowManager = new OhmsLawWorkflowManager({
+  simulation,
+  circuitState,
+  config: OHMS_LAW_CONFIG
+});
+
+const simulationStateBridge = new SimulationStateBridge({
+  simulation,
+  circuitState,
+  interactionController: interaction,
+  workflowManager,
+  config: OHMS_LAW_CONFIG
+});
+simulationStateBridge.subscribe(() => {
+  workflowManager.syncWithSimulation();
+});
+
 // 7b. Tabletop 3D Holographic Switches (X-Ray & Sci-Fi Dark Lab)
 holographicSwitches = new HolographicSwitches(scene, {
   onToggleXray: (isXray) => applyXrayMode(isXray),
@@ -278,6 +338,8 @@ const expPanelContainer = document.getElementById('experiment-panel-container');
 const experimentPanel = new ExperimentPanel({
   container: expPanelContainer,
   simulation,
+  circuitState,
+  workflowManager,
   onFeedback: (fb) => showFeedbackToast(fb)
 });
 
@@ -287,9 +349,28 @@ if (toggleExpBtn && expPanelContainer) {
   toggleExpBtn.addEventListener('click', () => {
     const isHidden = expPanelContainer.classList.toggle('hidden');
     toggleExpBtn.classList.toggle('active', !isHidden);
-    toggleExpBtn.innerHTML = `<span>⚡</span> Experiment: ${isHidden ? 'OFF' : 'ON'}`;
+    toggleExpBtn.innerHTML = `<span>⚡</span> Experiment`;
+
+    // Prevent panel collision on standard displays
+    if (!isHidden && window.innerWidth < 1600) {
+      const aiDock = document.getElementById('ai-tutor-dock');
+      if (aiDock && !aiDock.classList.contains('hidden')) {
+        aiDock.classList.add('hidden');
+      }
+    }
   });
 }
+
+// Phase 1: Guided Apparatus Identification & Inspection
+const apparatusGuide = new ApparatusGuide({
+  scene,
+  narration,
+  onFeedback: (fb) => showFeedbackToast(fb),
+  onComplete: () => {
+    guidedMode.setEnabled(true);
+    guidedMode.start();
+  }
+});
 
 // Initialize Experiment Orientation Modal
 const orientationModal = new OrientationModal({
@@ -297,14 +378,29 @@ const orientationModal = new OrientationModal({
   simulation,
   guidedMode,
   narration,
-  onFeedback: (fb) => showFeedbackToast(fb)
+  apparatusGuide,
+  onFeedback: (fb) => showFeedbackToast(fb),
+  onStartPractical: () => {
+    narration.init();
+    apparatusGuide.startTour();
+  }
 });
 
 // 11. Initialize Part 4 WebXR VR Subsystems (Hands Only, No Controllers)
 let vrWorldPanel = null;
 let vrHandCircuitHUD = null;
+let vrWrist3DController = null;
 let xrHandManager = null;
 let vrSessionManager = null;
+let batterySparkEffect = null;
+let vrOrientationSystem = null;
+let vrObservationStation = null;
+let labAssistant = null;
+let throwableManager = null;
+let aiTutorClient = null;
+let vrAITutorPanel = null;
+let speechRecognitionService = null;
+let aiTutorSpeechService = null;
 
 vrWorldPanel = new VRWorldPanel({
   scene,
@@ -502,34 +598,226 @@ vrHandCircuitHUD = new VRHandCircuitHUD({
 });
 vrHandCircuitHUD.setVisible(true);
 
+vrWrist3DController = new VRWrist3DController({
+  scene,
+  simulation,
+  narration,
+  camera,
+  renderer
+});
+
+// Battery Spark Effect — fires every 4-5 seconds when key is closed
+batterySparkEffect = new BatterySparkEffect(scene);
+
+// Tony Stark 3D Spatial Holographic Orientation System (Zero 2D HTML Modals in VR)
+vrOrientationSystem = new VROrientationSystem({
+  scene,
+  camera,
+  narration,
+  guidedMode,
+  apparatusGuide,
+  onFeedback: (fb) => showFeedbackToast(fb),
+  onStartPractical: () => {
+    narration.init();
+    apparatusGuide.startTour();
+  }
+});
+
+if (vrOrientationSystem && interaction) {
+  interaction.registerExtraClickables(vrOrientationSystem.getClickableObjects());
+}
+
+// Focused 3D Observation Station (Anchored beside workbench table for calm 5-reading VR recording)
+vrObservationStation = new VRObservationStation({
+  scene,
+  simulation,
+  narration,
+  sound,
+  onFeedback: (fb) => showFeedbackToast(fb)
+});
+
+if (vrObservationStation && interaction) {
+  interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
+}
+
+// 3D Animated Lab Assistant (Positioned comfortably inside the VR lab at x = 1.25, z = 0.35)
+labAssistant = new LabAssistant({
+  scene,
+  narration,
+  position: new THREE.Vector3(1.25, 0, 0.35)
+});
+
+// Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
+throwableManager = new ThrowableManager({
+  scene,
+  assistant: labAssistant,
+  narration,
+  onFeedback: (fb) => showFeedbackToast(fb)
+});
+
+if (throwableManager && interaction) {
+  interaction.registerExtraClickables(throwableManager.getClickableObjects());
+}
+
+// AI Tutor Client Service & 3D Spatial VR Tutor Panel
+aiTutorClient = new AITutorClient({
+  apiBaseUrl: '/api/tutor',
+  bridge: simulationStateBridge
+});
+
+// Real-time lifecycle state subscription for desktop status pill
+aiTutorClient.onStateChange((state, meta) => {
+  const pill = document.getElementById('ai-status-indicator');
+  if (!pill) return;
+  const labels = {
+    IDLE: '● Idle',
+    CONNECTING: '● Connecting...',
+    READY: '● Ready',
+    THINKING: '● Thinking...',
+    RESPONDING: '● Responding...',
+    ERROR: '● Error',
+    RETRYING: '● Retrying...'
+  };
+  pill.textContent = labels[state] || `● ${state}`;
+  pill.className = `ai-status-pill ${state.toLowerCase()}`;
+});
+
+// Run backend health check on initial application startup
+aiTutorClient.checkHealth().then((isHealthy) => {
+  if (isHealthy) {
+    console.log('[Main] LabVerse Gemini backend is HEALTHY and online.');
+  } else {
+    console.warn('[Main] AI Tutor backend offline; deterministic fallback active.');
+  }
+}).catch(() => {});
+
+aiTutorSpeechService = new AITutorSpeechService({
+  assistant: labAssistant,
+  narration,
+  language: 'English'
+});
+
+speechRecognitionService = new SpeechRecognitionService({
+  language: 'English',
+  onStateChange: (state, meta) => {
+    const voiceBar = document.getElementById('ai-tutor-voice-bar');
+    const voiceText = document.getElementById('ai-tutor-voice-text');
+    const micBtn = document.getElementById('ai-tutor-mic-btn');
+    if (voiceBar && voiceText && micBtn) {
+      if (state === 'listening') {
+        voiceBar.classList.remove('hidden');
+        voiceText.textContent = `🎙️ Listening in ${speechRecognitionService.language}... Speak now`;
+        micBtn.classList.add('recording');
+      } else if (state === 'processing') {
+        voiceText.textContent = 'Processing speech...';
+        micBtn.classList.remove('recording');
+      } else if (state === 'success') {
+        voiceBar.classList.add('hidden');
+        micBtn.classList.remove('recording');
+      } else if (state === 'error') {
+        voiceBar.classList.remove('hidden');
+        voiceText.textContent = meta.message || 'Voice error occurred';
+        micBtn.classList.remove('recording');
+      } else {
+        voiceBar.classList.add('hidden');
+        micBtn.classList.remove('recording');
+      }
+    }
+  },
+  onResult: (transcript) => {
+    const inputEl = document.getElementById('ai-tutor-input');
+    if (inputEl) inputEl.value = transcript;
+  }
+});
+
+vrAITutorPanel = new VRAITutorPanel({
+  scene,
+  assistant: labAssistant,
+  tutorClient: aiTutorClient,
+  bridge: simulationStateBridge,
+  workflowManager,
+  narration,
+  sound,
+  speechRecognition: speechRecognitionService,
+  speechService: aiTutorSpeechService,
+  onFeedback: (fb) => showFeedbackToast(fb)
+});
+
+if (vrAITutorPanel && interaction) {
+  interaction.registerExtraClickables(vrAITutorPanel.getClickableObjects());
+}
+
+// Connect AI services to 3D Lab Assistant and its Radial Holographic Interface
+if (labAssistant) {
+  labAssistant.initTutorServices({
+    tutorClient: aiTutorClient,
+    bridge: simulationStateBridge,
+    workflowManager,
+    speechService: aiTutorSpeechService,
+    sound
+  });
+  if (interaction) {
+    interaction.registerClickableProvider(() => (labAssistant ? labAssistant.getClickableObjects() : []));
+  }
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      labAssistant.onRadialClose();
+    }
+  });
+}
+
 xrHandManager = new XRHandManager({
   renderer,
   scene,
   cameraRig,
+  camera,
   interactionController: interaction,
   simulation,
   terminalMarkers,
   vrWorldPanel,
   vrHandCircuitHUD,
+  vrWrist3DController,
+  vrOrientationSystem,
+  vrObservationStation,
+  vrAITutorPanel,
+  assistant: labAssistant,
+  throwableManager,
   measurementController: measurement,
   wireRenderer,
   holographicSwitches,
+  circuitState,
+  narration,
   onFeedback: (fb) => showFeedbackToast(fb)
 });
 
 vrSessionManager = new VRSessionManager({
   renderer,
+  scene,
   onFeedback: (fb) => showFeedbackToast(fb),
   onSessionStart: () => {
-    // Human-scale placement: stand in front of workbench (table front edge is at z=0.7m)
-    cameraRig.position.set(0, 0, 1.15);
+    // 1. Completely disable OrbitControls during WebXR session so it never intercepts
+    // touch/pinch events or fights with 6-DOF headset tracking!
+    if (controls) {
+      controls.enabled = false;
+    }
+    targetCamPos = null;
+    targetCamLook = null;
+
+    // 2. Pure 1:1 metric reference space: position cameraRig in front of workbench
+    // User spawns right in front of table as shown in reference image, requiring no room walking
+    cameraRig.position.set(0, 0, 0.82);
+    cameraRig.rotation.set(0, 0, 0);
     camera.position.set(0, 0, 0);
     camera.quaternion.identity();
 
     // Enable voice guidance and sequential terminal glow in VR
     narration.init();
-    guidedMode.setEnabled(true);
-    guidedMode.start();
+    if (vrOrientationSystem && vrOrientationSystem.currentPhase !== 'completed') {
+      vrOrientationSystem.startOrientation();
+    } else {
+      guidedMode.setEnabled(true);
+      guidedMode.start();
+    }
 
     if (vrWorldPanel) {
       if (circuitState.connections.length < 7) {
@@ -543,6 +831,9 @@ vrSessionManager = new VRSessionManager({
       vrHandCircuitHUD.setVisible(true);
       vrHandCircuitHUD.renderCanvas();
     }
+    if (vrWrist3DController) {
+      vrWrist3DController.group.visible = true;
+    }
     // Respect current apparatus label visibility
     labels.setVisible(labels.visible);
     if (vrWorldPanel) {
@@ -554,19 +845,28 @@ vrSessionManager = new VRSessionManager({
     auditScene(scene, circuitState);
   },
   onSessionEnd: () => {
-    // Restore desktop OrbitControls panoramic view without resetting circuit progress
+    // Restore desktop OrbitControls and panoramic view without resetting circuit progress
+    if (controls) {
+      controls.enabled = true;
+    }
+    targetCamPos = null;
+    targetCamLook = null;
     cameraRig.position.set(0, 0, 0);
+    cameraRig.rotation.set(0, 0, 0);
     camera.position.copy(DEFAULT_CAM_POS);
     controls.target.copy(DEFAULT_CAM_TARGET);
 
     if (vrWorldPanel) vrWorldPanel.setVisible(false);
     if (vrHandCircuitHUD) vrHandCircuitHUD.hide();
+    if (vrWrist3DController) vrWrist3DController.group.visible = false;
     labels.setVisible(labels.visible);
 
     // Development-only scene audit
     auditScene(scene, circuitState);
   }
 });
+
+xrHandManager.vrSessionManager = vrSessionManager;
 
 // Sync VR World Panel & Left Hand HUD content whenever simulation or circuit state changes
 const syncVRSubsystems = () => {
@@ -604,6 +904,29 @@ const syncVRSubsystems = () => {
 
   if (vrHandCircuitHUD) {
     vrHandCircuitHUD.renderCanvas();
+  }
+
+  // Focused 3D Observation Station (Sync state & mutual exclusivity)
+  if (vrObservationStation) {
+    vrObservationStation.syncWithSimulation();
+
+    // Mutual exclusivity:
+    // When Observation Station is active (all 7 wires valid + key closed + current > 0),
+    // hide the Wall TV HUD and orientation cards to provide a calm, distraction-free scientific observation display.
+    if (vrObservationStation.group.visible) {
+      if (vrHandCircuitHUD && vrHandCircuitHUD.group.visible) {
+        vrHandCircuitHUD.setVisible(false);
+      }
+      if (vrOrientationSystem && vrOrientationSystem.group.visible) {
+        vrOrientationSystem.group.visible = false;
+      }
+    } else {
+      // When Observation Station is hidden (e.g. key open or wiring phase),
+      // restore Wall TV HUD for circuit wiring/schematic instructions in VR.
+      if (vrHandCircuitHUD && !vrHandCircuitHUD.group.visible && renderer.xr.isPresenting) {
+        vrHandCircuitHUD.setVisible(true);
+      }
+    }
   }
 };
 
@@ -770,6 +1093,21 @@ if (narrationVolumeSlider) {
   });
 }
 
+const audioTestBtn = document.getElementById('audio-test-btn');
+if (audioTestBtn) {
+  audioTestBtn.addEventListener('click', async () => {
+    audioTestBtn.disabled = true;
+    audioTestBtn.textContent = '⏳ Testing…';
+    const diag = await runAudioDiagnosticTest(narration);
+    audioTestBtn.disabled = false;
+    audioTestBtn.textContent = '🧪 Test Audio';
+    showFeedbackToast({
+      type: diag.success ? 'success' : 'warning',
+      message: diag.details
+    });
+  });
+}
+
 // 10d. Start Current Button (3D physical push button)
 const startCurrentButton = new StartCurrentButton({
   scene,
@@ -798,7 +1136,9 @@ const diagnosticsPanel = new DiagnosticsPanel({
   vrSessionManager,
   xrHandManager,
   modelLoader,
-  renderer
+  renderer,
+  narration,
+  sound
 });
 
 // 12. Load and Present 3D Laboratory Environment & Apparatus (labroom.glb)
@@ -814,18 +1154,189 @@ modelLoader
     }
   )
   .then((gltf) => {
-    if (gltf) {
-      ui.setProgress(100, '3D laboratory loaded successfully.');
-      interaction.initSwitchLever();
-      measurement.initModelNodes();
-      terminalMarkers.syncWithModel(modelLoader.model);
-      startCurrentButton.syncWithModel(modelLoader.model);
-      labels.syncWithModel(modelLoader.model);
+    try {
+      if (gltf) {
+        ui.setProgress(100, '3D laboratory loaded successfully.');
+        interaction.initSwitchLever();
+        measurement.initModelNodes();
+        terminalMarkers.syncWithModel(modelLoader.model);
+        startCurrentButton.syncWithModel(modelLoader.model);
+        labels.syncWithModel(modelLoader.model);
+        holographicMetersHUD.syncWithModel(modelLoader.model);
+        apparatusGuide.syncWithModel(modelLoader.model);
+      }
+    } catch (nodeErr) {
+      console.warn('[Main] Non-fatal error configuring model nodes:', nodeErr);
+    } finally {
+      setTimeout(() => {
+        ui.hideLoading();
+        setTimeout(() => {
+          // Launch 3D Tony Stark Spatial Orientation System (Zero 2D modal popups in VR)
+          if (vrOrientationSystem) {
+            vrOrientationSystem.startOrientation();
+          }
+        }, 450);
+      }, 350);
     }
-    setTimeout(() => {
-      ui.hideLoading();
-    }, 350);
+  })
+  .catch((loadErr) => {
+    console.error('[Main] Model load failed:', loadErr);
+    ui.hideLoading();
   });
+
+// Absolute safety timeout: never leave student stuck on loading screen longer than 4.0s
+setTimeout(() => {
+  ui.hideLoading();
+}, 4000);
+
+// ─── Desktop AI Tutor UI Wiring ──────────────────────────────────────────
+const toggleAiTutorBtn = document.getElementById('toggle-ai-tutor-btn');
+const closeAiTutorBtn = document.getElementById('close-ai-tutor-btn');
+const aiTutorDock = document.getElementById('ai-tutor-dock');
+const aiTutorLangSelect = document.getElementById('ai-tutor-lang-select');
+const aiTutorForm = document.getElementById('ai-tutor-form');
+const aiTutorInput = document.getElementById('ai-tutor-input');
+const aiTutorMsgText = document.getElementById('ai-tutor-message-text');
+const aiTutorExpText = document.getElementById('ai-tutor-explanation-text');
+const aiTutorActText = document.getElementById('ai-tutor-action-text');
+const aiStatusIndicator = document.getElementById('ai-status-indicator');
+
+function syncDesktopTutorUI(response, isLoading = false) {
+  if (aiStatusIndicator) {
+    if (isLoading) {
+      aiStatusIndicator.textContent = '● Thinking...';
+      aiStatusIndicator.className = 'ai-status-pill thinking';
+    } else if (response && response.responseType === 'error') {
+      aiStatusIndicator.textContent = '● Error';
+      aiStatusIndicator.className = 'ai-status-pill error';
+    } else {
+      aiStatusIndicator.textContent = '● Online';
+      aiStatusIndicator.className = 'ai-status-pill online';
+    }
+  }
+  if (response) {
+    if (aiTutorMsgText && response.message) aiTutorMsgText.textContent = response.message;
+    if (aiTutorExpText && response.explanation) aiTutorExpText.textContent = response.explanation;
+    if (aiTutorActText && response.suggestedAction) aiTutorActText.textContent = `👉 ${response.suggestedAction}`;
+  }
+}
+
+// ─── Settings Dropdown & Photo Guide Wiring ───
+const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+const settingsDropdownMenu = document.getElementById('settings-dropdown-menu');
+
+if (toggleSettingsBtn && settingsDropdownMenu) {
+  toggleSettingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = settingsDropdownMenu.classList.toggle('hidden');
+    toggleSettingsBtn.setAttribute('aria-expanded', !isHidden);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!settingsDropdownMenu.classList.contains('hidden') && !settingsDropdownMenu.contains(e.target) && e.target !== toggleSettingsBtn) {
+      settingsDropdownMenu.classList.add('hidden');
+      toggleSettingsBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  settingsDropdownMenu.querySelectorAll('.dropdown-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      settingsDropdownMenu.classList.add('hidden');
+      toggleSettingsBtn.setAttribute('aria-expanded', 'false');
+    });
+  });
+}
+
+// Circuit photo guide button -> open schematic modal
+const circuitPhotoGuideBtn = document.getElementById('circuit-photo-guide-btn');
+const schematicModal = document.getElementById('schematic-modal');
+if (circuitPhotoGuideBtn && schematicModal) {
+  circuitPhotoGuideBtn.addEventListener('click', () => {
+    schematicModal.classList.add('open');
+  });
+}
+
+if (toggleAiTutorBtn && aiTutorDock) {
+  toggleAiTutorBtn.addEventListener('click', () => {
+    const isHidden = aiTutorDock.classList.toggle('hidden');
+    if (vrAITutorPanel) {
+      vrAITutorPanel.group.visible = !isHidden;
+    }
+    // Prevent panel collision on standard displays
+    if (!isHidden && window.innerWidth < 1600 && expPanelContainer) {
+      expPanelContainer.classList.add('hidden');
+      const expBtn = document.getElementById('toggle-exp-panel-btn');
+      if (expBtn) expBtn.classList.remove('active');
+    }
+  });
+}
+
+if (closeAiTutorBtn && aiTutorDock) {
+  closeAiTutorBtn.addEventListener('click', () => {
+    aiTutorDock.classList.add('hidden');
+  });
+}
+
+if (aiTutorLangSelect && vrAITutorPanel) {
+  aiTutorLangSelect.addEventListener('change', (e) => {
+    vrAITutorPanel.currentLanguage = e.target.value;
+    if (speechRecognitionService) speechRecognitionService.setLanguage(e.target.value);
+    if (aiTutorSpeechService) aiTutorSpeechService.setLanguage(e.target.value);
+    vrAITutorPanel.redraw();
+  });
+}
+
+const aiTutorMicBtn = document.getElementById('ai-tutor-mic-btn');
+if (aiTutorMicBtn && vrAITutorPanel) {
+  aiTutorMicBtn.addEventListener('click', async () => {
+    if (speechRecognitionService && speechRecognitionService.isListening) {
+      vrAITutorPanel.stopVoice();
+    } else {
+      sound.unlock();
+      if (aiTutorSpeechService) aiTutorSpeechService.stop();
+      await vrAITutorPanel.startVoiceInput();
+      syncDesktopTutorUI(vrAITutorPanel.lastTutorResponse, false);
+    }
+  });
+}
+
+const aiVoiceCancelBtn = document.getElementById('ai-voice-cancel-btn');
+if (aiVoiceCancelBtn && vrAITutorPanel) {
+  aiVoiceCancelBtn.addEventListener('click', () => {
+    vrAITutorPanel.stopVoice();
+  });
+}
+
+if (aiTutorForm && aiTutorInput) {
+  aiTutorForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = aiTutorInput.value.trim();
+    if (!q || !vrAITutorPanel) return;
+    aiTutorInput.value = '';
+    syncDesktopTutorUI(null, true);
+    await vrAITutorPanel.askQuestion(q);
+    syncDesktopTutorUI(vrAITutorPanel.lastTutorResponse, false);
+  });
+}
+
+document.querySelectorAll('.ai-quick-btn').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const act = btn.getAttribute('data-action');
+    if (!vrAITutorPanel) return;
+    syncDesktopTutorUI(null, true);
+    if (act === 'hint') await vrAITutorPanel.requestGuidance('hint', 'Can you give me a hint?');
+    else if (act === 'explain') await vrAITutorPanel.requestGuidance('explain', 'Can you explain the current step?');
+    else if (act === 'mistakes') await vrAITutorPanel.requestGuidance('mistakes', 'Check my circuit mistakes');
+    else if (act === 'guided_question') await vrAITutorPanel.requestGuidance('guided_question', 'What should I think about next for this practical?');
+    else if (act === 'check_understanding') await vrAITutorPanel.requestGuidance('check_understanding', 'Can you ask me a question to test my understanding of Ohm’s Law?');
+    else if (act === 'retry') await vrAITutorPanel.retryLastQuestion();
+    else if (act === 'ammeter') await vrAITutorPanel.askQuestion('Why is ammeter in series and voltmeter in parallel?');
+    else if (act === 'ohmslaw') await vrAITutorPanel.askQuestion('What is Ohm’s Law and how do we calculate V = IR?');
+    else if (act === 'repeat') vrAITutorPanel.repeatLastResponse();
+    else if (act === 'stop') vrAITutorPanel.stopVoice();
+    syncDesktopTutorUI(vrAITutorPanel.lastTutorResponse, false);
+  });
+});
 
 // 13. Window Resize Listener
 function onWindowResize() {
@@ -851,50 +1362,74 @@ function animate(time, frame) {
   if (!renderer.xr.isPresenting) {
     updateCameraTransition(delta);
     controls.update();
+  } else if (sound.getContextState() === 'suspended') {
+    // Resume Web Audio if suspended upon entering or during WebXR session
+    sound.resumeContext();
   }
 
-  // Update subtle pulsing of terminal markers with camera billboarding
-  terminalMarkers.update(timeSec, camera);
+  // WebXR & Desktop Subsystem Updates (safely wrapped to guarantee render execution)
+  try {
+    terminalMarkers.update(timeSec, camera);
+  } catch (e) {}
 
-  // Update physical switch lever articulation
-  interaction.update(delta);
+  try {
+    interaction.update(delta);
+    measurement.update(delta);
+  } catch (e) {}
 
-  // Update physical needles, rheostat handle, and switch articulation
-  measurement.update(delta);
+  try {
+    guidedMode.update(camera);
+    if (apparatusGuide) apparatusGuide.update(delta, timeSec);
+  } catch (e) {}
 
-  // Update guided mode (billboard tooltip, animated energy beam, 3D pins)
-  guidedMode.update(camera);
+  try {
+    if (wireRenderer) wireRenderer.update(timeSec, simulation.current, delta);
+  } catch (e) {}
 
-  // Update wire electrical surge / pulse & real-time electron drift stream
-  if (wireRenderer) {
-    wireRenderer.update(timeSec, simulation.current, delta);
+  try {
+    if (environment) environment.update(timeSec);
+  } catch (e) {}
+
+  try {
+    if (holographicSwitches) holographicSwitches.update(timeSec, delta);
+    if (holographicMetersHUD) {
+      const liveV = simulation.keyClosed ? simulation.resistorVoltage : 0.0;
+      const liveI = simulation.keyClosed ? simulation.current : 0.0;
+      holographicMetersHUD.update(timeSec, liveV, liveI, wireRenderer.xrayMode, camera);
+    }
+  } catch (e) {}
+
+  try {
+    if (startCurrentButton) startCurrentButton.update(delta);
+  } catch (e) {}
+
+  // Update WebXR native hand tracking
+  try {
+    if (xrHandManager) xrHandManager.update(delta);
+  } catch (e) {
+    console.warn('[RenderLoop] xrHandManager update error:', e);
   }
 
-  // Update sci-fi environment animations (neon pulse, scan line, particles)
-  if (environment) {
-    environment.update(timeSec);
-  }
+  try {
+    if (batterySparkEffect) batterySparkEffect.update(delta, simulation);
+  } catch (e) {}
 
-  // Update 3D tabletop holographic consoles & floating meters HUD
-  if (holographicSwitches) {
-    holographicSwitches.update(timeSec, delta);
-  }
-  if (holographicMetersHUD) {
-    holographicMetersHUD.update(timeSec, simulation.voltage, simulation.current, wireRenderer.xrayMode);
-  }
+  try {
+    if (vrOrientationSystem) vrOrientationSystem.update(delta, timeSec);
+  } catch (e) {}
 
-  // Update Start Current button (push animation, LED pulse)
-  if (startCurrentButton) {
-    startCurrentButton.update(delta);
-  }
+  try {
+    if (labAssistant) labAssistant.update(delta, timeSec);
+    if (throwableManager) throwableManager.update(delta);
+    if (vrAITutorPanel) vrAITutorPanel.update(delta);
+  } catch (e) {}
 
-  // Update WebXR hand tracking, joint positions & proximity pinch gestures
-  if (xrHandManager) {
-    xrHandManager.update(delta);
+  // Guaranteed render scene every frame so WebXR compositor never latches or freezes
+  try {
+    renderer.render(scene, camera);
+  } catch (renderErr) {
+    console.error('[RenderLoop] Critical render error:', renderErr);
   }
-
-  // Render scene
-  renderer.render(scene, camera);
 }
 
 // Start WebXR unified animation loop
@@ -926,6 +1461,21 @@ window.labCircuit = {
   narration,
   guidedMode,
   startCurrentButton,
-  practicalFlowPanel
+  practicalFlowPanel,
+  batterySparkEffect,
+  apparatusGuide,
+  orientationModal,
+  vrOrientationSystem,
+  vrObservationStation,
+  labAssistant,
+  throwableManager,
+  stateBridge: simulationStateBridge,
+  aiTutorClient,
+  vrAITutorPanel,
+  speechRecognition: speechRecognitionService,
+  tutorSpeech: aiTutorSpeechService,
+  sound,
+  xrAudioListener,
+  runAudioDiagnosticTest: () => runAudioDiagnosticTest(narration)
 };
 

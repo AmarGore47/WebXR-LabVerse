@@ -557,7 +557,8 @@ export class GuidedModeController {
 
     if (nearTermId && this.terminalMarkers) {
       const pos = this.terminalMarkers.getTerminalWorldPosition(nearTermId);
-      this.tooltipGroup.position.set(pos.x, pos.y + 0.22, pos.z + 0.05);
+      // Elevate tooltip comfortably above apparatus line so it never blocks terminals
+      this.tooltipGroup.position.set(pos.x, pos.y + 0.42, pos.z + 0.02);
     } else {
       this.tooltipGroup.position.set(0, 1.55, 0.15);
     }

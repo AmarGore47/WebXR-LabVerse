@@ -49,7 +49,7 @@ export class ApparatusLabels {
         id: 'resistor',
         meshName: 'ResistorBoard',
         title: 'Resistor',
-        sub: 'Standard 5 Ω Coil',
+        sub: 'Standard 10 Ω Coil',
         pos: [0.10, 0.93, 0.16],
         accentColor: '#fbbf24'
       },

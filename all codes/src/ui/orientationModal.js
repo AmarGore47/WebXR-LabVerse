@@ -11,12 +11,14 @@
 import { REQUIRED_CONNECTIONS } from '../circuit/circuitConfig.js';
 
 export class OrientationModal {
-  constructor({ circuitState, simulation, guidedMode, narration, onFeedback }) {
+  constructor({ circuitState, simulation, guidedMode, narration, apparatusGuide, onFeedback, onStartPractical }) {
     this.circuitState = circuitState;
     this.simulation = simulation;
     this.guidedMode = guidedMode;
     this.narration = narration;
+    this.apparatusGuide = apparatusGuide || null;
     this.onFeedback = onFeedback || (() => {});
+    this.onStartPractical = onStartPractical || (() => {});
 
     this.modal = document.getElementById('orientation-modal');
     this.closeBtn = document.getElementById('close-orientation-btn');
@@ -26,7 +28,12 @@ export class OrientationModal {
     ].filter(Boolean);
     this.tourBtn = document.getElementById('orient-tour-btn');
 
-    this.activeTab = 'circuit'; // 'overview' | 'circuit' | 'procedure'
+    this.startBtn = document.getElementById('orient-start-btn');
+    this.skipBtn = document.getElementById('orient-skip-btn');
+    this.inspectBtn = document.getElementById('orient-inspect-btn');
+    this.viewWiringBtn = document.getElementById('orient-view-wiring-btn');
+
+    this.activeTab = 'flow'; // 'flow' | 'circuit' | 'overview' | 'procedure'
     this.tourTimer = null;
 
     this.initEventListeners();
@@ -55,6 +62,39 @@ export class OrientationModal {
 
     if (this.tourBtn) {
       this.tourBtn.addEventListener('click', () => this.startTour());
+    }
+
+    if (this.startBtn) {
+      this.startBtn.addEventListener('click', () => {
+        this.close();
+        if (this.guidedMode) {
+          this.guidedMode.setEnabled(true);
+          this.guidedMode.start();
+        }
+        if (this.apparatusGuide) {
+          this.apparatusGuide.startTour();
+        }
+        this.onStartPractical();
+      });
+    }
+
+    if (this.skipBtn) {
+      this.skipBtn.addEventListener('click', () => this.close());
+    }
+
+    if (this.inspectBtn) {
+      this.inspectBtn.addEventListener('click', () => {
+        this.close();
+        if (this.apparatusGuide) {
+          this.apparatusGuide.startTour();
+        }
+      });
+    }
+
+    if (this.viewWiringBtn) {
+      this.viewWiringBtn.addEventListener('click', () => {
+        this.switchTab('circuit');
+      });
     }
 
     if (this.modal) {
@@ -121,15 +161,20 @@ export class OrientationModal {
     tabs.forEach((btn) => {
       btn.addEventListener('click', () => {
         const targetTab = btn.getAttribute('data-tab');
-        if (!targetTab) return;
-
-        this.activeTab = targetTab;
-        tabs.forEach((t) => t.classList.toggle('active', t === btn));
-
-        document.querySelectorAll('.orient-tab-content').forEach((panel) => {
-          panel.classList.toggle('active', panel.id === `orient-content-${targetTab}`);
-        });
+        if (targetTab) this.switchTab(targetTab);
       });
+    });
+  }
+
+  switchTab(targetTab) {
+    if (!targetTab) return;
+    this.activeTab = targetTab;
+    const tabs = document.querySelectorAll('.orient-nav-btn');
+    tabs.forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === targetTab);
+    });
+    document.querySelectorAll('.orient-tab-content').forEach((panel) => {
+      panel.classList.toggle('active', panel.id === `orient-content-${targetTab}`);
     });
   }
 

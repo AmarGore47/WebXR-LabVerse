@@ -8,7 +8,8 @@
 
 import * as THREE from 'three';
 import { CircuitValidator } from './circuitValidator.js';
-import { getTerminalDisplayName } from './circuitConfig.js';
+import { getTerminalDisplayName, getMaxConnectionsForTerminal } from './circuitConfig.js';
+import { sound } from '../audio.js';
 
 export class InteractionController {
   constructor(options) {
@@ -28,6 +29,7 @@ export class InteractionController {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.extraClickables = []; // Additional 3D objects with onPress callbacks
+    this.clickableProviders = []; // Dynamic provider functions returning 3D clickables
 
     // Physical switch lever reference from GLB
     this.switchLever = null;
@@ -35,8 +37,55 @@ export class InteractionController {
     this.initialLeverPos = null;
     this.switchProgress = 0.0; // 0 = open, 1 = closed
 
+    // Wire disconnection confirmation state
+    this.disconnectModal = null;
+    this.disconnectDesc = null;
+    this.confirmDisconnectBtn = null;
+    this.cancelDisconnectBtn = null;
+    this.pendingDisconnectId = null;
+    this.lastDisconnectRequestTime = 0;
+
     this.initSwitchLever();
+    this.initDisconnectDialog();
     this.setupPointerEvents();
+  }
+
+  initDisconnectDialog() {
+    if (typeof document === 'undefined') return;
+    this.disconnectModal = document.getElementById('wire-disconnect-modal');
+    this.disconnectDesc = document.getElementById('wire-disconnect-desc');
+    this.confirmDisconnectBtn = document.getElementById('wire-disconnect-confirm-btn');
+    this.cancelDisconnectBtn = document.getElementById('wire-disconnect-cancel-btn');
+
+    if (this.confirmDisconnectBtn) {
+      this.confirmDisconnectBtn.addEventListener('click', () => {
+        this.confirmWireDisconnection(this.pendingDisconnectId);
+      });
+    }
+
+    if (this.cancelDisconnectBtn) {
+      this.cancelDisconnectBtn.addEventListener('click', () => {
+        this.hideDisconnectDialog();
+        this.onFeedback({
+          type: 'info',
+          message: 'Wire kept connected.'
+        });
+      });
+    }
+
+    if (this.disconnectModal) {
+      this.disconnectModal.addEventListener('click', (e) => {
+        if (e.target === this.disconnectModal) {
+          this.hideDisconnectDialog();
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.disconnectModal && this.disconnectModal.classList.contains('open')) {
+        this.hideDisconnectDialog();
+      }
+    });
   }
 
   _lockControlsTemporarily() {
@@ -102,14 +151,30 @@ export class InteractionController {
       }
     }
 
-    // 3. Raycast extra clickables (e.g. Start Current button)
-    if (this.extraClickables.length > 0) {
-      const extraHits = this.raycaster.intersectObjects(this.extraClickables, false);
+    // 3. Raycast extra clickables (e.g. Start Current button, Assistant, Radial Menu, Subpanels)
+    let candidateClickables = [...this.extraClickables];
+    for (const provider of this.clickableProviders) {
+      if (typeof provider === 'function') {
+        const list = provider();
+        if (Array.isArray(list)) candidateClickables.push(...list);
+      }
+    }
+
+    if (candidateClickables.length > 0) {
+      const activeClickables = candidateClickables.filter((o) => {
+        let p = o;
+        while (p) {
+          if (p.visible === false) return false;
+          p = p.parent;
+        }
+        return true;
+      });
+      const extraHits = this.raycaster.intersectObjects(activeClickables, false);
       if (extraHits.length > 0) {
         this._lockControlsTemporarily();
         const obj = extraHits[0].object;
         if (obj.userData && typeof obj.userData.onPress === 'function') {
-          obj.userData.onPress();
+          obj.userData.onPress(extraHits[0]);
           return;
         }
       }
@@ -134,12 +199,33 @@ export class InteractionController {
   /**
    * Handle terminal click for two-step wire creation.
    */
+  /**
+   * Handle terminal click for two-step wire creation.
+   */
   handleTerminalClick(termId) {
-    // A. If no terminal selected yet -> select Terminal 1
+    // A. If no terminal selected yet -> selecting Terminal 1
     if (!this.selectedTerminalId) {
+      // Check if terminal is already at maximum capacity
+      const currentCount = this.circuitState.getConnectionCountForTerminal(termId);
+      const maxCount = getMaxConnectionsForTerminal(termId);
+      if (currentCount >= maxCount) {
+        const connectedConns = this.circuitState.connections.filter(c => c.from === termId || c.to === termId);
+        const otherTermNames = connectedConns.map(c => {
+          const otherId = c.from === termId ? c.to : c.from;
+          return getTerminalDisplayName(otherId);
+        }).join(', ');
+        const name = getTerminalDisplayName(termId);
+        this.onFeedback({
+          type: 'warning',
+          message: `${name} is already connected to ${otherTermNames}. Click the wire to disconnect it first if you want to rewire.`
+        });
+        return;
+      }
+
       this.selectedTerminalId = termId;
       this.terminalMarkers.setSelectedTerminal(termId);
       const name = getTerminalDisplayName(termId);
+      sound.playSliderTick(1.8);
       this.onFeedback({
         type: 'info',
         message: `Selected ${name}. Now click another terminal to connect a wire.`
@@ -150,6 +236,7 @@ export class InteractionController {
 
     // B. If same terminal clicked again -> cancel selection
     if (this.selectedTerminalId === termId) {
+      sound.playSliderTick(0.8);
       this.cancelSelection();
       this.onFeedback({
         type: 'info',
@@ -170,6 +257,7 @@ export class InteractionController {
     );
 
     if (!validation.allowed) {
+      sound.playErrorTone();
       this.onFeedback({
         type: 'error',
         message: validation.message
@@ -184,6 +272,14 @@ export class InteractionController {
     const posA = this.terminalMarkers.getTerminalWorldPosition(termA);
     const posB = this.terminalMarkers.getTerminalWorldPosition(termB);
     this.wireRenderer.addWire(connection, posA, posB);
+
+    // Play crisp physical wire snap audio feedback
+    sound.playWireSnap();
+
+    // If this completed the 7 required connections, play victory chime!
+    if (this.circuitState.connections.length >= 7 && this.circuitState.isCircuitComplete()) {
+      setTimeout(() => sound.playSuccessChime(), 160);
+    }
 
     this.onFeedback({
       type: validation.status === 'valid' ? 'success' : 'warning',
@@ -206,7 +302,7 @@ export class InteractionController {
   }
 
   /**
-   * Handle clicking directly on a 3D wire to remove it.
+   * Handle clicking directly on a 3D wire to request removal with confirmation.
    */
   handleWireClick(connectionId) {
     const conn = this.circuitState.connections.find((c) => c.id === connectionId);
@@ -215,11 +311,75 @@ export class InteractionController {
     const fromName = getTerminalDisplayName(conn.from);
     const toName = getTerminalDisplayName(conn.to);
 
+    // In VR immersive mode: 2-step pinch confirmation
+    const isVR = (typeof navigator !== 'undefined' && this.scene && this.scene.userData && this.scene.userData.isInVR);
+    if (isVR) {
+      const now = Date.now();
+      if (this.pendingDisconnectId === connectionId && (now - this.lastDisconnectRequestTime) < 5000) {
+        this.confirmWireDisconnection(connectionId);
+        return;
+      }
+      this.pendingDisconnectId = connectionId;
+      this.lastDisconnectRequestTime = now;
+      this.onFeedback({
+        type: 'warning',
+        message: `⚠️ Disconnect wire between ${fromName} and ${toName}? Pinch it again to confirm.`
+      });
+      return;
+    }
+
+    // Desktop: show confirmation modal
+    this.showDisconnectDialog(connectionId);
+  }
+
+  /**
+   * Display confirmation modal before disconnecting wire.
+   */
+  showDisconnectDialog(connectionId) {
+    const conn = this.circuitState.connections.find((c) => c.id === connectionId);
+    if (!conn) return;
+
+    this.pendingDisconnectId = connectionId;
+    const fromName = getTerminalDisplayName(conn.from);
+    const toName = getTerminalDisplayName(conn.to);
+
+    if (this.disconnectDesc) {
+      this.disconnectDesc.innerHTML = `Are you sure you want to remove the connecting wire between <strong>${fromName}</strong> and <strong>${toName}</strong>?`;
+    }
+    if (this.disconnectModal) {
+      this.disconnectModal.classList.add('open');
+    }
+  }
+
+  /**
+   * Hide confirmation modal.
+   */
+  hideDisconnectDialog() {
+    this.pendingDisconnectId = null;
+    if (this.disconnectModal) {
+      this.disconnectModal.classList.remove('open');
+    }
+  }
+
+  /**
+   * Confirmed removal of wire.
+   */
+  confirmWireDisconnection(connectionId) {
+    const targetId = connectionId || this.pendingDisconnectId;
+    this.hideDisconnectDialog();
+    if (!targetId) return;
+
+    const conn = this.circuitState.connections.find((c) => c.id === targetId);
+    if (!conn) return;
+
+    const fromName = getTerminalDisplayName(conn.from);
+    const toName = getTerminalDisplayName(conn.to);
     const wasActive = this.simulation && this.simulation.keyClosed;
 
-    const removed = this.circuitState.removeConnection(connectionId);
+    const removed = this.circuitState.removeConnection(targetId);
     if (removed) {
-      this.wireRenderer.removeWire(connectionId);
+      this.wireRenderer.removeWire(targetId);
+      sound.playWireDisconnect();
 
       if (wasActive) {
         const fb = this.simulation.handleWireRemovedWhileActive();
@@ -245,6 +405,7 @@ export class InteractionController {
     const undone = this.circuitState.undoLastConnection();
     if (undone) {
       this.wireRenderer.removeWire(undone.id);
+      sound.playWireDisconnect();
       const fromName = getTerminalDisplayName(undone.from);
       const toName = getTerminalDisplayName(undone.to);
       const wasActive = this.simulation && this.simulation.keyClosed;
@@ -313,6 +474,15 @@ export class InteractionController {
    */
   registerExtraClickables(objects) {
     this.extraClickables.push(...objects);
+  }
+
+  /**
+   * Register a dynamic provider function returning an array of 3D clickable objects.
+   */
+  registerClickableProvider(providerFn) {
+    if (typeof providerFn === 'function') {
+      this.clickableProviders.push(providerFn);
+    }
   }
 
   /**

@@ -61,7 +61,7 @@ export const REQUIRED_CONNECTIONS = [
     name: 'Rheostat (Base) ↔ Resistor (Left)',
     role: 'series',
     wireType: 'series',
-    description: 'Main series path: Connects rheostat base terminal to the standard 5 Ω resistor.'
+    description: 'Main series path: Connects rheostat base terminal to the standard 10 Ω resistor.'
   },
   {
     id: 'req_resistor_battery',

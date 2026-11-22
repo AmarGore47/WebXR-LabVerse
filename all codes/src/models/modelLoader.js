@@ -6,12 +6,48 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export const UNTITLED_MODEL_PATH = '/models/Untitled.glb';
 export const LAB_ROOM_MODEL_PATH = UNTITLED_MODEL_PATH;
 export const OHMS_LAW_MODEL_PATH = UNTITLED_MODEL_PATH;
 export const CANONICAL_MODEL_PATH = UNTITLED_MODEL_PATH;
+
+/**
+ * Returns prioritized candidate URLs for the 3D laboratory environment model.
+ * Resilient against sub-paths, relative deployment, and fallback filenames.
+ */
+export function getCandidateModelPaths() {
+  let base = '/';
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) {
+      base = import.meta.env.BASE_URL;
+      if (!base.endsWith('/')) base += '/';
+    }
+  } catch (_) {
+    base = '/';
+  }
+
+  const rawList = [
+    `${base}models/Untitled.glb`,
+    '/models/Untitled.glb',
+    './models/Untitled.glb',
+    'models/Untitled.glb',
+    `${base}public/models/Untitled.glb`,
+    '/public/models/Untitled.glb',
+    './public/models/Untitled.glb',
+    'public/models/Untitled.glb',
+    `${base}models/finalromm.glb`,
+    '/models/finalromm.glb',
+    './models/finalromm.glb',
+    'models/finalromm.glb',
+    `${base}public/models/finalromm.glb`,
+    '/public/models/finalromm.glb',
+    './public/models/finalromm.glb'
+  ];
+
+  return Array.from(new Set(rawList));
+}
 
 export class ModelLoader {
   constructor(scene, options = {}) {
@@ -24,25 +60,29 @@ export class ModelLoader {
     this.loadedPath = null;
     this.loadError = null;
     this.isFullRoom = false;
-    this.onRoomLoaded = options.onRoomLoaded || (() => {});
+    this.onRoomLoaded = options.onRoomLoaded || (() => { });
   }
 
   /**
    * Load the 3D lab environment & apparatus model.
-   * Loads the comprehensive Untitled.glb environment.
+   * Loads the comprehensive Untitled.glb environment with multi-path fallback.
    */
-  async load(onProgress = () => {}, onError = () => {}) {
+  async load(onProgress = () => { }, onError = () => { }) {
     this.loadStatus = 'loading';
+    this.loadError = null;
 
-    const candidatePaths = [UNTITLED_MODEL_PATH];
-    let lastError = null;
+    const candidatePaths = getCandidateModelPaths();
+    let loadedGltf = null;
+    let successfulPath = null;
+    const attemptedErrors = [];
 
+    // Phase 1: Robust network fetch & GLTF parse loop
     for (const path of candidatePaths) {
       try {
         const gltf = await new Promise((resolve, reject) => {
           this.loader.load(
             path,
-            (loadedGltf) => resolve(loadedGltf),
+            (loaded) => resolve(loaded),
             (xhr) => {
               if (xhr.lengthComputable && xhr.total > 0) {
                 const percent = Math.round((xhr.loaded / xhr.total) * 100);
@@ -53,23 +93,43 @@ export class ModelLoader {
           );
         });
 
-        this.loadStatus = 'loaded';
-        this.loadedPath = path;
-        this.processModel(gltf);
-        return gltf;
+        if (gltf && gltf.scene) {
+          loadedGltf = gltf;
+          successfulPath = path;
+          console.log(`[ModelLoader] Successfully loaded 3D laboratory environment from: ${path}`);
+          break;
+        }
       } catch (err) {
-        lastError = err;
-        console.warn(`[ModelLoader] Candidate path ${path} failed.`, err);
+        const errMsg = err?.message || (err?.target ? `HTTP status ${err.target.status || 'network error'}` : String(err));
+        attemptedErrors.push({ path, error: errMsg });
+        console.warn(`[ModelLoader] Candidate path "${path}" unavailable:`, errMsg);
       }
     }
 
-    this.loadStatus = 'failed';
-    this.loadError = lastError;
-    const userMessage = `Could not load 3D laboratory environment. Please ensure Untitled.glb exists in public/models/.`;
-    console.error(userMessage, lastError);
-    onError(new Error(userMessage));
-    this.createFallbackPlaceholder();
-    return null;
+    // Phase 2: If all candidate paths failed, fallback gracefully with rich diagnostics
+    if (!loadedGltf) {
+      this.loadStatus = 'failed';
+      const lastErrObj = attemptedErrors[attemptedErrors.length - 1];
+      const detailMsg = lastErrObj ? `${lastErrObj.path} (${lastErrObj.error})` : 'Unknown error';
+      const userMessage = `Could not load 3D laboratory environment. Please ensure Untitled.glb exists in public/models/. Attempted ${candidatePaths.length} paths; last error: ${detailMsg}`;
+      this.loadError = new Error(userMessage);
+      console.error(`[ModelLoader] All ${candidatePaths.length} candidate paths failed:`, attemptedErrors);
+      onError(this.loadError);
+      this.createFallbackPlaceholder();
+      return null;
+    }
+
+    // Phase 3: GLTF parsed successfully! Process model hierarchy in protected block
+    this.loadStatus = 'loaded';
+    this.loadedPath = successfulPath;
+    try {
+      this.processModel(loadedGltf);
+    } catch (procErr) {
+      console.error('[ModelLoader] Non-fatal error while processing loaded 3D model hierarchy:', procErr);
+      // Crucial: The model was loaded successfully, do not destroy it or replace with fallback box!
+    }
+
+    return loadedGltf;
   }
 
   /**
@@ -128,6 +188,10 @@ export class ModelLoader {
         } else if (name === 'Plane' || name === 'Plane.001' || name === 'Plane.002') {
           // Hide orphan untextured Blender plane placeholders on the floor that cause Z-fighting
           node.visible = false;
+        } else if (name === 'LeftWall_FrontPillar.001' || lower.includes('leftwall_frontpillar.001')) {
+          // Move right lab wall outward to the side (+X to 4.25m) for a wider, spacious lab room without obstructing assistant
+          node.position.x = 4.25;
+          identifiedApparatus.room.push(name);
         } else if (name === 'StartCurrentButton' || name === 'StartButton_base' || name === 'StartButton_trim') {
           // Hide duplicate static button from Blender model so interactive StartCurrentButton is used cleanly without Z-fighting
           node.visible = false;
@@ -149,9 +213,9 @@ export class ModelLoader {
             m.polygonOffsetUnits = 1.0;
             m.depthWrite = true;
           });
-        } else if (lower.includes('power supply') || (lower.includes('terminal') && (lower.includes('positive') || lower.includes('negative'))) || lower.includes('6.0 v') || lower.includes('60_v')) {
+        } else if (lower.includes('powersupply') || lower.includes('power supply') || lower.includes('battery') || (lower.includes('terminal') && (lower.includes('positive') || lower.includes('negative'))) || lower.includes('6.0 v') || lower.includes('60_v')) {
           identifiedApparatus.battery.push(name);
-        } else if (lower.includes('switch') || lower.includes('plug key')) {
+        } else if (lower.includes('switch') || lower.includes('plug key') || lower.startsWith('plugkey')) {
           identifiedApparatus.switchKey.push(name);
         } else if (lower.includes('ammeter')) {
           identifiedApparatus.ammeter.push(name);
@@ -161,7 +225,6 @@ export class ModelLoader {
           identifiedApparatus.resistor.push(name);
         } else if (lower.includes('rheostat')) {
           identifiedApparatus.rheostat.push(name);
-          node.position.z += 0.085; // Bring rheostat forward so it is close and clearly visible
         } else if (lower.includes('table') || lower.includes('leg') || lower.includes('work surface') || lower.includes('trim')) {
           identifiedApparatus.table.push(name);
         } else if (lower.includes('wall') || lower.includes('ceiling') || lower.includes('shelf') || lower.includes('cabinet') || lower.includes('counter') || lower.includes('sign') || lower.includes('board') || lower.includes('beaker') || lower.includes('lens')) {
@@ -255,7 +318,11 @@ export class ModelLoader {
     this.scene.add(this.model);
 
     if (this.onRoomLoaded) {
-      this.onRoomLoaded(this.isFullRoom);
+      try {
+        this.onRoomLoaded(this.isFullRoom);
+      } catch (cbErr) {
+        console.warn('[ModelLoader] Non-fatal error inside onRoomLoaded callback:', cbErr);
+      }
     }
   }
 

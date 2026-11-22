@@ -1,0 +1,493 @@
+<USER_REQUEST>
+# LabVerse — Existing 3D AI Lab Assistant Upgrade
+## Implementation Prompt for Antigravity
+
+### 1. Main Objective
+
+Upgrade the existing 3D AI Lab Assistant in my LabVerse Physics VR Laboratory.
+
+I want to transform the existing Lab Assistant into an interactive, context-aware 3D AI Physics Tutor with a clean radial holographic menu.
+
+**IMPORTANT: I already have a 3D Lab Assistant character in my project. Reuse that exact existing character. Do not create a new robot, humanoid, avatar, or duplicate assistant.**
+
+The goal is to make the existing character interactive. When a student clicks the character, a circular holographic menu should appear around or beside it with six options.
+
+The complete interface must be simple, clean, realistic, professional, educational and suitable for both desktop and Meta Quest 3S VR.
+
+---
+
+### 2. First Inspect the Existing Project
+
+Before modifying anything:
+
+1. Inspect the complete existing project structure.
+2. Locate the existing LabAssistant implementation and its 3D model.
+3. Understand its current animations, position, scale, materials and interactions.
+4. Inspect the existing AI tutor panel and its integration.
+5. Inspect the existing simulation state bridge and workflow manager.
+6. Identify existing UI components that can be reused.
+7. Identify how desktop mouse interaction, VR controller raycasting and hand tracking currently work.
+
+Do not create duplicate systems if equivalent functionality already exists.
+
+Prepare an implementation plan based on the actual codebase before making changes.
+
+### 3. Design Direction — Radial Holographic Menu
+
+Use the second design concept from my selected design references.
+
+Visual requirements:
+
+- Preserve the existing laboratory environment and its geometry.
+- Preserve the existing 3D Lab Assistant character.
+- Use dark navy and subtle cyan-blue accents.
+- Use transparent holographic glass panels.
+- Use thin borders and subtle glow effects.
+- Use consistent icons and readable typography.
+- Use smooth opening and closing animations.
+- Avoid excessive neon effects, large panels and unnecessary decorations.
+
+The radial menu must contain exactly six primary options:
+
+1. Ask Anything
+2. Hints
+3. Next Step
+4. AI Video
+5. Examples
+6. Questions & Answers
+
+Place the existing AI Assistant visually at the centre of the radial menu, with six selectable options arranged around it.
+
+The menu must not permanently cover the experiment table, circuit, apparatus or important 3D objects.
+
+### 4. Character Interaction
+
+Use the existing LabAssistant character.
+
+Default state:
+- Character remains in its existing laboratory location where possible.
+- Show a small label: "AI Lab Assistant".
+- Show a subtle interaction indicator.
+- Character remains in its idle animation.
+
+When the student clicks the character:
+
+1. Character turns towards the student if the existing rig supports it.
+2. Play the appropriate greeting animation.
+3. Display a welcome message:
+   "Welcome to Physics VR Simulation! I am your AI Lab Assistant. How can I help you with your practical today?"
+4. Open the radial holographic menu.
+5. Make all six options clickable.
+
+Interaction support:
+- Desktop: mouse click.
+- VR: controller raycasting and trigger.
+- Hand tracking: pinch selection, using existing functionality.
+
+When the student clicks outside the menu or presses the close button, close the menu smoothly.
+
+Do not make the character continuously follow the student.
+
+### 5. Feature 1 — Ask Anything
+
+Create an Ask Anything option.
+
+When selected, open a clean floating holographic chat panel beside the existing assistant.
+
+Required UI:
+
+- Panel title: Ask Your AI Assistant.
+- Text input: "Type your question here..."
+- Send button.
+- Close button.
+- Suggested questions.
+- AI response area.
+- Optional response playback using existing TTS functionality if supported.
+
+Example questions:
+
+- Why is the ammeter connected in series?
+- Why is the voltmeter connected in parallel?
+- What is the function of a rheostat?
+- What happens if the resistance increases?
+- How do I calculate resistance?
+
+Functional requirements:
+
+- Students must be able to type questions.
+- Send questions using a clickable button.
+- Display the actual AI response.
+- Preserve conversation context where supported.
+- Provide loading and error states.
+- Never display a fake successful AI response.
+
+Connect this feature to the existing AITutorClient and existing secure backend.
+
+Do not create another Gemini API integration or expose API keys in frontend code.
+
+### 6. Feature 2 — Hints
+
+Create a dedicated Hints option.
+
+This must use the existing Progressive Hint Service.
+
+Implement three levels:
+
+Level 1 — Conceptual Hint:
+Give a small conceptual clue without revealing the answer.
+
+Level 2 — Directional Hint:
+Guide the student towards the correct apparatus, connection or action.
+
+Level 3 — Actionable Hint:
+Give more specific guidance about how to correct the issue.
+
+Example:
+
+Student is connecting the ammeter incorrectly.
+
+- Level 1: Think about how current flows through the circuit.
+- Level 2: Check whether the ammeter should measure the current through the resistor.
+- Level 3: Connect the ammeter in series with the resistor.
+
+Requirements:
+- Show one hint at a time.
+- Add a "Show Next Hint" button.
+- Add a "Back" and "Close" button.
+- Avoid immediately revealing the complete answer.
+- Use real simulation mistakes and progress when available.
+
+### 7. Feature 3 — Next Step
+
+Create a Next Step option connected to the existing practical workflow manager.
+
+It must show the next valid action based on the student's actual progress.
+
+Example:
+
+"Next Step: Connect the ammeter in series with the resistor."
+
+The panel should contain:
+
+- Current experiment stage.
+- Next instruction.
+- Short explanation.
+- Relevant apparatus name.
+- Previous and Next controls where appropriate.
+- Close button.
+
+Important:
+
+- Do not hardcode the next step.
+- Do not show future steps as completed.
+- Do not allow AI to decide whether a circuit is valid.
+- Read the actual workflow and validation state.
+- If a required action is incomplete, explain what must be completed first.
+
+### 8. Feature 4 — AI Video
+
+Create an AI Video option.
+
+I will provide practical-related videos.
+
+Support:
+- Local video files inside the project.
+- Video URLs.
+
+Create a configurable video library organised by practical.
+
+Example configuration:
+
+const practicalVideos = {
+  ohmsLaw: {
+    title: "Ohm's Law Practical",
+    videoUrl: "/videos/ohms-law.mp4",
+    chapters: [
+      { title: "Introduction", time: 0 },
+      { title: "Apparatus", time: 45 },
+      { title: "Circuit Setup", time: 90 },
+      { title: "Taking Readings", time: 150 },
+      { title: "Graph Analysis", time: 220 }
+    ]
+  }
+};
+
+This is an example configuration. Adapt it to the existing project architecture.
+
+Video panel requirements:
+
+- Video title.
+- Video playback.
+- Play and pause.
+- Seek bar.
+- Volume control.
+- Fullscreen where supported.
+- Captions when available.
+- Chapter selection.
+- Close button.
+
+The video must appear in a floating panel within the 3D environment.
+
+Use a practical HTML video panel initially if that is the most reliable implementation. Do not build an unnecessarily complex video-texture system.
+
+Verify local video paths, browser compatibility and playback behaviour.
+
+### 9. Feature 5 — Examples
+
+Create an Examples section.
+
+Show examples related to the currently selected practical.
+
+For Ohm's Law, include:
+
+- Basic Ohm's Law explanation.
+- Voltage and current relationship.
+- Resistance calculation examples.
+- V-I graph examples.
+- Real-world applications.
+
+Example:
+
+Voltage = 4 V
+Current = 0.4 A
+
+Resistance = V / I = 4 / 0.4 = 10 Ω
+
+Use clean cards with:
+
+- Example title.
+- Short description.
+- Given values.
+- Calculation.
+- Final result.
+- Explanation.
+
+Organise examples by practical and difficulty.
+
+### 10. Feature 6 — Questions & Answers
+
+Create a dedicated Questions & Answers option.
+
+Include practical-related MCQs and short-answer questions.
+
+Each MCQ should contain:
+
+- Question.
+- Four selectable options.
+- Correct answer.
+- Explanation.
+- Difficulty.
+- Topic or practical category.
+
+Example:
+
+Question: Why is an ammeter connected in series?
+
+A. To measure voltage.
+B. To measure current through the circuit.
+C. To vary resistance.
+D. To increase voltage.
+
+After selecting an answer:
+
+- Highlight the selected option.
+- Show whether it is correct.
+- Explain why.
+- Allow the student to try again where appropriate.
+- Track answered questions during the current session.
+
+Use a verified question bank with answer keys. Do not rely on unverified AI-generated answers for correctness.
+
+### 11. Context-Aware AI Behaviour
+
+The assistant must understand what the student is doing inside the current practical.
+
+Reuse the existing:
+
+- SimulationStateBridge.
+- CircuitValidator.
+- SocraticTutorEngine.
+- ProgressiveHintService.
+- ErrorDiagnosisService.
+- StudentLearningState.
+- OhmsLawWorkflowManager.
+- AITutorClient.
+
+Examples:
+
+Situation 1:
+Student is identifying apparatus.
+Assistant should explain the selected apparatus.
+
+Situation 2:
+Student makes an incorrect circuit connection.
+Assistant should explain the detected mistake.
+
+Situation 3:
+Student completes circuit assembly.
+Assistant should suggest the next valid step.
+
+Situation 4:
+Student records observations.
+Assistant should explain voltage and current readings.
+
+Situation 5:
+Student reaches graph analysis.
+Assistant should explain the V-I graph and resistance calculation.
+
+Important architecture rule:
+
+The simulation engine, CircuitValidator and workflow manager remain authoritative.
+
+Gemini must never:
+- Invent circuit readings.
+- Decide that a circuit is valid.
+- Invent experiment completion.
+- Override simulation state.
+- Mark a student task complete without the actual required action.
+
+### 12. Character Animation and Behaviour
+
+Reuse the current character animations wherever possible.
+
+Required behaviour:
+
+| Event | Character state |
+|---|---|
+| Waiting | Idle |
+| Student clicks character | Greeting |
+| Student sends question | Listening or thinking |
+| AI response arrives | Speaking |
+| Hint displayed | Explaining |
+| Practical mistake detected | Warning |
+| Menu closed | Idle |
+
+Do not create duplicate animation controllers.
+
+If an animation is unavailable, use the closest existing animation or a simple fallback.
+
+### 13. UI Layout and Visual Rules
+
+Main radial menu:
+- Character in the centre.
+- Six holographic options around it.
+- Consistent spacing.
+- Clear icons and text.
+- Selected option gets a subtle highlight.
+
+Subpanels:
+- Open beside the assistant.
+- Keep the character visible.
+- Do not cover the practical apparatus.
+- One main feature panel open at a time.
+- Always provide a close or back control.
+
+Use:
+- Dark navy panels.
+- Cyan accents.
+- White primary text.
+- Light grey secondary text.
+- Consistent spacing.
+- Rounded corners.
+- Subtle shadows.
+- Smooth transitions.
+
+Avoid:
+- Excessive glowing effects.
+- Giant text.
+- Unnecessary animations.
+- Cluttered panels.
+- Multiple overlapping windows.
+- Permanent chat panels.
+- Duplicate buttons.
+
+### 14. Responsive Interaction
+
+Desktop mode:
+- Mouse click.
+- Text input.
+- Clickable buttons.
+- Readable panels.
+
+Meta Quest 3S VR mode:
+- Controller raycasting.
+- Trigger selection.
+- Hand tracking and pinch selection.
+- Comfortable panel distance and scale.
+- No tiny buttons.
+- No UI blocking the student's view.
+
+Keep the existing device detection and mode-switching architecture.
+
+### 15. Testing Requirements
+
+Test all features individually.
+
+1. Existing character appears correctly.
+2. Clicking the character opens the radial menu.
+3. All six menu options work.
+4. Ask Anything sends a real request and displays the response.
+5. Hints display progressively.
+6. Next Step reads actual workflow state.
+7. Local video playback works.
+8. Video URL playback works where supported.
+9. Examples display correct calculations.
+10. MCQ selection and answer validation work.
+11. Closing panels returns to the radial menu.
+12. Desktop mouse interaction works.
+13. VR controller interaction works.
+14. Hand tracking works where supported.
+15. Existing laboratory, circuit assembly and experiment functionality remain intact.
+
+Run existing tests and add focused regression tests.
+
+Run the production build and check browser console errors.
+
+Do not claim Meta Quest 3S compatibility without actual headset testing. Clearly report any functionality that still needs physical testing.
+
+### 16. Strict Development Constraints
+
+- Do not replace the existing 3D Lab Assistant.
+- Do not create another avatar.
+- Do not replace the laboratory environment.
+- Do not replace the existing AI backend.
+- Do not create duplicate state-management systems.
+- Do not change circuit calculations.
+- Do not break existing experiment workflows.
+- Do not remove existing functionality.
+- Do not use fake or placeholder AI responses as successful responses.
+- Do not start Phase 7.
+- Do not make unrelated refactoring changes.
+
+Implement incrementally, preserve the existing architecture and verify every feature.
+
+### 17. Final Deliverables
+
+After implementation, provide:
+
+1. Summary of changes.
+2. Files created.
+3. Files modified.
+4. Existing modules reused.
+5. How each of the six features works.
+6. Test results.
+7. Production build result.
+8. Any known issues.
+9. Quest 3S testing status.
+10. Screenshots of the final interface.
+
+**Final objective:** The existing LabVerse 3D Lab Assistant should become a complete interactive AI Physics Tutor with a clean radial holographic menu, text-based question answering, progressive hints, practical guidance, practical videos, examples and interactive questions and answers — without replacing the existing laboratory or character.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-22T21:44:30+05:30.
+
+The user's current state is as follows:
+Active Document: d:\webXR LabVarse Project\all codes\src\interaction\throwableManager.js (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 19
+Other open documents:
+- d:\webXR LabVarse Project\all codes\.env.example (LANGUAGE_UNSPECIFIED)
+- d:\webXR LabVarse Project\all codes\.env (LANGUAGE_UNSPECIFIED)
+- d:\webXR LabVarse Project\all codes\server\services\geminiProvider.js (LANGUAGE_UNSPECIFIED)
+- d:\webXR LabVarse Project\all codes\server\services\errorDiagnosisService.js (LANGUAGE_UNSPECIFIED)
+- d:\webXR LabVarse Project\all codes\server\services\socraticTutorEngine.js (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>

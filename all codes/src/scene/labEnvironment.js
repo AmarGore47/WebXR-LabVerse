@@ -90,10 +90,11 @@ export class LabEnvironment {
     this.scene.add(backWall);
     this.backWall = backWall;
 
-    // Wall chalkboard accent panel
+    // Wall chalkboard accent panel with authentic chalk diagram & formulas
+    const boardTexture = this._createChalkboardTexture();
     const boardGeo = new THREE.PlaneGeometry(9.2, 2.9);
     const boardMat = new THREE.MeshStandardMaterial({
-      color: 0x051713,
+      map: boardTexture,
       roughness: 0.85,
       metalness: 0.05
     });
@@ -525,6 +526,182 @@ export class LabEnvironment {
     }
 
     return this.currentTheme;
+  }
+
+  _createChalkboardTexture() {
+    if (typeof document === 'undefined') return new THREE.Texture();
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d');
+
+    // Deep matte chalkboard slate green
+    ctx.fillStyle = '#061a15';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Subtle chalk dust smudges & texture noise
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+    for (let i = 0; i < 40; i++) {
+      ctx.beginPath();
+      ctx.ellipse(
+        Math.random() * canvas.width,
+        Math.random() * canvas.height,
+        80 + Math.random() * 200,
+        20 + Math.random() * 60,
+        Math.random() * Math.PI,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+
+    // Top Header Banner
+    ctx.fillStyle = '#fef08a'; // Pale yellow chalk
+    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("MAHARASHTRA STATE BOARD · STD. 10 PHYSICS PRACTICAL", canvas.width / 2, 45);
+
+    ctx.fillStyle = '#ffffff'; // White chalk
+    ctx.font = 'bold 36px "Segoe UI", sans-serif';
+    ctx.fillText("EXPERIMENT: VERIFICATION OF OHM'S LAW (V = I × R)", canvas.width / 2, 90);
+
+    // Underline
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2 - 480, 105);
+    ctx.lineTo(canvas.width / 2 + 480, 105);
+    ctx.stroke();
+
+    // Left Column: Scientific Aim & Principle
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7dd3fc'; // Soft cyan chalk
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.fillText("📌 AIM & SCIENTIFIC PRINCIPLE", 60, 150);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText("• Statement: At constant temperature, Current (I) is directly", 60, 190);
+    ctx.fillText("  proportional to Potential Difference (V) across conductor.", 60, 220);
+
+    // Formula Box
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(60, 245, 460, 100);
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 28px "Segoe UI", sans-serif';
+    ctx.fillText("V ∝ I   ⟹   V / I = R (Constant)", 80, 290);
+    ctx.font = '20px "Segoe UI", sans-serif';
+    ctx.fillText("R = Measured Resistance in Ohms (Ω)", 80, 325);
+
+    // Precautions
+    ctx.fillStyle = '#fca5a5'; // Soft red chalk
+    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+    ctx.fillText("⚠️ CRITICAL PRECAUTIONS:", 60, 390);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.fillText("1. Ammeter: Always in SERIES with circuit (low resistance)", 60, 425);
+    ctx.fillText("2. Voltmeter: Always in PARALLEL across Resistor", 60, 455);
+    ctx.fillText("3. Open Plug Key when not recording to prevent heating!", 60, 485);
+    ctx.fillText("4. Clean and tighten all terminal connections.", 60, 515);
+
+    // Center Column: Chalk Circuit Diagram
+    const cx = canvas.width / 2 - 30;
+    const cy = 340;
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("⚡ SCHEMATIC CIRCUIT DIAGRAM", cx + 70, 150);
+
+    // Outer Loop
+    ctx.beginPath();
+    ctx.rect(cx - 210, cy - 130, 560, 240);
+    ctx.stroke();
+
+    // Component labels in chalk
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+    ctx.fillText("🔋 Battery (6V)", cx - 210, cy);
+    ctx.fillText("🔑 Key (K)", cx + 70, cy + 135);
+    ctx.fillText("〰 Rheostat (Rh)", cx + 350, cy);
+    ctx.fillText("⚡ Ammeter (A)", cx - 70, cy - 135);
+    ctx.fillText("📦 Resistor (R)", cx + 180, cy - 135);
+
+    // Voltmeter branch in parallel
+    ctx.strokeStyle = '#fef08a';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(cx + 100, cy - 130);
+    ctx.lineTo(cx + 100, cy - 60);
+    ctx.lineTo(cx + 260, cy - 60);
+    ctx.lineTo(cx + 260, cy - 130);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText("📊 Voltmeter (V) [Parallel]", cx + 180, cy - 70);
+
+    // Right Column: Procedure & V-I Graph
+    const rx = canvas.width - 560;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+    ctx.fillText("📈 V–I GRAPH & VERIFICATION", rx, 150);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '19px "Segoe UI", sans-serif';
+    ctx.fillText("1. Adjust Rheostat slider for 5 distinct currents.", rx, 190);
+    ctx.fillText("2. Note Ammeter (I) & Voltmeter (V) readings.", rx, 220);
+    ctx.fillText("3. Plot V (Y-axis) vs I (X-axis).", rx, 250);
+    ctx.fillText("4. Straight line through (0,0) verifies Ohm's Law!", rx, 280);
+
+    // Miniature Graph Chalk Sketch
+    const gx = rx + 30;
+    const gy = 520;
+    const gw = 380;
+    const gh = 180;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - gh);
+    ctx.lineTo(gx, gy);
+    ctx.lineTo(gx + gw, gy);
+    ctx.stroke();
+
+    // Arrows
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '15px "Segoe UI", sans-serif';
+    ctx.fillText("V (Volts) ↑", gx + 10, gy - gh + 15);
+    ctx.fillText("I (Amperes) →", gx + gw - 85, gy - 10);
+    ctx.fillText("(0,0)", gx - 35, gy + 15);
+
+    // Straight line
+    ctx.strokeStyle = '#fef08a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + gw - 30, gy - gh + 20);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillText("Slope = ΔV/ΔI = Constant R", gx + 60, gy - gh + 60);
+
+    // Plotted points
+    for (let p = 1; p <= 5; p++) {
+      const px = gx + p * 60;
+      const py = gy - p * 28;
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    return texture;
   }
 
   toggleTheme() {

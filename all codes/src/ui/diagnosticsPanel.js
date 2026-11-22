@@ -8,12 +8,16 @@
  * - Header/Toolbar developer toggle
  */
 
+import { runAudioDiagnosticTest } from '../audio.js';
+
 export class DiagnosticsPanel {
   constructor(options = {}) {
     this.vrSessionManager = options.vrSessionManager;
     this.xrHandManager = options.xrHandManager;
     this.modelLoader = options.modelLoader;
     this.renderer = options.renderer;
+    this.narration = options.narration;
+    this.sound = options.sound;
 
     this.panelEl = document.getElementById('dev-diagnostics-panel');
     this.closeBtn = document.getElementById('close-diag-btn');
@@ -58,6 +62,17 @@ export class DiagnosticsPanel {
       }
     } catch {
       // Ignore URL parsing errors
+    }
+
+    // 5. Test Audio button in diagnostics
+    const testBtn = document.getElementById('diag-run-audio-test-btn');
+    if (testBtn) {
+      testBtn.addEventListener('click', async () => {
+        testBtn.textContent = 'Testing…';
+        const res = await runAudioDiagnosticTest(this.narration);
+        testBtn.textContent = res.success ? '✅ Pass' : '⚠️ Fail';
+        setTimeout(() => { testBtn.textContent = 'Run Test'; }, 3000);
+      });
     }
   }
 
@@ -217,6 +232,15 @@ export class DiagnosticsPanel {
     if (elFps) {
       elFps.textContent = `${this.currentFps} FPS (${this.currentFrameTimeMs} ms)`;
       elFps.className = `diag-val ${this.currentFps >= 50 ? 'status-good' : (this.currentFps >= 30 ? 'status-warn' : 'status-bad')}`;
+    }
+
+    // I. Web Audio & Speech Diagnostics
+    const elAudio = document.getElementById('diag-audio-state');
+    if (elAudio && this.sound) {
+      const state = this.sound.getContextState();
+      const sr = this.sound.getSampleRate();
+      elAudio.textContent = `${state} (${sr}Hz)`;
+      elAudio.className = `diag-val ${state === 'running' ? 'status-good' : (state === 'suspended' ? 'status-warn' : 'status-bad')}`;
     }
   }
 }

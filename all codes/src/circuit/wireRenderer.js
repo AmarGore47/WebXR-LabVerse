@@ -32,8 +32,8 @@ export class WireRenderer {
       }),
       negative: new THREE.MeshStandardMaterial({
         color: 0x1e293b, roughness: 0.28, metalness: 0.22,
-        emissive: 0x475569, emissiveIntensity: 0.5,
-        transparent: true, opacity: 0.92
+        emissive: 0x1e3a5f, emissiveIntensity: 0.65,
+        transparent: true, opacity: 0.95
       }),
       series: new THREE.MeshStandardMaterial({
         color: 0xf59e0b, roughness: 0.22, metalness: 0.12,
@@ -97,10 +97,10 @@ export class WireRenderer {
       emissive: 0x78350f, emissiveIntensity: 0.2
     });
 
-    // Standard electron bead (smaller, subtle)
-    this.electronGeoStandard = new THREE.SphereGeometry(0.0045, 8, 8);
-    // X-Ray electron bead (large, dramatic, clearly visible)
-    this.electronGeoXray = new THREE.SphereGeometry(0.0095, 14, 14);
+    // Standard electron bead (sleek, subtle)
+    this.electronGeoStandard = new THREE.SphereGeometry(0.0022, 8, 8);
+    // X-Ray electron bead (radiant, clearly visible inside transparent insulation)
+    this.electronGeoXray = new THREE.SphereGeometry(0.0035, 12, 12);
 
     // Standard mode electron materials
     this.electronMaterials = {
@@ -162,16 +162,18 @@ export class WireRenderer {
   createWireCurve(posA, posB) {
     const dist = posA.distanceTo(posB);
     const mid = posA.clone().lerp(posB, 0.5);
-    const arch = Math.min(0.22, 0.07 + dist * 0.14);
-    mid.z += Math.min(0.18, 0.04 + dist * 0.12);
-    mid.y = Math.max(0.92, Math.max(posA.y, posB.y) + arch);
+    // Natural graceful curve that arches visibly above the table surface
+    const arch = Math.min(0.065, 0.022 + dist * 0.05);
+    // Subtle forward bend so wire does not clip through apparatus bases
+    mid.z += Math.min(0.045, 0.015 + dist * 0.035);
+    mid.y = Math.max(posA.y, posB.y) + 0.024 + arch;
 
     const cp1 = posA.clone();
-    cp1.y += Math.max(0.06, arch * 0.6);
+    cp1.y += 0.035; // Gentle upward rise from terminal binding post
     cp1.lerp(mid, 0.35);
 
     const cp2 = posB.clone();
-    cp2.y += Math.max(0.06, arch * 0.6);
+    cp2.y += 0.035;
     cp2.lerp(mid, 0.35);
 
     return new THREE.CubicBezierCurve3(posA.clone(), cp1, cp2, posB.clone());
@@ -182,12 +184,14 @@ export class WireRenderer {
    */
   addWire(connection, posA, posB) {
     const curve = this.createWireCurve(posA, posB);
-    const tubeGeo = new THREE.TubeGeometry(curve, 52, 0.0125, 12, false);
+    // Bold, authentic laboratory patch wire gauge (~11.6mm diameter) for crisp VR visibility
+    const tubeGeo = new THREE.TubeGeometry(curve, 48, 0.0058, 12, false);
 
     // Choose material based on current xray state
     const stdMat  = this.getMaterialForConnection(connection).clone();
     const xrayMat = this.getXrayMaterialForConnection(connection).clone();
     const material = this.xrayMode ? xrayMat : stdMat;
+    material.depthWrite = true;
 
     const wireGroup = new THREE.Group();
     wireGroup.name = `Wire_${connection.id}`;
@@ -195,12 +199,12 @@ export class WireRenderer {
     const tubeMesh = new THREE.Mesh(tubeGeo, material);
     tubeMesh.castShadow = !this.xrayMode;
     tubeMesh.receiveShadow = !this.xrayMode;
-    tubeMesh.renderOrder = 4;
+    tubeMesh.renderOrder = 8;
     tubeMesh.userData = { connectionId: connection.id, isWire: true };
     wireGroup.add(tubeMesh);
 
-    // Generous invisible hit tube for responsive raycast and finger pinch picking
-    const hitGeo = new THREE.TubeGeometry(curve, 24, 0.038, 8, false);
+    // Compact invisible hit tube for responsive raycast and picking without blocking terminals
+    const hitGeo = new THREE.TubeGeometry(curve, 24, 0.014, 8, false);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     const hitMesh = new THREE.Mesh(hitGeo, hitMat);
     hitMesh.userData = { connectionId: connection.id, isWire: true, tubeMesh };
@@ -208,7 +212,7 @@ export class WireRenderer {
 
     // Brass crimp terminal rings at both ends
     [posA, posB].forEach((pos) => {
-      const lugGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.025, 16);
+      const lugGeo = new THREE.CylinderGeometry(0.0065, 0.0065, 0.016, 16);
       const lugM = this.xrayMode
         ? new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffa000, emissiveIntensity: 2.2, transparent: true, opacity: 0.65 })
         : this.lugMaterial;
@@ -234,7 +238,7 @@ export class WireRenderer {
     for (let i = 0; i < ELECTRON_COUNT; i++) {
       electronProgress[i] = i / ELECTRON_COUNT;
       const angle = (i * 2.399) % (Math.PI * 2); // Golden ratio spiral
-      const radius = this.xrayMode ? 0.0035 : 0.001;
+      const radius = this.xrayMode ? 0.0022 : 0.0008;
       electronOffsets[i * 2]     = Math.cos(angle) * radius;
       electronOffsets[i * 2 + 1] = Math.sin(angle) * radius;
 

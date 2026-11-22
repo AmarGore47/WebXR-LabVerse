@@ -154,6 +154,40 @@ export class CircuitPanel {
   }
 
   /**
+   * Handle undoing the most recently connected wire.
+   */
+  handleUndo() {
+    if (this.interactionController) {
+      this.interactionController.undoLastWire();
+    } else {
+      const undone = this.circuitState.undoLastConnection();
+      if (undone) {
+        this.wireRenderer.removeWire(undone.id);
+        const fromName = getTerminalDisplayName(undone.from);
+        const toName = getTerminalDisplayName(undone.to);
+        if (this.simulation && this.simulation.keyClosed) {
+          const fb = this.simulation.handleWireRemovedWhileActive();
+          this.circuitState.setSwitchClosed(false);
+          this.onFeedback({
+            type: 'warning',
+            message: fb.message
+          });
+          return;
+        }
+        this.onFeedback({
+          type: 'info',
+          message: `Undid wire between ${fromName} and ${toName}.`
+        });
+      } else {
+        this.onFeedback({
+          type: 'info',
+          message: 'No wires to undo.'
+        });
+      }
+    }
+  }
+
+  /**
    * Update instruction banner when terminal selection changes.
    */
   updateSelectionUI(selectedTerminalId) {

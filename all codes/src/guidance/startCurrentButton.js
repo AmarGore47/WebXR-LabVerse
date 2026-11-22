@@ -25,6 +25,7 @@
 
 import * as THREE from 'three';
 import { CircuitValidator } from '../circuit/circuitValidator.js';
+import { getSharedAudioContext } from '../audio.js';
 
 // Button dimensions (meters)
 const BTN_W = 0.095;
@@ -341,11 +342,9 @@ export class StartCurrentButton {
 
   _playClickSound() {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!this._audioCtx) this._audioCtx = new AudioCtx();
-      const ctx = this._audioCtx;
-      if (ctx.state === 'suspended') ctx.resume();
+      const ctx = getSharedAudioContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
       const t = ctx.currentTime;
       const osc = ctx.createOscillator();
@@ -391,6 +390,5 @@ export class StartCurrentButton {
 
   dispose() {
     if (this.scene) this.scene.remove(this.group);
-    if (this._audioCtx) this._audioCtx.close().catch(() => {});
   }
 }

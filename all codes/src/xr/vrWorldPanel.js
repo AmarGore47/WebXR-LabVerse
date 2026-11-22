@@ -58,8 +58,8 @@ export class VRWorldPanel {
   _buildHUD() {
     this.hudGroup = new THREE.Group();
     this.hudGroup.name = 'VR_HUD_StepPill';
-    // Placed above the table, angled comfortably down towards the student's eyes
-    this.hudGroup.position.set(0.0, 1.38, -0.28);
+    // Placed well above the table, angled comfortably down towards the student's eyes
+    this.hudGroup.position.set(0.0, 1.58, -0.32);
     this.hudGroup.rotation.set(0.12, 0, 0);
 
     const canvasW = 1024;
@@ -156,9 +156,10 @@ export class VRWorldPanel {
     // Stand Buttons
     const standButtons = [
       // Navigation Tabs
-      { id: 'tab_table', label: '📋 Observation Table', ...to3D(36, 24, 280, 52) },
-      { id: 'tab_graph', label: '📈 V–I Graph', ...to3D(326, 24, 250, 52) },
-      { id: 'tab_result', label: '🎯 Result & Info', ...to3D(586, 24, 250, 52) },
+      { id: 'tab_orient', label: '🎯 Orientation', ...to3D(36, 24, 186, 52) },
+      { id: 'tab_table', label: '📋 Observation Table', ...to3D(230, 24, 196, 52) },
+      { id: 'tab_graph', label: '📈 V–I Graph', ...to3D(434, 24, 186, 52) },
+      { id: 'tab_result', label: '🎓 Result & Info', ...to3D(628, 24, 206, 52) },
 
       // Practical Actions
       { id: 'start_practical', label: '⚡ Start Practical', ...to3D(846, 24, 142, 52) },
@@ -248,9 +249,10 @@ export class VRWorldPanel {
     // Wires status / Readings pill
     ctx.fillStyle = '#94a3b8';
     ctx.font = '20px Inter, sans-serif';
+    const connCount = state.connectionsCount !== undefined ? state.connectionsCount : ((state.connections && state.connections.length) || 0);
     const sub = state.keyClosed
       ? `Observations: ${state.readingCount} / ${state.minReadings} Recorded | Rheostat: ${state.rheostatResistance.toFixed(1)} Ω`
-      : `Connections: ${(state.connections && state.connections.length) || 0}/7 assembled • Use pointer or pinch to connect`;
+      : `Connections: ${connCount}/7 assembled • Use pointer or pinch to connect`;
     ctx.fillText(sub, 34, 105);
 
     // Right Action Buttons
@@ -320,9 +322,10 @@ export class VRWorldPanel {
       ctx.fillText(label, x + bw / 2, y + bh / 2);
     };
 
-    drawTab('tab_table', '📋 Observation Table', 36, 24, 280, 52, this.activeTab === 'table' || this.activeTab === 'orientation');
-    drawTab('tab_graph', '📈 V–I Graph', 326, 24, 250, 52, this.activeTab === 'graph');
-    drawTab('tab_result', '🎯 Result & Info', 586, 24, 250, 52, this.activeTab === 'result');
+    drawTab('tab_orient', '🎯 Orientation', 36, 24, 186, 52, this.activeTab === 'orientation');
+    drawTab('tab_table', '📋 Table', 230, 24, 196, 52, this.activeTab === 'table');
+    drawTab('tab_graph', '📈 Graph', 434, 24, 186, 52, this.activeTab === 'graph');
+    drawTab('tab_result', '🎓 Result', 628, 24, 206, 52, this.activeTab === 'result');
 
     // Practical Action Button: [ ⚡ Start ] / [ 🏆 End Practical ]
     if (state.readingCount >= state.minReadings) {
@@ -358,6 +361,8 @@ export class VRWorldPanel {
       this._renderGraphContent(ctx, state);
     } else if (this.activeTab === 'result') {
       this._renderResultContent(ctx, state);
+    } else if (this.activeTab === 'orientation') {
+      this._renderOrientationContent(ctx, state);
     } else {
       this._renderTableContent(ctx, state);
     }
@@ -427,7 +432,7 @@ export class VRWorldPanel {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Inter, sans-serif';
-    const meanText = stats && stats.meanResistance !== null ? `${stats.meanResistance.toFixed(2)} Ω` : '—';
+    const meanText = stats && stats.meanResistance != null && typeof stats.meanResistance === 'number' ? `${stats.meanResistance.toFixed(2)} Ω` : '—';
     ctx.fillText(`Mean Resistance R̄: ${meanText}  |  Nominal Value: 5.00 Ω  |  Observations: ${state.readingCount} / ${state.minReadings}`, 56, statsY + 30);
 
     // Presets Row Label
@@ -558,29 +563,201 @@ export class VRWorldPanel {
     ctx.fillText(`Plotted Points: ${readings.length} / 5  |  Slope is constant => V ∝ I (Ohm's Law Verified)`, 56, 750);
   }
 
+  _renderOrientationContent(ctx, state) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText("🎯 Experiment Orientation & Procedure Flow", 48, 100);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.fillText("Verification of Ohm's Law (V = I × R) · Maharashtra Std. 10 Physics", 48, 136);
+
+    // Aim & Principle Box
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(48, 170, 928, 115, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 19px Inter, sans-serif';
+    ctx.fillText("📌 Scientific Aim & Core Principle:", 68, 188);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '17px Inter, sans-serif';
+    ctx.fillText("At constant temperature, current (I) is directly proportional to potential difference (V).", 68, 218);
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 19px "JetBrains Mono", monospace';
+    ctx.fillText("V = I × R   ⟹   R = V / I = Constant (Nominal Specimen Coil = 5.00 Ω)", 68, 248);
+
+    // 6-Phase Flow Cards
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText("📋 6-Phase Practical Flow Roadmap:", 48, 305);
+
+    const phases = [
+      { step: "1. Identify", icon: "🔍", desc: "Inspect Battery, Key, Rheostat, Ammeter, Resistor, Voltmeter", status: "Phase 1" },
+      { step: "2. Connect", icon: "🔌", desc: "Connect 7 wires (Series loop + Voltmeter in parallel across R)", status: `${(state.connections && state.connections.length) || 0}/7 Wires` },
+      { step: "3. Start", icon: "⚡", desc: "Close Plug Key or press green 3D Start button to start current", status: state.keyClosed ? "Active" : "Ready" },
+      { step: "4. Record", icon: "📝", desc: "Adjust Rheostat slider across 5 positions, click Record Reading", status: `${state.readingCount}/5 Done` },
+      { step: "5. Graph", icon: "📈", desc: "Plot Voltage vs Current on millimeter graph; verify straight line", status: "V vs I" },
+      { step: "6. Verify", icon: "🏁", desc: "Calculate Slope = R; unlock achievement badges and conclusion", status: state.readingCount >= 5 ? "Verified" : "Pending" }
+    ];
+
+    phases.forEach((p, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const px = 48 + col * 474;
+      const py = 338 + row * 115;
+
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.65)';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(px, py, 454, 100, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 18px Inter, sans-serif';
+      ctx.fillText(`${p.icon}  ${p.step}`, px + 18, py + 16);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(p.status, px + 436, py + 18);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '15px Inter, sans-serif';
+      this._wrapTextStand(ctx, p.desc, px + 18, py + 48, 418, 22);
+    });
+
+    // Bottom Advice
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(48, 705, 928, 70, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.fillText("💡 Quick VR Interaction Tip:", 68, 720);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '16px Inter, sans-serif';
+    ctx.fillText("Point index finger at any terminal and pinch thumb to connect wires. Tap 'Table' tab above anytime!", 68, 746);
+  }
+
+  _wrapTextStand(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let currY = y;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && n > 0) {
+        ctx.fillText(line, x, currY);
+        line = words[n] + ' ';
+        currY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, currY);
+  }
+
   _renderResultContent(ctx, state) {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px Inter, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText("🎯 Result & Maharashtra Board Precautions", 48, 110);
+    ctx.fillText("🎓 Result, Verification & Badges", 48, 105);
 
-    const lines = [
-      "1. Statement: At constant temperature, the current (I) flowing through a conductor",
-      "   is directly proportional to the potential difference (V) applied across its ends.",
-      "2. Formula: V = I × R  or  R = V / I = Constant.",
-      "3. The V-I graph is a straight line passing through the origin, verifying Ohm's Law.",
-      "",
-      "⚠️ Key Precautions:",
-      "• All connections must be clean and tight.",
-      "• Plug key must only be inserted when taking readings to prevent resistor heating.",
-      "• Voltmeter is always connected in parallel; ammeter is always connected in series."
+    const isDone = state.readingCount >= 5;
+    const stats = state.statistics;
+    const meanR = stats && stats.meanResistance != null ? stats.meanResistance : 5.00;
+
+    // Result Card
+    ctx.fillStyle = isDone ? 'rgba(240, 253, 244, 0.85)' : 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = isDone ? '#22c55e' : '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(48, 150, 928, 140, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = isDone ? '#15803d' : '#38bdf8';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText(isDone ? "✅ VERIFIED RESULT: OHM'S LAW CONFIRMED" : "📌 SCIENTIFIC RESULT IN PROGRESS", 68, 168);
+
+    ctx.fillStyle = isDone ? '#0f172a' : '#cbd5e1';
+    ctx.font = '18px Inter, sans-serif';
+    ctx.fillText(`1. Measured Mean Resistance: R̄ = ${isDone ? meanR.toFixed(2) : '—'} Ω (Nominal: 5.00 Ω).`, 68, 202);
+    ctx.fillText("2. The V–I characteristic graph is a straight line passing through the origin (0, 0).", 68, 232);
+    ctx.fillText("3. Statement: At constant temperature, Current (I) ∝ Potential Difference (V).", 68, 262);
+
+    // Achievement Badges
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText("🏆 Student Achievement Badges:", 48, 310);
+
+    const badges = [
+      { icon: "🏆", name: "Circuit Master", desc: "7/7 wires correctly assembled", unlocked: state.connections && state.connections.length >= 7 },
+      { icon: "⭐", name: "Precision Observer", desc: "5/5 readings recorded", unlocked: isDone },
+      { icon: "🎓", name: "Ohm's Law Scholar", desc: "Linear graph & R confirmed", unlocked: isDone }
+    ];
+
+    badges.forEach((b, idx) => {
+      const bx = 48 + idx * 316;
+      ctx.fillStyle = b.unlocked ? 'rgba(30, 41, 59, 0.9)' : 'rgba(15, 23, 42, 0.6)';
+      ctx.strokeStyle = b.unlocked ? '#38bdf8' : '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(bx, 345, 296, 120, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.icon, bx + 45, 385);
+
+      ctx.textAlign = 'left';
+      ctx.fillStyle = b.unlocked ? '#38bdf8' : '#64748b';
+      ctx.font = 'bold 18px Inter, sans-serif';
+      ctx.fillText(b.name, bx + 90, 375);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px Inter, sans-serif';
+      ctx.fillText(b.desc, bx + 20, 415);
+
+      ctx.fillStyle = b.unlocked ? '#4ade80' : '#475569';
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.fillText(b.unlocked ? '✅ UNLOCKED' : '🔒 LOCKED', bx + 20, 442);
+    });
+
+    // Precautions
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText("⚠️ Key Precautions (Maharashtra Board):", 48, 495);
+
+    const precautions = [
+      "• All terminal connections must be clean, secure, and tightly fastened.",
+      "• Plug key must only be inserted when recording readings to avoid heating the resistor coil.",
+      "• Voltmeter is ALWAYS connected in parallel; Ammeter is ALWAYS connected in series.",
+      "• Vary rheostat across distinct settings to obtain well-distributed observation points."
     ];
 
     ctx.fillStyle = '#cbd5e1';
-    ctx.font = '22px Inter, sans-serif';
-    lines.forEach((line, idx) => {
-      ctx.fillText(line, 48, 170 + idx * 38);
+    ctx.font = '18px Inter, sans-serif';
+    precautions.forEach((p, idx) => {
+      ctx.fillText(p, 48, 535 + idx * 36);
     });
   }
 
@@ -625,6 +802,10 @@ export class VRWorldPanel {
     if (!btnId) return;
 
     // Tab Navigation
+    if (btnId === 'tab_orient') {
+      this.switchTab('orientation');
+      return;
+    }
     if (btnId === 'tab_table') {
       this.switchTab('table');
       return;

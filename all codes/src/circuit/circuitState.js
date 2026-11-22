@@ -54,17 +54,17 @@ export class CircuitState {
   /**
    * Add a new connection.
    */
-  addConnection(from, to, validationResult) {
+  addConnection(from, to, validationResult = {}) {
     const id = `conn_${from}_${to}_${Date.now()}`;
     const connection = {
       id,
       from,
       to,
-      status: validationResult.status, // 'valid' | 'warning' | 'error'
-      role: validationResult.role || 'unknown',
-      wireType: validationResult.wireType || 'series',
-      message: validationResult.message,
-      ruleId: validationResult.ruleId || null,
+      status: validationResult?.status || 'valid',
+      role: validationResult?.role || 'unknown',
+      wireType: validationResult?.wireType || 'series',
+      message: validationResult?.message || '',
+      ruleId: validationResult?.ruleId || null,
       wireRef: null,
       timestamp: Date.now()
     };

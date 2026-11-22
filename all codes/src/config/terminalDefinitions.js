@@ -114,11 +114,11 @@ export const TERMINAL_DEFINITIONS = [
     description: 'Lower fixed base terminal of the rheostat resistance winding'
   },
 
-  // 5. Standard Resistor (5 Ω)
+  // 5. Standard Resistor (10 Ω)
   {
     id: 'resistor_left',
     name: 'Resistor (Left Terminal)',
-    apparatus: 'Standard Resistor (5 Ω)',
+    apparatus: 'Standard Resistor (10 Ω)',
     type: 'connection',
     colorHex: 0xf59e0b, // Yellow
     colorName: 'yellow',
@@ -128,7 +128,7 @@ export const TERMINAL_DEFINITIONS = [
   {
     id: 'resistor_right',
     name: 'Resistor (Right Terminal)',
-    apparatus: 'Standard Resistor (5 Ω)',
+    apparatus: 'Standard Resistor (10 Ω)',
     type: 'connection',
     colorHex: 0xf59e0b, // Yellow
     colorName: 'yellow',
@@ -136,11 +136,11 @@ export const TERMINAL_DEFINITIONS = [
     description: 'Right terminal screw of the standard resistance wire coil'
   },
 
-  // 6. Voltmeter (0–5 V)
+  // 6. Voltmeter (0–6 V)
   {
     id: 'voltmeter_positive',
     name: 'Voltmeter (+)',
-    apparatus: 'Voltmeter (0–5 V)',
+    apparatus: 'Voltmeter (0–6 V)',
     type: 'positive',
     colorHex: 0xef4444, // Red
     colorName: 'red',
@@ -150,7 +150,7 @@ export const TERMINAL_DEFINITIONS = [
   {
     id: 'voltmeter_negative',
     name: 'Voltmeter (-)',
-    apparatus: 'Voltmeter (0–5 V)',
+    apparatus: 'Voltmeter (0–6 V)',
     type: 'negative',
     colorHex: 0x0f172a, // Dark/black
     colorName: 'black',

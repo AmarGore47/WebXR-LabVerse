@@ -22,9 +22,9 @@ export class HolographicMetersHUD {
     this.visible = true;
     this.darkTheme = true;
 
-    // Default 3D positions (elevated ~15cm above meters)
-    this.ammeterWorldPos = new THREE.Vector3(0.34, 1.12, 0.01);
-    this.voltmeterWorldPos = new THREE.Vector3(0.48, 1.12, 0.20);
+    // Default 3D positions (elevated ~28cm above meters)
+    this.ammeterWorldPos = new THREE.Vector3(0.31, 1.25, 0.01);
+    this.voltmeterWorldPos = new THREE.Vector3(0.64, 1.25, 0.20);
 
     // Current displayed values (for smooth lerping)
     this.dispVoltage = 0.0;
@@ -120,7 +120,8 @@ export class HolographicMetersHUD {
     const ammeterObj = model.getObjectByName('ammeter_body');
     if (ammeterObj && this.ammeterHUD) {
       ammeterObj.getWorldPosition(tempPos);
-      this.ammeterWorldPos.set(tempPos.x, tempPos.y + 0.13, tempPos.z);
+      // Elevate HUD comfortably above meter housing and apparatus labels
+      this.ammeterWorldPos.set(tempPos.x, tempPos.y + 0.28, tempPos.z);
       this.ammeterHUD.group.position.copy(this.ammeterWorldPos);
       this.ammeterHUD.baseY = this.ammeterWorldPos.y;
     }
@@ -128,21 +129,21 @@ export class HolographicMetersHUD {
     const voltmeterObj = model.getObjectByName('voltmeter_body');
     if (voltmeterObj && this.voltmeterHUD) {
       voltmeterObj.getWorldPosition(tempPos);
-      this.voltmeterWorldPos.set(tempPos.x, tempPos.y + 0.13, tempPos.z);
+      this.voltmeterWorldPos.set(tempPos.x, tempPos.y + 0.28, tempPos.z);
       this.voltmeterHUD.group.position.copy(this.voltmeterWorldPos);
       this.voltmeterHUD.baseY = this.voltmeterWorldPos.y;
     }
   }
 
   setTheme(isDark) {
-    this.darkTheme = !!isDark;
+    this.darkTheme = Boolean(isDark);
     const beamOpacity = this.darkTheme ? 0.45 : 0.2;
     if (this.ammeterHUD) this.ammeterHUD.beamMat.opacity = beamOpacity;
     if (this.voltmeterHUD) this.voltmeterHUD.beamMat.opacity = beamOpacity;
   }
 
   setVisible(visible) {
-    this.visible = !!visible;
+    this.visible = Boolean(visible);
     this.group.visible = this.visible;
   }
 
@@ -160,7 +161,7 @@ export class HolographicMetersHUD {
     const isDark = this.darkTheme;
 
     // 1. Holographic glowing backdrop panel
-    ctx.fillStyle = isDark ? 'rgba(3, 12, 28, 0.88)' : 'rgba(7, 24, 46, 0.80)';
+    ctx.fillStyle = isDark ? 'rgba(3, 12, 28, 0.92)' : 'rgba(7, 24, 46, 0.85)';
     ctx.beginPath();
     ctx.roundRect ? ctx.roundRect(8, 8, w - 16, h - 16, 20) : ctx.rect(8, 8, w - 16, h - 16);
     ctx.fill();
@@ -206,11 +207,12 @@ export class HolographicMetersHUD {
     ctx.shadowColor = accent;
     ctx.shadowBlur = isDark ? 24 : 10;
 
+    const safeVal = typeof val === 'number' && !isNaN(val) ? val : 0.0;
     let displayStr;
     if (cfg.id === 'ammeter') {
-      displayStr = val.toFixed(3);
+      displayStr = safeVal.toFixed(3);
     } else {
-      displayStr = val.toFixed(2);
+      displayStr = safeVal.toFixed(2);
     }
     ctx.fillText(displayStr, 34, 138);
 
@@ -221,7 +223,7 @@ export class HolographicMetersHUD {
     ctx.shadowBlur = 0; // reset
 
     // 5. Dynamic Holographic Horizontal Gauge Bar
-    const pct = Math.min(1.0, Math.max(0.0, val / cfg.maxVal));
+    const pct = Math.min(1.0, Math.max(0.0, safeVal / cfg.maxVal));
     const barX = 34;
     const barY = 162;
     const barW = w - 68;
@@ -257,13 +259,17 @@ export class HolographicMetersHUD {
    * @param {number} voltage - live voltage
    * @param {number} current - live current
    * @param {boolean} isXray - whether xray mode is on
+   * @param {THREE.Camera} camera - camera for billboarding
    */
-  update(time, voltage = 0, current = 0, isXray = false) {
+  update(time, voltage = 0, current = 0, isXray = false, camera = null) {
     if (!this.visible) return;
 
+    const safeV = typeof voltage === 'number' && !isNaN(voltage) ? voltage : 0.0;
+    const safeI = typeof current === 'number' && !isNaN(current) ? current : 0.0;
+
     // Smooth value interpolation
-    this.dispVoltage += (voltage - this.dispVoltage) * 0.22;
-    this.dispCurrent += (current - this.dispCurrent) * 0.22;
+    this.dispVoltage += (safeV - this.dispVoltage) * 0.22;
+    this.dispCurrent += (safeI - this.dispCurrent) * 0.22;
 
     // Microscopic drift velocity description
     let ammeterStatus;
@@ -284,13 +290,19 @@ export class HolographicMetersHUD {
       voltmeterStatus = '● PARALLEL DROP (V = I × R)';
     }
 
-    // Gentle hover bobbing
+    // Gentle hover bobbing and billboard towards camera
     if (this.ammeterHUD) {
       this.ammeterHUD.group.position.y = this.ammeterHUD.baseY + Math.sin(time * 2.8) * 0.004;
+      if (camera) {
+        this.ammeterHUD.group.quaternion.copy(camera.quaternion);
+      }
       this.drawCardCanvas(this.ammeterHUD, this.dispCurrent, ammeterStatus);
     }
     if (this.voltmeterHUD) {
       this.voltmeterHUD.group.position.y = this.voltmeterHUD.baseY + Math.sin(time * 2.8 + 1.2) * 0.004;
+      if (camera) {
+        this.voltmeterHUD.group.quaternion.copy(camera.quaternion);
+      }
       this.drawCardCanvas(this.voltmeterHUD, this.dispVoltage, voltmeterStatus);
     }
   }

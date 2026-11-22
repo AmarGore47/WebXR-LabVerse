@@ -14,14 +14,19 @@ export class ExperimentPanel {
   constructor(options) {
     this.container = options.container;
     this.simulation = options.simulation;
-    this.onFeedback = options.onFeedback || (() => {});
+    this.workflowManager = options.workflowManager || null;
+    this.circuitState = options.circuitState || null;
+    this.onFeedback = options.onFeedback || (() => { });
 
     this.activeMode = 'meters'; // 'meters' | 'steps' | 'table_graph'
-    this.activeTab = 'table';    // 'table' | 'graph' | 'result'
+    this.activeTab = 'table';    // 'table' | 'graph' | 'quiz' | 'result'
     this.pendingRestartConfirm = false;
 
     this.render();
     this.simulation.subscribe(() => this.update());
+    if (this.workflowManager && typeof this.workflowManager.onStageChange === 'function') {
+      this.workflowManager.onStageChange(() => this.update());
+    }
   }
 
   render() {
@@ -47,14 +52,14 @@ export class ExperimentPanel {
 
         <!-- 2. Primary 3-Section Mode Selector Bar -->
         <div class="exp-mode-tabs-bar" role="tablist">
-          <button class="mode-tab-btn active" data-mode="meters" id="mode-tab-meters" title="View live ammeter, voltmeter, plug key & rheostat">
-            <span>⚡</span> Meters & Rheostat
+          <button class="mode-tab-btn active" data-mode="meters" id="mode-tab-meters" title="TAB 1 — Instruments: Live meters, plug key & rheostat">
+            <span>⚡</span> Instruments
           </button>
-          <button class="mode-tab-btn" data-mode="steps" id="mode-tab-steps" title="View 6-step practical procedure">
-            <span>📋</span> Steps (1–6)
+          <button class="mode-tab-btn" data-mode="steps" id="mode-tab-steps" title="TAB 2 — Procedure: Maharashtra curriculum aim & step procedure">
+            <span>📋</span> Procedure
           </button>
-          <button class="mode-tab-btn" data-mode="table_graph" id="mode-tab-table-graph" title="View recorded observations and V-I graph">
-            <span>📊</span> Table & Graph
+          <button class="mode-tab-btn" data-mode="table_graph" id="mode-tab-table-graph" title="TAB 3 — Observations: Recorded readings, V–I graph & resistance calculation">
+            <span>📊</span> Observations
           </button>
         </div>
 
@@ -251,6 +256,10 @@ export class ExperimentPanel {
               <button class="tab-btn" data-tab="graph" id="tab-btn-graph">
                 <span>📈</span> V–I Graph
               </button>
+              <button class="tab-btn" data-tab="quiz" id="tab-btn-quiz">
+                <span>📝</span> Quiz
+                <span id="quiz-status-badge" style="font-size: 10px; margin-left: 3px; opacity: 0.85;">(4 Qs)</span>
+              </button>
               <button class="tab-btn" data-tab="result" id="tab-btn-result">
                 <span>🎯</span> Result
                 <span id="result-lock-icon" class="lock-icon">🔒</span>
@@ -264,6 +273,9 @@ export class ExperimentPanel {
               </div>
               <div class="tab-pane" id="tab-pane-graph" style="display: none;">
                 <div id="vi-graph-container"></div>
+              </div>
+              <div class="tab-pane" id="tab-pane-quiz" style="display: none;">
+                <div id="quiz-view-container"></div>
               </div>
               <div class="tab-pane" id="tab-pane-result" style="display: none;">
                 <div id="result-view-container"></div>
@@ -323,11 +335,13 @@ export class ExperimentPanel {
 
     this.resultContainer = this.container.querySelector('#result-view-container');
     this.resultLockIcon = this.container.querySelector('#result-lock-icon');
+    this.quizContainer = this.container.querySelector('#quiz-view-container');
 
     this.tabButtons = this.container.querySelectorAll('.tab-btn');
     this.tabPanes = {
       table: this.container.querySelector('#tab-pane-table'),
       graph: this.container.querySelector('#tab-pane-graph'),
+      quiz: this.container.querySelector('#tab-pane-quiz'),
       result: this.container.querySelector('#tab-pane-result')
     };
   }
@@ -533,7 +547,7 @@ export class ExperimentPanel {
         this.toggleKeyBtn.disabled = false;
         this.toggleKeyBtn.className = 'btn btn-key ready-to-close';
         this.keyIcon.textContent = '⚡';
-        this.keyText.textContent = '⚡ START CURRENT / CHALU KAREIN';
+        this.keyText.textContent = '⚡ START CURRENT (Close Key)';
       }
     }
 
@@ -580,9 +594,209 @@ export class ExperimentPanel {
 
     // 6. Update Result & Precautions Card
     this.updateResultCard(state);
+
+    // 7. Update Student Assessment Quiz View
+    this.renderQuizView();
+  }
+
+  renderQuizView() {
+    if (!this.quizContainer) return;
+
+    const questions = this.workflowManager?.assessmentQuestions || [
+      {
+        id: 'q1',
+        question: 'Why must an ammeter always be connected in series with the circuit?',
+        options: [
+          'Because it has very low internal resistance so it measures total current without reducing it.',
+          'Because it has very high internal resistance and prevents short circuits.',
+          'Because voltage is constant across components connected in series.',
+          'Because ammeter requires high voltage to operate its needle mechanism.'
+        ],
+        correctAnswerIndex: 0,
+        explanation: 'An ideal ammeter has near zero internal resistance. Connecting it in series ensures the entire circuit current passes through it without significantly altering the circuit total resistance.'
+      },
+      {
+        id: 'q2',
+        question: 'What physical quantity is represented by the slope of a Voltage (V) vs Current (I) graph?',
+        options: [
+          'Resistance (R = ΔV / ΔI)',
+          'Conductance (G = ΔI / ΔV)',
+          'Electric Power (P = V * I)',
+          'Electric Charge (Q = I * t)'
+        ],
+        correctAnswerIndex: 0,
+        explanation: 'According to Ohm’s Law V = I * R, the ratio ΔV / ΔI represents the electrical resistance (R) of the conductor.'
+      },
+      {
+        id: 'q3',
+        question: 'If the length of a uniform conducting wire is doubled while keeping temperature and material constant, what happens to its resistance?',
+        options: [
+          'Resistance is doubled (R ∝ l)',
+          'Resistance is halved (R ∝ 1/l)',
+          'Resistance remains unchanged',
+          'Resistance becomes four times larger'
+        ],
+        correctAnswerIndex: 0,
+        explanation: 'Resistance is directly proportional to length (R = ρ * l / A). Doubling length doubles the resistance.'
+      },
+      {
+        id: 'q4',
+        question: 'In this practical, what does the straight-line graph passing through the origin indicate?',
+        options: [
+          'Current is directly proportional to potential difference (I ∝ V), confirming Ohm’s Law.',
+          'The resistor value changes with varying voltage.',
+          'The power supply has internal resistance.',
+          'The circuit contains a non-ohmic device.'
+        ],
+        correctAnswerIndex: 0,
+        explanation: 'A straight line through the origin on a V–I graph proves constant proportionality (V/I = constant), verifying Ohm’s Law for ohmic conductors.'
+      }
+    ];
+
+    const answers = this.workflowManager?.assessmentAnswers || new Map();
+    const score = this.workflowManager?.getAssessmentScore?.() || {
+      total: questions.length,
+      answered: answers.size,
+      correct: Array.from(answers.values()).filter(a => a.isCorrect).length,
+      percentage: Math.round((Array.from(answers.values()).filter(a => a.isCorrect).length / questions.length) * 100),
+      completed: answers.size === questions.length
+    };
+
+    // Update Quiz badge in header
+    const quizBadge = this.container.querySelector('#quiz-status-badge');
+    if (quizBadge) {
+      if (score.completed) {
+        quizBadge.textContent = `(${score.correct}/${score.total} ✓)`;
+        quizBadge.style.color = score.percentage >= 75 ? '#4ade80' : '#f59e0b';
+      } else if (score.answered > 0) {
+        quizBadge.textContent = `(${score.answered}/${score.total})`;
+      } else {
+        quizBadge.textContent = `(${questions.length} Qs)`;
+      }
+    }
+
+    let html = `
+      <div class="quiz-panel-card" style="padding: 12px; background: rgba(8, 24, 42, 0.75); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+          <div>
+            <h4 style="margin: 0; color: #38bdf8; font-size: 14px;">📝 Maharashtra SSC Class 10 Assessment</h4>
+            <span style="font-size: 11px; color: #94a3b8;">Effects of Electric Current · Chapter 4 Socratic Quiz</span>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 12px; font-weight: 700; color: ${score.percentage >= 75 ? '#4ade80' : '#38bdf8'};">
+              Score: ${score.correct} / ${score.total} (${score.percentage}%)
+            </span>
+          </div>
+        </div>
+    `;
+
+    questions.forEach((q, qIdx) => {
+      const recorded = answers.get(q.id);
+      const isAnswered = recorded !== undefined;
+
+      html += `
+        <div class="quiz-question-box" style="margin-bottom: 14px; padding: 10px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border-left: 3px solid ${isAnswered ? (recorded.isCorrect ? '#4ade80' : '#ef4444') : '#38bdf8'};">
+          <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">
+            Q${qIdx + 1}: ${q.question}
+          </div>
+          <div class="quiz-options-list" style="display: flex; flex-direction: column; gap: 6px;">
+      `;
+
+      q.options.forEach((opt, optIdx) => {
+        const isSelected = recorded?.selectedOptionIndex === optIdx;
+        let optBg = 'rgba(255, 255, 255, 0.04)';
+        let optBorder = 'rgba(255, 255, 255, 0.1)';
+        let optColor = '#cbd5e1';
+
+        if (isAnswered) {
+          if (optIdx === q.correctAnswerIndex) {
+            optBg = 'rgba(34, 197, 94, 0.2)';
+            optBorder = '#22c55e';
+            optColor = '#4ade80';
+          } else if (isSelected && !recorded.isCorrect) {
+            optBg = 'rgba(239, 68, 68, 0.2)';
+            optBorder = '#ef4444';
+            optColor = '#f87171';
+          }
+        }
+
+        html += `
+          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11px; padding: 6px 8px; border-radius: 4px; background: ${optBg}; border: 1px solid ${optBorder}; color: ${optColor}; cursor: ${isAnswered ? 'default' : 'pointer'};">
+            <input type="radio" name="quiz_q_${q.id}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${isAnswered ? 'disabled' : ''} style="margin-top: 2px;" />
+            <span>${opt}</span>
+          </label>
+        `;
+      });
+
+      html += `</div>`;
+
+      if (isAnswered) {
+        html += `
+          <div style="margin-top: 8px; padding: 6px 8px; border-radius: 4px; font-size: 11px; background: ${recorded.isCorrect ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${recorded.isCorrect ? '#86efac' : '#fca5a5'};">
+            <strong>${recorded.isCorrect ? '✓ Correct!' : '✗ Needs Attention:'}</strong> ${recorded.explanation || q.explanation}
+          </div>
+        `;
+      } else {
+        html += `
+          <div style="margin-top: 6px; text-align: right;">
+            <button class="btn btn-micro btn-submit-quiz-ans" data-qid="${q.id}" style="font-size: 10.5px; padding: 4px 10px; background: #0284c7; color: #ffffff; border-radius: 4px; cursor: pointer;">
+              Submit Answer
+            </button>
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+    });
+
+    if (score.completed) {
+      const passed = score.percentage >= 75;
+      html += `
+        <div style="margin-top: 12px; padding: 12px; background: ${passed ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)'}; border: 1.5px solid ${passed ? '#10b981' : '#f59e0b'}; border-radius: 6px; text-align: center;">
+          <div style="font-size: 20px;">${passed ? '🏆' : '📚'}</div>
+          <h5 style="margin: 4px 0; color: #f8fafc; font-size: 13px;">${passed ? 'Practical Assessment Passed!' : 'Practical Assessment Needs Review'}</h5>
+          <p style="font-size: 11px; color: #94a3b8; margin: 0;">
+            ${passed
+          ? 'Excellent understanding of Ohm’s Law and circuit instrumentation. Ready for Maharashtra SSC Practical Examination.'
+          : 'Review standard textbook definitions for ammeter placement and V–I proportionality.'}
+          </p>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+    this.quizContainer.innerHTML = html;
+
+    // Attach answer submission handlers
+    this.quizContainer.querySelectorAll('.btn-submit-quiz-ans').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const qid = btn.dataset.qid;
+        const selectedRadio = this.quizContainer.querySelector(`input[name="quiz_q_${qid}"]:checked`);
+        if (!selectedRadio) {
+          this.onFeedback({
+            type: 'warning',
+            message: 'Please select an option before submitting.'
+          });
+          return;
+        }
+
+        const selectedIdx = parseInt(selectedRadio.value, 10);
+        if (this.workflowManager && typeof this.workflowManager.submitAssessmentAnswer === 'function') {
+          const res = this.workflowManager.submitAssessmentAnswer(qid, selectedIdx);
+          this.renderQuizView();
+          this.onFeedback({
+            type: res.isCorrect ? 'success' : 'info',
+            message: res.isCorrect ? '✓ Correct answer!' : 'Review explanation for this question.'
+          });
+        }
+      });
+    });
   }
 
   updateWorkflowSteps(state) {
+    const stageInfo = this.workflowManager?.getCurrentStageInfo?.();
+    const stageIdx = this.workflowManager ? this.workflowManager.getStageIndex() : state.workflowStep;
+
     const steps = [1, 2, 3, 4, 5, 6];
     steps.forEach((s) => {
       const el = this.container.querySelector(`#wf-step-${s}`);
@@ -614,6 +828,11 @@ export class ExperimentPanel {
         }
       }
     });
+
+    // Update header status text if workflowManager is active
+    if (stageInfo && this.statusText) {
+      this.statusText.textContent = `Stage ${stageIdx + 1}/11: ${stageInfo.label}`;
+    }
   }
 
   updateResultCard(state) {
@@ -621,6 +840,7 @@ export class ExperimentPanel {
 
     const stats = state.statistics;
     const isUnlocked = state.hasEnoughReadings;
+    const summary = this.workflowManager?.getCompletionSummary?.();
 
     if (this.resultLockIcon) {
       this.resultLockIcon.textContent = isUnlocked ? '✅' : '🔒';
@@ -645,10 +865,23 @@ export class ExperimentPanel {
 
     // Unlocked Card
     const info = this.simulation.config.experimentInfo;
+    const calcR = summary?.calculatedResistanceOhms ?? stats.slopeResistance;
+    const nomR = summary?.nominalResistanceOhms ?? 10.0;
+    const pErr = summary?.percentageError ?? Math.abs((calcR - nomR) / nomR * 100).toFixed(2);
+    const mastery = summary?.masteryBadgeEarned ?? false;
+
     this.resultContainer.innerHTML = `
       <div class="result-unlocked-card">
-        <div class="result-badge-success">🎉 Ohm's Law Verified</div>
+        <div class="result-badge-success" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>🎉 Ohm's Law Verified (R = ΔV / ΔI)</span>
+          ${mastery ? '<span style="background: #eab308; color: #0f172a; font-weight: 800; padding: 2px 8px; border-radius: 4px; font-size: 11px;">🏆 SSC MASTERY BADGE</span>' : ''}
+        </div>
         <h4 class="result-aim-title">${info.title}</h4>
+
+        <div class="result-section" style="background: rgba(14, 165, 233, 0.1); padding: 8px 12px; border-radius: 6px; margin: 8px 0;">
+          <span style="font-size: 11px; color: #38bdf8; font-weight: 700;">Maharashtra SSC Class 10 Curriculum:</span>
+          <p style="margin: 2px 0 0; font-size: 11.5px; color: #e2e8f0;">Science & Technology Part 1 · Chapter 4 (Effects of Electric Current, Balbharati pp. 47–51)</p>
+        </div>
 
         <div class="result-section">
           <h5>🎯 Aim:</h5>
@@ -665,18 +898,29 @@ export class ExperimentPanel {
             <span class="stat-val" style="color: #38bdf8;">${stats.meanRatio.toFixed(2)} Ω</span>
           </div>
           <div class="stat-box">
-            <span class="stat-label">V–I Graph Slope (R):</span>
-            <span class="stat-val" style="color: #2dd4bf;">${stats.slopeResistance.toFixed(2)} Ω</span>
+            <span class="stat-label">V–I Slope (R = ΔV/ΔI):</span>
+            <span class="stat-val" style="color: #2dd4bf;">${calcR.toFixed(2)} Ω</span>
           </div>
           <div class="stat-box">
-            <span class="stat-label">Fixed Resistor Value:</span>
-            <span class="stat-val" style="color: #fbbf24;">10.00 Ω</span>
+            <span class="stat-label">Nominal Resistor:</span>
+            <span class="stat-val" style="color: #fbbf24;">${nomR.toFixed(2)} Ω</span>
           </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.7); padding: 8px 12px; border-radius: 6px; margin: 8px 0; border: 1px solid rgba(255,255,255,0.06);">
+          <span style="font-size: 11.5px; color: #94a3b8;">Experimental Error:</span>
+          <span style="font-size: 12.5px; font-weight: 700; color: ${pErr <= 5.0 ? '#4ade80' : '#f59e0b'};">${pErr}% (Standard SSC Tolerance: &le; 10%)</span>
         </div>
 
         <div class="result-section conclusion-box">
           <h5>📜 Conclusion:</h5>
           <p>${info.conclusionText}</p>
+        </div>
+
+        <div style="margin: 10px 0; display: flex; gap: 8px;">
+          <button id="open-quiz-tab-btn" class="btn btn-primary" style="flex: 1; justify-content: center; font-size: 12px;">
+            <span>📝</span> View / Take Conceptual Quiz
+          </button>
         </div>
 
         <div class="result-section precautions-box">
@@ -687,5 +931,13 @@ export class ExperimentPanel {
         </div>
       </div>
     `;
+
+    const openQuizBtn = this.resultContainer.querySelector('#open-quiz-tab-btn');
+    if (openQuizBtn) {
+      openQuizBtn.addEventListener('click', () => {
+        this.setActiveMode('table_graph');
+        this.setActiveTab('quiz');
+      });
+    }
   }
 }

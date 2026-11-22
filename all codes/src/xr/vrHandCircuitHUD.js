@@ -23,17 +23,17 @@ export function getCircuitProgressForHUD(circuitState, simulation) {
   const fullVal = circuitState
     ? CircuitValidator.validateFullCircuit(circuitState)
     : {
-        isFullyValid: false,
-        missingConnections: REQUIRED_CONNECTIONS,
-        requiredSatisfiedCount: 0,
-        requiredTotalCount: REQUIRED_CONNECTIONS.length,
-        seriesPathComplete: false,
-        voltmeterParallelComplete: false,
-        hasShortCircuit: false,
-        errorCount: 0,
-        warningCount: 0,
-        feedbackMessage: 'Connect all 7 apparatus terminals with wires.'
-      };
+      isFullyValid: false,
+      missingConnections: REQUIRED_CONNECTIONS,
+      requiredSatisfiedCount: 0,
+      requiredTotalCount: REQUIRED_CONNECTIONS.length,
+      seriesPathComplete: false,
+      voltmeterParallelComplete: false,
+      hasShortCircuit: false,
+      errorCount: 0,
+      warningCount: 0,
+      feedbackMessage: 'Connect all 7 apparatus terminals with wires.'
+    };
 
   const hasConn = (from, to) => Boolean(circuitState && circuitState.hasConnection(from, to));
 
@@ -101,7 +101,7 @@ export class VRHandCircuitHUD {
     this.group.name = 'VRWallCircuitHUD';
     this.group.visible = false;
 
-    // Display modes: 'schematic' | 'readings'
+    // Display modes: 'schematic' (photographic guide + live checklist) | 'readings'
     this.currentMode = 'schematic';
 
     // Mount on TV_OuterFrame on the lab wall directly facing the student
@@ -270,6 +270,244 @@ export class VRHandCircuitHUD {
     }
 
     this.texture.needsUpdate = true;
+  }
+
+  drawControlsView(ctx, w, h) {
+    const sim = this.simulation;
+    const progress = getCircuitProgressForHUD(this.circuitState, this.simulation);
+    const readings = sim ? (typeof sim.getReadings === 'function' ? sim.getReadings() : (sim.readings || [])) : [];
+
+    const isKeyClosed = Boolean(sim && sim.keyClosed);
+    const liveV = sim ? (isKeyClosed ? (sim.resistorVoltage || 0.0) : 0.0) : 0.0;
+    const liveI = sim ? (isKeyClosed ? (sim.current || 0.0) : 0.0) : 0.0;
+    const liveRh = sim ? (sim.rheostatResistance || 5.0) : 5.0;
+
+    // 1. Header Bar
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 26px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('⌚ SMART LAB TERMINAL · LEFT WRIST', 30, 46);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '14px Inter, sans-serif';
+    ctx.fillText('Maharashtra Std. 10 Physics · Ohm\'s Law Laboratory', 30, 68);
+
+    // Mode Toggle Button (720, 20, 210, 52)
+    ctx.fillStyle = 'rgba(2, 132, 199, 0.25)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(720, 20, 210, 52, 10) : ctx.fillRect(720, 20, 210, 52);
+    ctx.fill();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⇄ Schematic Guide', 825, 52);
+
+    // 2. Row 1: Start Practical Button (30, 86, 430, 72)
+    const startBg = isKeyClosed ? 'rgba(220, 38, 38, 0.35)' : (progress.isFullyValid ? 'rgba(34, 197, 94, 0.35)' : 'rgba(71, 85, 105, 0.35)');
+    const startBorder = isKeyClosed ? '#ef4444' : (progress.isFullyValid ? '#22c55e' : '#64748b');
+
+    ctx.fillStyle = startBg;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(30, 86, 430, 72, 12) : ctx.fillRect(30, 86, 430, 72);
+    ctx.fill();
+    ctx.strokeStyle = startBorder;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = isKeyClosed ? '#f87171' : (progress.isFullyValid ? '#4ade80' : '#cbd5e1');
+    ctx.font = 'bold 22px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(isKeyClosed ? '🛑 STOP PRACTICAL (ON)' : '⚡ START PRACTICAL (OFF)', 245, 122);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.fillText(isKeyClosed ? 'Key is closed (Current flowing) · Tap to open' : (progress.isFullyValid ? '7/7 Wires connected · Tap to close key' : 'Connect all 7 wires first to start'), 245, 144);
+
+    // Live Meters Card (480, 86, 450, 72)
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(480, 86, 450, 72, 12) : ctx.fillRect(480, 86, 450, 72);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('VOLTAGE (V)', 545, 110);
+    ctx.fillText('CURRENT (I)', 685, 110);
+    ctx.fillText('RHEOSTAT (Rh)', 835, 110);
+
+    ctx.font = 'bold 20px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(`${liveV.toFixed(2)} V`, 545, 140);
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(`${liveI.toFixed(2)} A`, 685, 140);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(`${liveRh.toFixed(1)} Ω`, 835, 140);
+
+    // 3. Row 2: Rheostat Controls Section
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`🎛️ RHEOSTAT CONTROLS (Variable Resistance: Rh = ${liveRh.toFixed(1)} Ω)`, 30, 202);
+
+    // [- 1 Ω] Button (30, 220, 115, 64)
+    ctx.fillStyle = 'rgba(2, 132, 199, 0.3)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(30, 220, 115, 64, 10) : ctx.fillRect(30, 220, 115, 64);
+    ctx.fill();
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('- 1.0 Ω', 87, 260);
+
+    // [+ 1 Ω] Button (160, 220, 115, 64)
+    ctx.fillStyle = 'rgba(2, 132, 199, 0.3)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(160, 220, 115, 64, 10) : ctx.fillRect(160, 220, 115, 64);
+    ctx.fill();
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.fillText('+ 1.0 Ω', 217, 260);
+
+    // Preset buttons: 2Ω, 6Ω, 10Ω, 14Ω, 18Ω
+    const presets = [
+      { id: 'hud_rheo_p5', val: 2.0, label: '2 Ω', x: 295, w: 110 },
+      { id: 'hud_rheo_p4', val: 6.0, label: '6 Ω', x: 420, w: 110 },
+      { id: 'hud_rheo_p3', val: 10.0, label: '10 Ω', x: 545, w: 110 },
+      { id: 'hud_rheo_p2', val: 14.0, label: '14 Ω', x: 670, w: 110 },
+      { id: 'hud_rheo_p1', val: 18.0, label: '18 Ω', x: 795, w: 135 }
+    ];
+
+    presets.forEach((p) => {
+      const isSelected = Math.abs(liveRh - p.val) < 0.2;
+      ctx.fillStyle = isSelected ? 'rgba(245, 158, 11, 0.45)' : 'rgba(30, 41, 59, 0.65)';
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(p.x, 220, p.w, 64, 10) : ctx.fillRect(p.x, 220, p.w, 64);
+      ctx.fill();
+      ctx.strokeStyle = isSelected ? '#fbbf24' : 'rgba(245, 158, 11, 0.4)';
+      ctx.lineWidth = isSelected ? 3 : 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = isSelected ? '#fef08a' : '#f59e0b';
+      ctx.font = isSelected ? 'bold 22px Inter, sans-serif' : 'bold 19px Inter, sans-serif';
+      ctx.fillText(p.label, p.x + p.w / 2, 260);
+    });
+
+    // 4. Row 3: Observation Data Logging Section
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('📋 OBSERVATION DATA LOGGING (Standard Target: 5 Different Readings)', 30, 346);
+
+    // [Record Reading] Button (30, 364, 460, 76)
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.35)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(30, 364, 460, 76, 12) : ctx.fillRect(30, 364, 460, 76);
+    ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = 'bold 22px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📝 RECORD READING', 260, 402);
+
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '14px Inter, sans-serif';
+    const remainingCount = Math.max(0, 5 - readings.length);
+    ctx.fillText(`${readings.length} / 5 Readings Recorded (${remainingCount > 0 ? remainingCount + ' more needed' : 'All 5 Recorded! 🎉'})`, 260, 426);
+
+    // [Clear Data] Button (510, 364, 180, 76)
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.35)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(510, 364, 180, 76, 12) : ctx.fillRect(510, 364, 180, 76);
+    ctx.fill();
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.fillText('🗑 Clear Data', 600, 412);
+
+    // [Undo Wire] Button (710, 364, 220, 76)
+    ctx.fillStyle = 'rgba(217, 119, 6, 0.35)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(710, 364, 220, 76, 12) : ctx.fillRect(710, 364, 220, 76);
+    ctx.fill();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#fed7aa';
+    ctx.font = 'bold 18px Inter, sans-serif';
+    ctx.fillText('↩️ Undo Wire', 820, 412);
+
+    // 5. Bottom Guidance & Verification Strip (30, 468, 900, 142)
+    ctx.fillStyle = 'rgba(15, 34, 56, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(30, 468, 900, 142, 12) : ctx.fillRect(30, 468, 900, 142);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    if (!progress.isFullyValid) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText(`🔌 Circuit Incomplete: ${progress.satisfiedCount} / 7 Wires Connected`, 50, 504);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '16px Inter, sans-serif';
+      ctx.fillText(progress.nextHint, 50, 534);
+    } else if (!isKeyClosed) {
+      ctx.fillStyle = '#4ade80';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText('🎉 Circuit Ready! Tap [⚡ START PRACTICAL] above to close key.', 50, 504);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '16px Inter, sans-serif';
+      ctx.fillText('Current will begin flowing through the circuit to ammeter, resistor and rheostat.', 50, 534);
+    } else if (readings.length < 5) {
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText(`⚡ Current Flowing: Record reading #${readings.length + 1} of 5`, 50, 504);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '16px Inter, sans-serif';
+      ctx.fillText('Step: 1) Tap a Rheostat preset (2Ω, 6Ω, 10Ω...)  2) Tap [📝 RECORD READING]', 50, 534);
+    } else {
+      const stats = sim ? sim.calculateStatistics() : null;
+      ctx.fillStyle = '#4ade80';
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillText(`🏆 5 Observations Complete! Mean R = ${stats ? stats.meanResistance.toFixed(2) : '5.00'} Ω (V ∝ I Verified!)`, 50, 504);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '16px Inter, sans-serif';
+      ctx.fillText('Tap [⇄ Schematic Guide] at top right to inspect the V–I Characteristic Graph.', 50, 534);
+    }
+
+    // Progress Bar Track (50, 560, 860, 16)
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(50, 560, 860, 16, 8) : ctx.fillRect(50, 560, 860, 16);
+    ctx.fill();
+
+    const progressFrac = Math.min(1.0, readings.length / 5);
+    if (progressFrac > 0) {
+      ctx.fillStyle = progressFrac >= 1.0 ? '#22c55e' : '#f59e0b';
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(50, 560, 860 * progressFrac, 16, 8) : ctx.fillRect(50, 560, 860 * progressFrac, 16);
+      ctx.fill();
+    }
   }
 
   drawSchematicView(ctx, w, h) {
@@ -505,7 +743,7 @@ export class VRHandCircuitHUD {
     ctx.font = 'bold 14px Inter, sans-serif';
     ctx.fillText('Ammeter (Series)', ammX, topY + 48);
 
-    // 4. RESISTOR (Standard 5 Ω)
+    // 4. RESISTOR (Standard 10 Ω)
     const resX = leftX + 540;
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 4;
@@ -525,7 +763,7 @@ export class VRHandCircuitHUD {
     ctx.fillStyle = '#f59e0b';
     ctx.font = 'bold 16px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Resistor R (5 Ω)', resX, topY + 40);
+    ctx.fillText('Resistor R (10 Ω)', resX, topY + 40);
 
     // 5. VOLTMETER (Parallel across Resistor)
     const vmY = topY - 75;
@@ -644,19 +882,22 @@ export class VRHandCircuitHUD {
     ctx.textAlign = 'left';
     ctx.fillText("📊 OBSERVATION TABLE & V–I GRAPH", 30, 48);
 
-    // Mode Pill
-    ctx.fillStyle = 'rgba(45, 212, 191, 0.2)';
-    ctx.fillRect(780, 22, 200, 34);
+    // Mode Toggle Button (720, 20, 210, 52)
+    ctx.fillStyle = 'rgba(45, 212, 191, 0.25)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(720, 20, 210, 52, 10) : ctx.fillRect(720, 20, 210, 52);
+    ctx.fill();
     ctx.strokeStyle = '#2dd4bf';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(780, 22, 200, 34);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     ctx.fillStyle = '#2dd4bf';
     ctx.font = 'bold 16px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('📋 Observation Data', 880, 45);
+    ctx.fillText('⇄ Smart Terminal', 825, 52);
 
     const sim = this.simulation;
-    const readings = sim ? sim.getReadings() : [];
+    const readings = sim ? (typeof sim.getReadings === 'function' ? sim.getReadings() : (sim.readings || [])) : [];
 
     // Left Column: Table (width 540)
     ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
@@ -797,16 +1038,15 @@ export class VRHandCircuitHUD {
   }
 
   /**
-   * Per-frame tracking update in WebXR animation loop.
-   * Attaches to the left wrist / forearm joint gracefully.
+   * Per-frame update in WebXR animation loop.
+   * Keeps Wall Circuit TV stably visible on lab wall.
    */
-  update(leftHandObj, delta) {
+  update(delta) {
     if (!this.renderer || !this.renderer.xr.isPresenting) {
       this.group.visible = false;
       return;
     }
 
-    // Fixed on table corner overlooking apparatus
     this.group.visible = true;
   }
 

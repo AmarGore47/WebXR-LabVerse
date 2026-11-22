@@ -14,7 +14,7 @@ export const XR_CONFIG = {
 
   // 2. Interaction Proximity Radii (Direct Near-Hand Touch Zones)
   interactionMaxDistance: 2.0, // meters - safety cutoff
-  terminalHoverRadius: 0.075, // meters (~7.5 cm reach)
+  terminalHoverRadius: 0.052, // meters (~5.2 cm reach prevents proximity overlap between adjacent terminals)
   switchHoverRadius: 0.095, // meters (~9.5 cm reach)
   rheostatHoverRadius: 0.090, // meters (~9.0 cm reach)
   buttonHoverRadius: 0.080, // meters (~8.0 cm reach)

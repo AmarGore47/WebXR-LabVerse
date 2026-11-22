@@ -69,11 +69,13 @@ export class TerminalMarkers {
         container.add(rim);
       }
 
-      // 4. Invisible enlarged hit sphere for comfortable laptop mouse & touch interaction
-      const hitGeo = new THREE.SphereGeometry(0.065, 12, 12);
+      // 4. Invisible enlarged hit sphere for comfortable laptop mouse, touch & WebXR hand ray interaction
+      // Radius 0.032m (32mm) accurately wraps the physical terminal without overlapping adjacent terminals
+      const hitGeo = new THREE.SphereGeometry(0.032, 12, 12);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
       const hitSphere = new THREE.Mesh(hitGeo, hitMat);
       hitSphere.userData = {
+        isTerminal: true,
         terminalId: term.id,
         terminalConfig: term,
         container,
@@ -84,6 +86,7 @@ export class TerminalMarkers {
       this.clickableHitSpheres.push(hitSphere);
 
       container.userData = {
+        isTerminal: true,
         terminalId: term.id,
         terminalConfig: term,
         ring,
