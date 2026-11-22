@@ -32,8 +32,8 @@ export class AssistantRadialMenu {
   constructor(options = {}) {
     this.assistant = options.assistant || null;
     this.scene = options.scene || null;
-    this.onSelectOption = options.onSelectOption || (() => {});
-    this.onClose = options.onClose || (() => {});
+    this.onSelectOption = options.onSelectOption || (() => { });
+    this.onClose = options.onClose || (() => { });
 
     this.group = new THREE.Group();
     this.group.name = 'AssistantRadialMenu';

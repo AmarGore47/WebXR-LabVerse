@@ -152,21 +152,19 @@ export class AssistantSubpanels {
     this.workflowManager = options.workflowManager || (this.bridge ? this.bridge.workflowManager : null);
     this.speechService = options.speechService || null;
     this.sound = options.sound || null;
-    this.onBackToMenu = options.onBackToMenu || (() => {});
-    this.onClose = options.onClose || (() => {});
+    this.onBackToMenu = options.onBackToMenu || (() => { });
+    this.onClose = options.onClose || (() => { });
 
-    // 3D Panel Root Group placed beside assistant on learner's left side
+    // Wall-Mounted 2D AI Assistant Interface on left wall (inside red-marked wall area)
     this.group = new THREE.Group();
-    this.group.name = 'AssistantSubpanels';
-    this.group.position.set(-1.20, 1.28, 0.72);
+    this.group.name = 'AssistantWallDisplay';
+    this.group.position.set(-2.95, 1.55, 1.15);
+    // Parallel to left wall, angled slightly (4.5 deg) towards student at workbench (0, 1.25, 0.82)
+    this.group.rotation.set(0, Math.PI / 2 - 0.08, 0);
 
-    // Angle towards student at workbench (0, 1.3, 0.82)
-    const targetLook = new THREE.Vector3(0.0, 1.25, 0.82);
-    const angleToStudent = Math.atan2(targetLook.x - (-1.20), targetLook.z - 0.72);
-    this.group.rotation.set(0, angleToStudent, 0);
-
-    this.group.visible = false;
-    this.currentView = 'ask_anything'; // 'ask_anything' | 'hints' | 'next_step' | 'video' | 'examples' | 'qna'
+    // Permanent laboratory wall-mounted display: always present in scene
+    this.group.visible = true;
+    this.currentView = 'standby'; // 'standby' | 'menu' | 'ask_anything' | 'hints' | 'next_step' | 'video' | 'examples' | 'qna'
     this.aiError = null;
     this.currentRequestId = 0;
 
@@ -200,11 +198,11 @@ export class AssistantSubpanels {
     this.isAnswerSubmitted = false;
     this.sessionScore = { correct: 0, total: 0 };
 
-    // Rendering Canvas (1024x1024)
-    this.canvasW = 1024;
-    this.canvasH = 1024;
-    this.panelW = 0.88;
-    this.panelH = 0.88;
+    // High-DPI Landscape Wall Display: 1600x920 canvas texture on 1.70m x 0.98m plane
+    this.canvasW = 1600;
+    this.canvasH = 920;
+    this.panelW = 1.70;
+    this.panelH = 0.98;
     this.clickableButtons = [];
 
     this._buildPhysicalFrame();
@@ -238,41 +236,29 @@ export class AssistantSubpanels {
   }
 
   _buildPhysicalFrame() {
-    // Outer sleek metallic frame
-    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.035, this.panelH + 0.035, 0.02);
+    // Wall-Mounted Outer Sleek Metallic Chassis
+    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.04, this.panelH + 0.04, 0.02);
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x071326,
       roughness: 0.35,
-      metalness: 0.8,
+      metalness: 0.85,
       emissive: 0x0284c7,
-      emissiveIntensity: 0.08
+      emissiveIntensity: 0.06
     });
     this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
     this.group.add(this.frameMesh);
 
-    // Cyan glowing trim
-    const trimGeo = new THREE.BoxGeometry(this.panelW + 0.04, this.panelH + 0.04, 0.005);
+    // Subtle Glowing Cyan Trim Border
+    const trimGeo = new THREE.BoxGeometry(this.panelW + 0.045, this.panelH + 0.045, 0.005);
     const trimMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       wireframe: true,
       transparent: true,
-      opacity: 0.45
+      opacity: 0.4
     });
     const trimMesh = new THREE.Mesh(trimGeo, trimMat);
     trimMesh.position.z = 0.008;
     this.group.add(trimMesh);
-
-    // Stand pole & base
-    const poleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.75, 16);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.85 });
-    const standPole = new THREE.Mesh(poleGeo, poleMat);
-    standPole.position.set(0, -this.panelH / 2 - 0.35, -0.015);
-    this.group.add(standPole);
-
-    const baseGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.025, 24);
-    const standBase = new THREE.Mesh(baseGeo, poleMat);
-    standBase.position.set(0, -this.panelH / 2 - 0.71, -0.015);
-    this.group.add(standBase);
   }
 
   _initCanvas() {
@@ -298,15 +284,74 @@ export class AssistantSubpanels {
     this.group.rotation.set(0, angle, 0);
   }
 
-  openView(viewName) {
-    this.currentView = viewName;
+  openMenu() {
+    this.currentView = 'menu';
     this.group.visible = true;
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.activeSubpanel = 'menu';
+      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.interactionActive = true;
+    }
     this.redraw();
   }
 
+  openStandby() {
+    this.currentView = 'standby';
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.activeSubpanel = null;
+      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.interactionActive = false;
+    }
+    this.redraw();
+  }
+
+  openView(viewName) {
+    this.currentView = viewName;
+    this.group.visible = true;
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.activeSubpanel = viewName;
+      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.interactionActive = true;
+    }
+    this.redraw();
+  }
+
+  activateSession() {
+    if (this.assistant && typeof this.assistant.onStudentClick === 'function') {
+      this.assistant.onStudentClick();
+    } else {
+      this.openMenu();
+    }
+  }
+
+  backToMenu() {
+    this.currentView = 'menu';
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.activeSubpanel = 'menu';
+      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.interactionActive = true;
+    }
+    this.redraw();
+    if (typeof this.onBackToMenu === 'function') {
+      this.onBackToMenu();
+    }
+  }
+
+  backToRadial() {
+    this.backToMenu();
+  }
+
   close(isExplicitAssistantClose = false) {
-    if (!this.group.visible) return;
-    this.group.visible = false;
+    this.currentView = 'standby';
+    if (this.assistant && this.assistant.state) {
+      this.assistant.state.activeSubpanel = null;
+      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.interactionActive = false;
+      this.assistant.state.speechState = 'idle';
+      if (typeof this.assistant.setTutorState === 'function') {
+        this.assistant.setTutorState('idle');
+      }
+    }
     if (isExplicitAssistantClose && this.speechService && this.isSpeakingVoice) {
       this.speechService.stop();
       this.isSpeakingVoice = false;
@@ -314,13 +359,7 @@ export class AssistantSubpanels {
     if (isExplicitAssistantClose && typeof this.onClose === 'function') {
       this.onClose();
     }
-  }
-
-  backToRadial() {
-    this.group.visible = false;
-    if (typeof this.onBackToMenu === 'function') {
-      this.onBackToMenu();
-    }
+    this.redraw();
   }
 
   // ─── Drawing & Button Collider Registration ───────────────────────────────
@@ -394,6 +433,12 @@ export class AssistantSubpanels {
 
     // 3. Render View Specific Content
     switch (this.currentView) {
+      case 'standby':
+        this._renderStandbyView(ctx, w, h);
+        break;
+      case 'menu':
+        this._renderMenuView(ctx, w, h);
+        break;
       case 'ask_anything':
         this._renderAskAnythingView(ctx, w, h);
         break;
@@ -413,13 +458,45 @@ export class AssistantSubpanels {
         this._renderQnAView(ctx, w, h);
         break;
       default:
-        this._renderAskAnythingView(ctx, w, h);
+        this._renderStandbyView(ctx, w, h);
     }
 
     this.texture.needsUpdate = true;
   }
 
   _renderHeader(ctx, w) {
+    if (this.currentView === 'standby') {
+      ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🤖  AI Lab Assistant | Physics Practical Guide', 32, 42);
+
+      ctx.font = '16px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Maharashtra State Board • SSC Std. 10 Physics • Ohm’s Law Practical', 78, 68);
+
+      this._drawPillButton(ctx, w - 240, 22, 200, 46, '▶ Open Guidance', '#0284c7', '#ffffff');
+      this._registerButton('hdr_open_menu', w - 240, 22, 200, 46, 'Open Menu', () => this.openMenu());
+      return;
+    }
+
+    if (this.currentView === 'menu') {
+      ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡  AI Assistant — Select Practical Guidance', 32, 42);
+
+      ctx.font = '16px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Choose one of the 6 educational options below to explore Ohm’s Law', 78, 68);
+
+      this._drawPillButton(ctx, w - 180, 22, 140, 46, '✖ Standby', '#475569', '#ffffff');
+      this._registerButton('hdr_standby', w - 180, 22, 140, 46, 'Standby', () => this.openStandby());
+      return;
+    }
+
     const titles = {
       ask_anything: { icon: '💬', title: 'Ask Your AI Assistant', sub: 'Context-Aware Socratic Tutor' },
       hints: { icon: '💡', title: 'Progressive Hints', sub: '3-Tier Guidance (Maharashtra SSC)' },
@@ -432,22 +509,255 @@ export class AssistantSubpanels {
     const cur = titles[this.currentView] || titles.ask_anything;
 
     // Title & Icon
-    ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+    ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${cur.icon}  ${cur.title}`, 24, 38);
+    ctx.fillText(`${cur.icon}  ${cur.title}`, 32, 42);
 
     ctx.font = '16px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(cur.sub, 68, 68);
+    ctx.fillText(cur.sub, 78, 68);
 
-    // Top Controls: "⬅ Back to Menu" and "✖ Close"
-    this._drawPillButton(ctx, 700, 22, 180, 46, '⬅ Radial Menu', '#0284c7', '#ffffff');
-    this._registerButton('hdr_back', 700, 22, 180, 46, 'Back', () => this.backToRadial());
+    // Top Controls: "⬅ All Options" and "✖ Standby"
+    this._drawPillButton(ctx, w - 370, 22, 180, 46, '⬅ All Options', '#0284c7', '#ffffff');
+    this._registerButton('hdr_back', w - 370, 22, 180, 46, 'Back', () => this.backToMenu());
 
-    this._drawPillButton(ctx, 900, 22, 100, 46, '✖ Close', '#ef4444', '#ffffff');
-    this._registerButton('hdr_close', 900, 22, 100, 46, 'Close', () => this.close());
+    this._drawPillButton(ctx, w - 170, 22, 130, 46, '✖ Standby', '#475569', '#ffffff');
+    this._registerButton('hdr_close', w - 170, 22, 130, 46, 'Close', () => this.close(true));
+  }
+
+  // ─── Standby View ─────────────────────────────────────────────────────────
+
+  _renderStandbyView(ctx, w, h) {
+    const cardX = 120;
+    const cardY = 130;
+    const cardW = w - 240;
+    const cardH = 710;
+
+    // Outer card
+    ctx.fillStyle = '#07152b';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    // Inner header band
+    ctx.fillStyle = '#0c2242';
+    ctx.beginPath();
+    ctx.roundRect(cardX + 4, cardY + 4, cardW - 8, 140, [18, 18, 0, 0]);
+    ctx.fill();
+
+    // Welcome title & subtitle
+    ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🤖  AI Laboratory Assistant Standby', cardX + 40, cardY + 55);
+
+    ctx.font = '18px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Interactive Socratic Science Tutor for Maharashtra SSC Class 10 Physics', cardX + 40, cardY + 105);
+
+    // Feature highlights preview
+    const features = [
+      { icon: '💬', title: 'Ask Anything', desc: 'Real-time Socratic AI dialogue for questions on meters, circuits & laws' },
+      { icon: '💡', title: 'Progressive Hints', desc: '3-tier guided clues (Conceptual ➔ Directional ➔ Actionable)' },
+      { icon: '👣', title: 'Next Practical Step', desc: 'Authoritative workflow progression and step-by-step guidance' },
+      { icon: '🎥', title: 'AI Practical Video', desc: 'Demonstration video with chapter markers and procedure walkthrough' },
+      { icon: '📐', title: 'Ohm’s Law Examples', desc: 'Detailed calculation cards, formulas, and V-I graph slope calculations' },
+      { icon: '❓', title: 'Questions & Answers', desc: 'Maharashtra SSC curriculum MCQs with instant feedback and score' }
+    ];
+
+    const colW = (cardW - 120) / 2;
+    const startY = cardY + 175;
+    features.forEach((feat, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const fx = cardX + 40 + col * (colW + 40);
+      const fy = startY + row * 110;
+
+      ctx.fillStyle = '#0a1a33';
+      ctx.strokeStyle = '#1e3a5f';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(fx, fy, colW, 92, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${feat.icon}  ${feat.title}`, fx + 20, fy + 32);
+
+      ctx.font = '15px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      this._wrapText(ctx, feat.desc, fx + 24, fy + 62, colW - 40, 20);
+    });
+
+    // Primary Call to Action Button at bottom
+    const ctaW = 560;
+    const ctaH = 68;
+    const ctaX = cardX + (cardW - ctaW) / 2;
+    const ctaY = cardY + cardH - 100;
+
+    this._drawPillButton(ctx, ctaX, ctaY, ctaW, ctaH, '▶  Click Avatar or Tap Here to Open Assistant', '#0284c7', '#ffffff');
+    this._registerButton('standby_cta', ctaX, ctaY, ctaW, ctaH, 'Open Assistant', () => this.activateSession());
+    this._registerButton('standby_card', cardX, cardY, cardW, cardH - 110, 'Card Tap', () => this.activateSession());
+  }
+
+  // ─── Menu View: 6 Options Grid ───────────────────────────────────────────
+
+  _renderMenuView(ctx, w, h) {
+    const cards = [
+      {
+        id: 'ask_anything',
+        icon: '💬',
+        title: 'Ask Anything',
+        subtitle: 'Socratic AI Dialogue',
+        desc: 'Ask any question about Ohm’s law, meter connections, rheostat controls, or experiment theory. Powered by Gemini Socratic tutor.',
+        badge: 'AI Powered',
+        badgeColor: '#38bdf8',
+        btnText: 'Open Chat & Voice ➔'
+      },
+      {
+        id: 'hints',
+        icon: '💡',
+        title: 'Progressive Hints',
+        subtitle: '3-Tier Scaffolding',
+        desc: 'Step through Conceptual, Directional, and Actionable guidance without giving away direct answers immediately.',
+        badge: 'Curriculum',
+        badgeColor: '#f59e0b',
+        btnText: 'View Clues ➔'
+      },
+      {
+        id: 'next_step',
+        icon: '👣',
+        title: 'Next Practical Step',
+        subtitle: 'Workflow Progression',
+        desc: 'Check current stage status, next apparatus to connect, rheostat setting, or observation recording task.',
+        badge: 'Live State',
+        badgeColor: '#10b981',
+        btnText: 'See Next Step ➔'
+      },
+      {
+        id: 'video',
+        icon: '🎥',
+        title: 'AI Practical Video',
+        subtitle: 'Demonstration & Chapters',
+        desc: 'Watch laboratory demonstration video with navigable chapters covering aim, apparatus, wiring, and graph slope.',
+        badge: 'Multimedia',
+        badgeColor: '#ec4899',
+        btnText: 'Watch Video ➔'
+      },
+      {
+        id: 'examples',
+        icon: '📐',
+        title: 'Ohm’s Law Examples',
+        subtitle: 'Formulas & Calculations',
+        desc: 'Explore 4 detailed calculation cards: fundamental formula, 10 Ω resistor calculation, V-I graph slope, and fuse engineering.',
+        badge: 'Math & Practice',
+        badgeColor: '#a855f7',
+        btnText: 'Explore Examples ➔'
+      },
+      {
+        id: 'qna',
+        icon: '❓',
+        title: 'Questions & Answers',
+        subtitle: 'Curriculum MCQs',
+        desc: 'Test your understanding with 5 Maharashtra SSC multiple choice questions featuring instant feedback and scoring.',
+        badge: 'Assessment',
+        badgeColor: '#06b6d4',
+        btnText: 'Start Quiz ➔'
+      }
+    ];
+
+    const cardW = 480;
+    const cardH = 360;
+    const startX = 45;
+    const gapX = 35;
+    const startY = 120;
+    const gapY = 35;
+
+    cards.forEach((card, index) => {
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      const cx = startX + col * (cardW + gapX);
+      const cy = startY + row * (cardH + gapY);
+
+      // Card Background
+      ctx.fillStyle = '#0b1d38';
+      ctx.strokeStyle = '#1e4370';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, cardW, cardH, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top accent strip
+      ctx.fillStyle = card.badgeColor;
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, cardW, 6, [16, 16, 0, 0]);
+      ctx.fill();
+
+      // Header: Icon + Title
+      ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(card.icon, cx + 24, cy + 50);
+
+      ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(card.title, cx + 78, cy + 42);
+
+      ctx.font = '14px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(card.subtitle, cx + 78, cy + 66);
+
+      // Badge
+      ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+      const badgeText = card.badge.toUpperCase();
+      const badgeW = ctx.measureText(badgeText).width + 18;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+      ctx.strokeStyle = card.badgeColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(cx + cardW - badgeW - 20, cy + 28, badgeW, 26, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = card.badgeColor;
+      ctx.textAlign = 'center';
+      ctx.fillText(badgeText, cx + cardW - badgeW / 2 - 20, cy + 41);
+      ctx.textAlign = 'left';
+
+      // Divider
+      ctx.strokeStyle = '#1e385b';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 20, cy + 92);
+      ctx.lineTo(cx + cardW - 20, cy + 92);
+      ctx.stroke();
+
+      // Description
+      ctx.font = '16px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      this._wrapText(ctx, card.desc, cx + 24, cy + 128, cardW - 48, 24);
+
+      // Card Action Button
+      const btnH = 50;
+      const btnW = cardW - 48;
+      const btnX = cx + 24;
+      const btnY = cy + cardH - btnH - 24;
+      this._drawPillButton(ctx, btnX, btnY, btnW, btnH, card.btnText, '#0284c7', '#ffffff');
+
+      // Register collider for both the button and whole card
+      this._registerButton(`menu_btn_${card.id}`, btnX, btnY, btnW, btnH, card.title, () => this.openView(card.id));
+      this._registerButton(`menu_card_${card.id}`, cx, cy, cardW, cardH - btnH - 30, card.title, () => this.openView(card.id));
+    });
   }
 
   // ─── 1. View: Ask Anything ────────────────────────────────────────────────

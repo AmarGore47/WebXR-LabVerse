@@ -71,14 +71,32 @@ body {
   border-color: var(--panel-hover);
 }
 
+/* Top Application Header Container (Prevents overlap of brand title and toolbar buttons) */
+.top-app-header {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.top-app-header > * {
+  pointer-events: auto;
+  position: static !important;
+}
+
 /* 1. Brand Header Panel */
 .brand-panel {
-  top: 18px;
-  left: 18px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .status-dot {
@@ -103,10 +121,10 @@ body {
 
 /* 2. Top Center Instruction Banner */
 .instruction-bar {
-  top: 18px;
+  top: 72px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 10px 20px;
+  padding: 8px 18px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -114,12 +132,13 @@ body {
   border: 1px solid var(--accent-cyan);
   border-radius: 999px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 18;
 }
 
 /* 2b. Assistant Invitation Pill */
 .assistant-invite-pill {
   position: absolute;
-  top: 70px;
+  top: 122px;
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 14px;
@@ -197,8 +216,6 @@ body {
 
 /* 3. Top Right Laptop Toolbar */
 .toolbar-panel {
-  top: 18px;
-  right: 18px;
   padding: 8px 12px;
   display: flex;
   align-items: center;

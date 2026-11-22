@@ -59,12 +59,13 @@ const bridge = new SimulationStateBridge({ simulation, circuitState, workflowMan
 runTest('1. LabAssistant reuses existing character, positions naturally and attaches interactive hitbox', () => {
   const assistant = new LabAssistant({
     scene,
-    position: new THREE.Vector3(-1.60, 0, 0.65)
+    position: new THREE.Vector3(-2.25, 0, 0.25)
   });
 
   assert.ok(assistant.group, 'LabAssistant group must exist in scene');
-  assert.strictEqual(assistant.position.x, -1.60, 'Assistant must be positioned at x = -1.60m');
-  assert.strictEqual(assistant.position.z, 0.65, 'Assistant must be positioned at z = 0.65m');
+  assert.strictEqual(assistant.position.x, -2.25, 'Assistant must be positioned at x = -2.25m');
+  assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet must be on floor at y = 0.0m');
+  assert.strictEqual(assistant.position.z, 0.25, 'Assistant must be positioned at z = 0.25m');
   assert.ok(assistant.position.x < -1.34, 'Assistant position must be fully clear of workbench edge (-1.34m)');
 
   const hitbox = assistant.getHitbox();
@@ -89,7 +90,7 @@ runTest('2. Overhead status badge displays interaction prompt when idle', () => 
   assert.strictEqual(assistant.tutorBadgeSprite.position.y, 2.05, 'Badge should hover above assistant head');
 });
 
-runTest('3. onStudentClick turns assistant towards student, sets greeting state and opens radial menu', () => {
+runTest('3. onStudentClick turns assistant towards student, sets greeting state and opens wall display menu', () => {
   const assistant = new LabAssistant({ scene });
   let speechSpoken = null;
   assistant.initTutorServices({
@@ -103,10 +104,10 @@ runTest('3. onStudentClick turns assistant towards student, sets greeting state 
 
   assert.strictEqual(assistant.tutorState, 'greeting', 'Assistant tutor state must transition to greeting');
   assert.ok(speechSpoken && speechSpoken.includes('Welcome to Physics VR Simulation!'), 'Should trigger welcome speech');
-  assert.strictEqual(assistant.radialMenu.isOpen, true, 'Radial menu must be open');
-  assert.strictEqual(assistant.radialMenu.group.visible, true, 'Radial menu group must be visible in scene');
+  assert.strictEqual(assistant.subpanels.currentView, 'menu', 'Wall display must open to menu view');
+  assert.strictEqual(assistant.subpanels.group.visible, true, 'Wall display must be visible in scene');
   assert.strictEqual(assistant.state.interactionActive, true, 'State interactionActive must be true');
-  assert.strictEqual(assistant.state.radialMenuOpen, true, 'State radialMenuOpen must be true');
+  assert.strictEqual(assistant.state.activeSubpanel, 'menu', 'State activeSubpanel must be menu');
 
   // Verify hitbox is shielded while interaction is active
   const clickables = assistant.getClickableObjects();
@@ -132,29 +133,26 @@ runTest('4. Radial menu defines exactly six primary educational options arranged
   assert.strictEqual(menu.clickableObjects.length, 7, 'Must have colliders for all 6 options + close');
 });
 
-runTest('5. Selecting a radial option opens the corresponding subpanel and minimizes radial menu', () => {
+runTest('5. Selecting a menu option opens the corresponding subpanel view and allows return to menu', () => {
   const assistant = new LabAssistant({ scene });
   assistant.initTutorServices({ workflowManager, bridge });
 
   assistant.onStudentClick();
-  assert.strictEqual(assistant.radialMenu.isOpen, true);
+  assert.strictEqual(assistant.subpanels.currentView, 'menu');
   assert.strictEqual(assistant.state.interactionActive, true);
-  assert.strictEqual(assistant.state.radialMenuOpen, true);
+  assert.strictEqual(assistant.state.activeSubpanel, 'menu');
 
   // Click "Ask Anything"
   assistant.onRadialSelect('radial_ask');
   assert.strictEqual(assistant.subpanels.group.visible, true);
   assert.strictEqual(assistant.subpanels.currentView, 'ask_anything');
-  assert.strictEqual(assistant.state.radialMenuOpen, false, 'Radial menu should be minimized');
   assert.strictEqual(assistant.state.activeSubpanel, 'ask_anything', 'Subpanel state must be set');
   assert.strictEqual(assistant.state.interactionActive, true, 'Interaction session must persist');
 
-  // Test "Back to Radial"
+  // Test "Back to Menu"
   assistant.onBackToRadial();
-  assert.strictEqual(assistant.subpanels.group.visible, false);
-  assert.strictEqual(assistant.radialMenu.isOpen, true);
-  assert.strictEqual(assistant.state.radialMenuOpen, true);
-  assert.strictEqual(assistant.state.activeSubpanel, null);
+  assert.strictEqual(assistant.subpanels.currentView, 'menu');
+  assert.strictEqual(assistant.state.activeSubpanel, 'menu');
 
   // Click "Hints"
   assistant.onRadialSelect('radial_hints');
@@ -301,7 +299,7 @@ runTest('11. Questions & Answers MCQs validate student choices, provide immediat
 
 // ─── 9. Menu Closing & Return to Idle ─────────────────────────────────────
 
-runTest('12. Closing menu smoothly hides subpanels, radial menu and resets assistant to idle', () => {
+runTest('12. Closing menu smoothly returns wall display to standby and resets assistant to idle', () => {
   const assistant = new LabAssistant({ scene });
   assistant.onStudentClick();
   assistant.onRadialSelect('radial_ask');
@@ -313,8 +311,7 @@ runTest('12. Closing menu smoothly hides subpanels, radial menu and resets assis
   // Student clicks Close
   assistant.onRadialClose();
 
-  assert.strictEqual(assistant.subpanels.group.visible, false);
-  assert.strictEqual(assistant.radialMenu.isOpen, false);
+  assert.strictEqual(assistant.subpanels.currentView, 'standby', 'Subpanels should return to standby view');
   assert.strictEqual(assistant.tutorState, 'idle');
   assert.strictEqual(assistant.state.interactionActive, false);
   assert.strictEqual(assistant.state.radialMenuOpen, false);
@@ -354,15 +351,19 @@ runTest('13. Ask Anything handles backend failure gracefully with error display 
   assert.strictEqual(assistant.tutorState, 'warning', 'Tutor badge should show warning posture on error');
 });
 
-runTest('14. Assistant Placement and Subpanel coordinates are clear of wooden workbench', () => {
+runTest('14. Assistant Placement and Wall Display coordinates are clear of wooden workbench and left table', () => {
   const assistant = new LabAssistant({ scene });
-  // Workbench spans x in [-1.34, 1.34]
+  // Workbench spans x in [-1.34, 1.34], left table spans x in [-2.68, -1.82] and z in [-0.57, 0.07]
   assert.ok(assistant.position.x <= -1.34, 'Assistant must be positioned outside workbench bounds (x <= -1.34m)');
-  assert.strictEqual(assistant.position.x, -1.60);
-  assert.strictEqual(assistant.position.z, 0.65);
+  assert.strictEqual(assistant.position.x, -2.25, 'Assistant positioned at x = -2.25m');
+  assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet aligned with floor at y = 0.0m');
+  assert.strictEqual(assistant.position.z, 0.25, 'Assistant positioned clear of left table at z = 0.25m');
 
-  assert.ok(assistant.subpanels.group.position.x <= -1.0, 'Subpanels must be positioned on student left side');
-  assert.strictEqual(assistant.subpanels.group.position.y, 1.28);
+  // Wall Display mounted on left wall
+  const wallDisplay = assistant.subpanels.group;
+  assert.strictEqual(wallDisplay.position.x, -2.95, 'Wall display mounted on left wall at x = -2.95m');
+  assert.strictEqual(wallDisplay.position.y, 1.55, 'Wall display center at eye height y = 1.55m');
+  assert.strictEqual(wallDisplay.position.z, 1.15, 'Wall display centered along z = 1.15m in red-marked area');
 });
 
 console.log('\n================================================================');

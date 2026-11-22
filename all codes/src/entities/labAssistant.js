@@ -50,7 +50,7 @@ export const COMIC_HIT_TEXTS = [
 ];
 
 export class LabAssistant {
-  constructor({ scene, narration, position = new THREE.Vector3(-1.60, 0, 0.65) } = {}) {
+  constructor({ scene, narration, position = new THREE.Vector3(-2.25, 0.0, 0.25) } = {}) {
     this.scene = scene;
     this.narration = narration;
     this.position = position;
@@ -801,10 +801,10 @@ export class LabAssistant {
       this.sound.unlock();
     }
 
-    // 2. Transition state machine
+    // 2. Transition state machine (Wall display is primary interface)
     this.state.interactionActive = true;
-    this.state.radialMenuOpen = true;
-    this.state.activeSubpanel = null;
+    this.state.radialMenuOpen = false;
+    this.state.activeSubpanel = 'menu';
 
     // 3. Turn towards the student naturally
     const targetPos = studentPos || new THREE.Vector3(0.0, 1.3, 0.82);
@@ -825,9 +825,9 @@ export class LabAssistant {
       this.state.speechState = 'speaking';
     }
 
-    // 6. Open Radial Holographic Menu
-    if (this.radialMenu) {
-      this.radialMenu.open();
+    // 6. Open Wall Display Menu with the 6 educational options
+    if (this.subpanels) {
+      this.subpanels.openMenu();
     }
   }
 
@@ -846,9 +846,9 @@ export class LabAssistant {
       radial_qna: 'qna'
     };
 
-    const targetView = viewMap[optionId] || 'ask_anything';
+    const targetView = viewMap[optionId] || optionId;
 
-    // State transition: radial minimized, subpanel active, interaction persists
+    // State transition: subpanel active, interaction persists
     this.state.radialMenuOpen = false;
     this.state.activeSubpanel = targetView;
 
@@ -858,13 +858,10 @@ export class LabAssistant {
   }
 
   onBackToRadial() {
-    this.state.activeSubpanel = null;
-    this.state.radialMenuOpen = true;
+    this.state.activeSubpanel = 'menu';
+    this.state.radialMenuOpen = false;
     if (this.subpanels) {
-      this.subpanels.group.visible = false;
-    }
-    if (this.radialMenu) {
-      this.radialMenu.open();
+      this.subpanels.openMenu();
     }
   }
 
@@ -878,7 +875,7 @@ export class LabAssistant {
       this.state.speechState = 'idle';
 
       if (this.subpanels) {
-        this.subpanels.close(true);
+        this.subpanels.openStandby();
       }
       if (this.radialMenu) {
         this.radialMenu.close();
@@ -898,11 +895,11 @@ export class LabAssistant {
     if (!this.state.interactionActive) {
       list.push(this.hitBox);
     }
+    if (this.subpanels && typeof this.subpanels.getClickableObjects === 'function') {
+      list.push(...this.subpanels.getClickableObjects());
+    }
     if (this.radialMenu && typeof this.radialMenu.getClickableObjects === 'function' && this.state.radialMenuOpen) {
       list.push(...this.radialMenu.getClickableObjects());
-    }
-    if (this.subpanels && typeof this.subpanels.getClickableObjects === 'function' && this.state.activeSubpanel) {
-      list.push(...this.subpanels.getClickableObjects());
     }
     return list;
   }
@@ -916,9 +913,6 @@ export class LabAssistant {
     this.group.position.copy(pos);
     const angle = Math.atan2(targetLook.x - pos.x, targetLook.z - pos.z);
     this.group.rotation.y = angle;
-    if (this.subpanels && typeof this.subpanels.setPosition === 'function') {
-      this.subpanels.setPosition(new THREE.Vector3(pos.x + 0.40, 1.28, pos.z + 0.07));
-    }
   }
 
   update(delta, timeSec) {

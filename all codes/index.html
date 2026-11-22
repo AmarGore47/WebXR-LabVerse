@@ -19,13 +19,76 @@
     <!-- 3D WebGL Canvas -->
     <canvas id="lab-canvas" aria-label="3D Physics Laboratory Workbench"></canvas>
 
-    <!-- 1. Brand Header Panel -->
-    <header class="panel brand-panel" id="brand-panel">
-      <span class="status-dot"></span>
-      <div>
-        <h1>Physics XR Lab · Ohm’s Law Practical</h1>
-        <p>Maharashtra State Board · Std. 10 Physics · Virtual Lab Practical</p>
+    <!-- Top Application Bar Container (Prevents Brand Panel and Toolbar overlap) -->
+    <header class="top-app-header" id="top-app-header">
+      <!-- 1. Brand Header Panel -->
+      <div class="panel brand-panel" id="brand-panel">
+        <span class="status-dot"></span>
+        <div>
+          <h1>Physics XR Lab · Ohm’s Law Practical</h1>
+          <p>Maharashtra State Board · Std. 10 Physics · Virtual Lab Practical</p>
+        </div>
       </div>
+
+      <!-- 3. Top Right Laptop & VR Toolbar (Streamlined 7-Button Architecture) -->
+      <nav class="panel toolbar-panel" id="toolbar-panel" aria-label="Laptop Navigation Controls">
+        <button id="reset-view-btn" class="btn" title="Reset camera to default overview">
+          <span>🔄</span> Reset
+        </button>
+        <button id="toggle-exp-panel-btn" class="btn active" title="Toggle Experiment & Meters Dashboard">
+          <span>⚡</span> Experiment
+        </button>
+        <button id="toggle-labels-btn" class="btn active" title="Show or hide 3D apparatus labels">
+          <span>🏷️</span> Labels
+        </button>
+        <button id="toggle-orientation-toolbar-btn" class="btn btn-orientation"
+          title="Experiment Orientation: Learn how circuit connects & full procedure">
+          <span>🎯</span> Orientation
+        </button>
+        <button id="toggle-ai-tutor-btn" class="btn btn-ai-tutor"
+          title="AI Tutor: Socratic science tutor with live circuit awareness">
+          <span>🤖</span> AI Tutor
+        </button>
+
+        <!-- Settings Dropdown containing Secondary Controls -->
+        <div class="settings-dropdown-wrapper">
+          <button id="toggle-settings-btn" class="btn btn-settings" title="Additional Lab Controls & Settings"
+            aria-expanded="false" aria-haspopup="true">
+            <span>⚙️</span> Settings ▾
+          </button>
+          <div id="settings-dropdown-menu" class="settings-dropdown-menu hidden" role="menu">
+            <button id="toggle-theme-btn" class="dropdown-item" role="menuitem"
+              title="Toggle Sci-Fi Dark Mode vs Standard Lab Mode">
+              <span>🌌</span> Sci-Fi Lab: ON
+            </button>
+            <button id="toggle-xray-btn" class="dropdown-item" role="menuitem"
+              title="X-Ray Mode: See electrons flowing inside the wires! Speed changes with current.">
+              <span>⚛️</span> X-Ray: OFF
+            </button>
+            <button id="toggle-terminals-btn" class="dropdown-item" role="menuitem"
+              title="Show or hide terminal snap markers">
+              <span>📍</span> Terminals: ON
+            </button>
+            <button id="toggle-guided-btn" class="dropdown-item btn-guided" role="menuitem"
+              title="Guided Mode: Step-by-step circuit assembly with narration">
+              <span>🎓</span> Guided: OFF
+            </button>
+            <button id="toggle-schematic-btn" class="dropdown-item" role="menuitem"
+              title="View Maharashtra textbook circuit diagram">
+              <span>📐</span> Schematic Guide
+            </button>
+            <div class="dropdown-divider"></div>
+            <button id="toggle-diag-btn" class="dropdown-item btn-dev-diag" role="menuitem"
+              title="Developer Diagnostics (Ctrl+Shift+D)">
+              <span>🛠️</span> Diagnostics
+            </button>
+          </div>
+        </div>
+
+        <button id="enter-vr-btn" class="btn btn-vr" title="Checking VR support…">
+          <span>🥽</span> Enter VR
+        </button>
+      </nav>
     </header>
 
     <!-- 2. Top Center Instruction Banner -->
@@ -37,66 +100,12 @@
     </div>
 
     <!-- 2b. Calm Assistant Invitation Pill -->
-    <div id="assistant-invite-pill" class="assistant-invite-pill" role="button" tabindex="0" title="Click to interact with 3D AI Lab Assistant">
+    <div id="assistant-invite-pill" class="assistant-invite-pill" role="button" tabindex="0"
+      title="Click to interact with 3D AI Lab Assistant">
       <span class="invite-icon">🤖</span>
       <span class="invite-text">Need guidance? Click your AI Lab Assistant on the left!</span>
       <span class="invite-badge">3D Hologram</span>
     </div>
-
-    <!-- 3. Top Right Laptop & VR Toolbar (Streamlined 7-Button Architecture) -->
-    <nav class="panel toolbar-panel" id="toolbar-panel" aria-label="Laptop Navigation Controls">
-      <button id="reset-view-btn" class="btn" title="Reset camera to default overview">
-        <span>🔄</span> Reset
-      </button>
-      <button id="toggle-exp-panel-btn" class="btn active" title="Toggle Experiment & Meters Dashboard">
-        <span>⚡</span> Experiment
-      </button>
-      <button id="toggle-labels-btn" class="btn active" title="Show or hide 3D apparatus labels">
-        <span>🏷️</span> Labels
-      </button>
-      <button id="toggle-orientation-toolbar-btn" class="btn btn-orientation"
-        title="Experiment Orientation: Learn how circuit connects & full procedure">
-        <span>🎯</span> Orientation
-      </button>
-      <button id="toggle-ai-tutor-btn" class="btn btn-ai-tutor"
-        title="AI Tutor: Socratic science tutor with live circuit awareness">
-        <span>🤖</span> AI Tutor
-      </button>
-
-      <!-- Settings Dropdown containing Secondary Controls -->
-      <div class="settings-dropdown-wrapper">
-        <button id="toggle-settings-btn" class="btn btn-settings" title="Additional Lab Controls & Settings" aria-expanded="false" aria-haspopup="true">
-          <span>⚙️</span> Settings ▾
-        </button>
-        <div id="settings-dropdown-menu" class="settings-dropdown-menu hidden" role="menu">
-          <button id="toggle-theme-btn" class="dropdown-item" role="menuitem" title="Toggle Sci-Fi Dark Mode vs Standard Lab Mode">
-            <span>🌌</span> Sci-Fi Lab: ON
-          </button>
-          <button id="toggle-xray-btn" class="dropdown-item" role="menuitem"
-            title="X-Ray Mode: See electrons flowing inside the wires! Speed changes with current.">
-            <span>⚛️</span> X-Ray: OFF
-          </button>
-          <button id="toggle-terminals-btn" class="dropdown-item" role="menuitem" title="Show or hide terminal snap markers">
-            <span>📍</span> Terminals: ON
-          </button>
-          <button id="toggle-guided-btn" class="dropdown-item btn-guided" role="menuitem"
-            title="Guided Mode: Step-by-step circuit assembly with narration">
-            <span>🎓</span> Guided: OFF
-          </button>
-          <button id="toggle-schematic-btn" class="dropdown-item" role="menuitem" title="View Maharashtra textbook circuit diagram">
-            <span>📐</span> Schematic Guide
-          </button>
-          <div class="dropdown-divider"></div>
-          <button id="toggle-diag-btn" class="dropdown-item btn-dev-diag" role="menuitem" title="Developer Diagnostics (Ctrl+Shift+D)">
-            <span>🛠️</span> Diagnostics
-          </button>
-        </div>
-      </div>
-
-      <button id="enter-vr-btn" class="btn btn-vr" title="Checking VR support…">
-        <span>🥽</span> Enter VR
-      </button>
-    </nav>
 
     <!-- 4. Camera Presets Dock -->
     <div class="panel presets-dock" id="presets-dock">
@@ -154,10 +163,12 @@
         <span class="narration-icon">🎓</span>
         <div id="narration-caption-text">Enable Guided Mode to start step-by-step narration.</div>
         <div class="narration-controls">
-          <button class="narration-btn active" id="narration-toggle-btn" title="Toggle narration audio on or off">🔊 Narration</button>
+          <button class="narration-btn active" id="narration-toggle-btn" title="Toggle narration audio on or off">🔊
+            Narration</button>
           <button class="narration-btn" id="narration-replay-btn" title="Replay current audio">↺ Replay</button>
           <button class="narration-btn" id="narration-stop-btn" title="Stop audio">⏹ Stop</button>
-          <button class="narration-btn" id="audio-test-btn" title="Run WebXR Audio & Voice Diagnostic Test">🧪 Test</button>
+          <button class="narration-btn" id="audio-test-btn" title="Run WebXR Audio & Voice Diagnostic Test">🧪
+            Test</button>
           <div class="narration-vol-group">
             <label for="narration-volume-slider">Vol</label>
             <input type="range" id="narration-volume-slider" min="0" max="100" value="80" title="Narration volume">
@@ -652,7 +663,8 @@
                   <strong>Adjust Rheostat Resistance (Rh)</strong>
                   <p>Move the rheostat slider (or click the preset buttons <code>Min (0.5Ω)</code>, <code>-1.0Ω</code>,
                     <code>+1.0Ω</code>, <code>Max (20Ω)</code>) to set 5 different resistance positions. Observe current
-                    (I) increase as resistance decreases.</p>
+                    (I) increase as resistance decreases.
+                  </p>
                 </div>
               </div>
 
@@ -662,7 +674,8 @@
                   <strong>Record 5 Sets of Observations</strong>
                   <p>For each rheostat setting, note the Ammeter reading <em>I</em> (Amperes) and Voltmeter reading
                     <em>V</em> (Volts). Click <strong>[ 📝 Record Reading ]</strong>. The table will calculate
-                    <code>V / I</code> which should stay constant at ~10.00 Ω!</p>
+                    <code>V / I</code> which should stay constant at ~10.00 Ω!
+                  </p>
                   <span id="orient-readings-status" class="status-tag incomplete"
                     style="align-self: flex-start; margin-top: 4px;">0 / 5 Readings Recorded</span>
                 </div>
@@ -674,7 +687,8 @@
                   <strong>Plot V–I Graph & Verify Slope</strong>
                   <p>Click the <strong>[ 📈 V–I Graph ]</strong> tab. Observe that the plotted points lie along a
                     straight line passing through the origin (0, 0), proving <em>V ∝ I</em>. The slope
-                    <code>ΔV / ΔI</code> gives the verified resistance R = 10.00 Ω!</p>
+                    <code>ΔV / ΔI</code> gives the verified resistance R = 10.00 Ω!
+                  </p>
                 </div>
               </div>
 
@@ -768,10 +782,12 @@
       <div id="ai-tutor-chat-area" class="ai-tutor-chat-area">
         <div class="ai-message tutor-message">
           <div class="ai-bubble-header">💡 Tutor Guidance</div>
-          <p id="ai-tutor-message-text">Welcome to the Ohm’s Law practical! I am your AI Virtual Science Lab Assistant. Ask any question about your circuit, meters, or Ohm’s Law.</p>
+          <p id="ai-tutor-message-text">Welcome to the Ohm’s Law practical! I am your AI Virtual Science Lab Assistant.
+            Ask any question about your circuit, meters, or Ohm’s Law.</p>
           <div id="ai-tutor-explanation-box" class="ai-explanation-box">
             <span class="ai-label">Physics Theory:</span>
-            <span id="ai-tutor-explanation-text">At constant temperature, electric current (I) is directly proportional to potential difference (V): V = I × R.</span>
+            <span id="ai-tutor-explanation-text">At constant temperature, electric current (I) is directly proportional
+              to potential difference (V): V = I × R.</span>
           </div>
           <div id="ai-tutor-action-badge" class="ai-action-badge">
             <span id="ai-tutor-action-text">👉 Follow the tabletop schematic to connect the 7 circuit wires.</span>
@@ -780,13 +796,19 @@
       </div>
       <div class="ai-tutor-quick-actions">
         <button class="ai-quick-btn" data-action="hint" title="Get progressive 3-level hints">💡 Hint</button>
-        <button class="ai-quick-btn" data-action="explain" title="Explain physics concept and aim">📖 Explain Step</button>
+        <button class="ai-quick-btn" data-action="explain" title="Explain physics concept and aim">📖 Explain
+          Step</button>
         <button class="ai-quick-btn" data-action="mistakes" title="Diagnose circuit mistakes">⚠️ Check Mistakes</button>
-        <button class="ai-quick-btn" data-action="guided_question" title="Get a Socratic guided question">❓ Guided Question</button>
-        <button class="ai-quick-btn" data-action="check_understanding" title="Test your understanding">🎯 Check Understanding</button>
-        <button class="ai-quick-btn" data-action="retry" id="ai-tutor-retry-btn" title="Retry last question">🔄 Retry</button>
-        <button class="ai-quick-btn" data-action="repeat" id="ai-tutor-repeat-btn" title="Repeat voice response">🔊 Repeat</button>
-        <button class="ai-quick-btn" data-action="stop" id="ai-tutor-stop-btn" title="Stop voice output">⏹️ Stop</button>
+        <button class="ai-quick-btn" data-action="guided_question" title="Get a Socratic guided question">❓ Guided
+          Question</button>
+        <button class="ai-quick-btn" data-action="check_understanding" title="Test your understanding">🎯 Check
+          Understanding</button>
+        <button class="ai-quick-btn" data-action="retry" id="ai-tutor-retry-btn" title="Retry last question">🔄
+          Retry</button>
+        <button class="ai-quick-btn" data-action="repeat" id="ai-tutor-repeat-btn" title="Repeat voice response">🔊
+          Repeat</button>
+        <button class="ai-quick-btn" data-action="stop" id="ai-tutor-stop-btn" title="Stop voice output">⏹️
+          Stop</button>
       </div>
       <div id="ai-tutor-voice-bar" class="ai-tutor-voice-bar hidden">
         <span class="voice-pulse-dot"></span>
@@ -794,8 +816,10 @@
         <button type="button" id="ai-voice-cancel-btn" class="ai-voice-cancel-btn" title="Cancel listening">✕</button>
       </div>
       <form id="ai-tutor-form" class="ai-tutor-input-form">
-        <button type="button" id="ai-tutor-mic-btn" class="btn btn-mic" title="Click to speak your question"><span>🎙️</span></button>
-        <input type="text" id="ai-tutor-input" placeholder="Ask a question or speak..." autocomplete="off" maxlength="500" />
+        <button type="button" id="ai-tutor-mic-btn" class="btn btn-mic"
+          title="Click to speak your question"><span>🎙️</span></button>
+        <input type="text" id="ai-tutor-input" placeholder="Ask a question or speak..." autocomplete="off"
+          maxlength="500" />
         <button type="submit" id="ai-tutor-submit-btn" class="btn btn-primary">Ask</button>
       </form>
     </div>

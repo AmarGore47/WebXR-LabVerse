@@ -640,11 +640,11 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Positioned comfortably on learner's left side at x = -1.60, z = 0.65)
+// 3D Animated Lab Assistant (Positioned beside wall-mounted AI interface at x = -2.25, y = 0.0, z = 0.25)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(-1.60, 0, 0.65)
+  position: new THREE.Vector3(-2.25, 0.0, 0.25)
 });
 
 // Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
@@ -689,7 +689,7 @@ aiTutorClient.checkHealth().then((isHealthy) => {
   } else {
     console.warn('[Main] AI Tutor backend offline; deterministic fallback active.');
   }
-}).catch(() => {});
+}).catch(() => { });
 
 aiTutorSpeechService = new AITutorSpeechService({
   assistant: labAssistant,
@@ -1389,25 +1389,25 @@ function animate(time, frame) {
   // WebXR & Desktop Subsystem Updates (safely wrapped to guarantee render execution)
   try {
     terminalMarkers.update(timeSec, camera);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     interaction.update(delta);
     measurement.update(delta);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     guidedMode.update(camera);
     if (apparatusGuide) apparatusGuide.update(delta, timeSec);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (wireRenderer) wireRenderer.update(timeSec, simulation.current, delta);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (environment) environment.update(timeSec);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (holographicSwitches) holographicSwitches.update(timeSec, delta);
@@ -1416,11 +1416,11 @@ function animate(time, frame) {
       const liveI = simulation.keyClosed ? simulation.current : 0.0;
       holographicMetersHUD.update(timeSec, liveV, liveI, wireRenderer.xrayMode, camera);
     }
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (startCurrentButton) startCurrentButton.update(delta);
-  } catch (e) {}
+  } catch (e) { }
 
   // Update WebXR native hand tracking
   try {
@@ -1431,17 +1431,17 @@ function animate(time, frame) {
 
   try {
     if (batterySparkEffect) batterySparkEffect.update(delta, simulation);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (vrOrientationSystem) vrOrientationSystem.update(delta, timeSec);
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (labAssistant) labAssistant.update(delta, timeSec);
     if (throwableManager) throwableManager.update(delta);
     if (vrAITutorPanel) vrAITutorPanel.update(delta);
-  } catch (e) {}
+  } catch (e) { }
 
   // Guaranteed render scene every frame so WebXR compositor never latches or freezes
   try {
