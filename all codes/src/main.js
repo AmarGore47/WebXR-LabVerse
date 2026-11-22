@@ -640,11 +640,11 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Positioned comfortably inside the VR lab at x = 1.25, z = 0.35)
+// 3D Animated Lab Assistant (Positioned comfortably on learner's left side at x = -1.60, z = 0.65)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(1.25, 0, 0.35)
+  position: new THREE.Vector3(-1.60, 0, 0.65)
 });
 
 // Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
@@ -1256,17 +1256,36 @@ if (circuitPhotoGuideBtn && schematicModal) {
   });
 }
 
-if (toggleAiTutorBtn && aiTutorDock) {
+// Calm Assistant Invitation Pill click listener
+const assistantInvitePill = document.getElementById('assistant-invite-pill');
+if (assistantInvitePill && labAssistant) {
+  assistantInvitePill.addEventListener('click', () => {
+    labAssistant.onStudentClick();
+    assistantInvitePill.classList.add('hidden');
+  });
+}
+
+if (toggleAiTutorBtn) {
   toggleAiTutorBtn.addEventListener('click', () => {
-    const isHidden = aiTutorDock.classList.toggle('hidden');
-    if (vrAITutorPanel) {
-      vrAITutorPanel.group.visible = !isHidden;
+    if (labAssistant) {
+      if (!labAssistant.state.interactionActive) {
+        labAssistant.onStudentClick();
+        if (assistantInvitePill) assistantInvitePill.classList.add('hidden');
+      } else {
+        labAssistant.onRadialClose();
+      }
     }
-    // Prevent panel collision on standard displays
-    if (!isHidden && window.innerWidth < 1600 && expPanelContainer) {
-      expPanelContainer.classList.add('hidden');
-      const expBtn = document.getElementById('toggle-exp-panel-btn');
-      if (expBtn) expBtn.classList.remove('active');
+    if (aiTutorDock) {
+      const isHidden = aiTutorDock.classList.toggle('hidden');
+      if (vrAITutorPanel) {
+        vrAITutorPanel.group.visible = !isHidden;
+      }
+      // Prevent panel collision on standard displays
+      if (!isHidden && window.innerWidth < 1600 && expPanelContainer) {
+        expPanelContainer.classList.add('hidden');
+        const expBtn = document.getElementById('toggle-exp-panel-btn');
+        if (expBtn) expBtn.classList.remove('active');
+      }
     }
   });
 }

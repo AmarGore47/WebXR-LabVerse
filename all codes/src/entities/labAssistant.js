@@ -50,7 +50,7 @@ export const COMIC_HIT_TEXTS = [
 ];
 
 export class LabAssistant {
-  constructor({ scene, narration, position = new THREE.Vector3(1.25, 0, 0.20) } = {}) {
+  constructor({ scene, narration, position = new THREE.Vector3(-1.60, 0, 0.65) } = {}) {
     this.scene = scene;
     this.narration = narration;
     this.position = position;
@@ -60,9 +60,19 @@ export class LabAssistant {
     this.group.position.copy(this.position);
 
     // Face student and experiment table naturally
-    const targetLook = new THREE.Vector3(0.0, 0.85, 0.70);
+    const targetLook = new THREE.Vector3(0.0, 0.85, 0.40);
     const angleToTable = Math.atan2(targetLook.x - this.position.x, targetLook.z - this.position.z);
     this.group.rotation.y = angleToTable;
+
+    // Explicit, single assistant state model (Priority 0)
+    this.state = {
+      assistantVisible: true,
+      interactionActive: false,
+      radialMenuOpen: false,
+      activeSubpanel: null, // null | 'ask_anything' | 'hints' | 'next_step' | 'video' | 'examples' | 'qna'
+      speechState: 'idle',  // 'idle' | 'speaking' | 'paused' | 'error'
+      aiRequestState: 'idle' // 'idle' | 'loading' | 'success' | 'error' | 'retrying'
+    };
 
     this.model = null;
     this.mixer = null;
@@ -124,7 +134,7 @@ export class LabAssistant {
       speechService: this.speechService,
       sound: this.sound,
       onBackToMenu: () => {
-        if (this.radialMenu) this.radialMenu.open();
+        this.onBackToRadial();
       },
       onClose: () => {
         this.onRadialClose();
@@ -782,31 +792,51 @@ export class LabAssistant {
   }
 
   onStudentClick(studentPos) {
-    // 1. Turn towards the student naturally
+    // If interaction session is already active, ignore hitbox click to prevent restart/flicker
+    if (this.state.interactionActive) return;
+
+    // 1. Audio unlock & context initialization
+    this._ensureAudio();
+    if (this.sound && typeof this.sound.unlock === 'function') {
+      this.sound.unlock();
+    }
+
+    // 2. Transition state machine
+    this.state.interactionActive = true;
+    this.state.radialMenuOpen = true;
+    this.state.activeSubpanel = null;
+
+    // 3. Turn towards the student naturally
     const targetPos = studentPos || new THREE.Vector3(0.0, 1.3, 0.82);
     const angle = Math.atan2(targetPos.x - this.position.x, targetPos.z - this.position.z);
     this.group.rotation.y = angle;
 
-    // 2. Play greeting animation if available
+    // 4. Play greeting animation if available
     if (this.actions.taunt) {
       this._playTemporaryAction(this.actions.taunt);
     }
 
-    // 3. Display welcome message
+    // 5. Display welcome message
     const welcomeMsg = 'Welcome to Physics VR Simulation! I am your AI Lab Assistant. How can I help you with your practical today?';
     this.setTutorState('greeting', { text: welcomeMsg });
 
     if (this.speechService && typeof this.speechService.speak === 'function') {
       this.speechService.speak(welcomeMsg);
+      this.state.speechState = 'speaking';
     }
 
-    // 4. Open Radial Holographic Menu
+    // 6. Open Radial Holographic Menu
     if (this.radialMenu) {
       this.radialMenu.open();
     }
   }
 
   onRadialSelect(optionId) {
+    if (optionId === 'radial_close') {
+      this.onRadialClose();
+      return;
+    }
+
     const viewMap = {
       radial_ask: 'ask_anything',
       radial_hints: 'hints',
@@ -817,8 +847,24 @@ export class LabAssistant {
     };
 
     const targetView = viewMap[optionId] || 'ask_anything';
+
+    // State transition: radial minimized, subpanel active, interaction persists
+    this.state.radialMenuOpen = false;
+    this.state.activeSubpanel = targetView;
+
     if (this.subpanels) {
       this.subpanels.openView(targetView);
+    }
+  }
+
+  onBackToRadial() {
+    this.state.activeSubpanel = null;
+    this.state.radialMenuOpen = true;
+    if (this.subpanels) {
+      this.subpanels.group.visible = false;
+    }
+    if (this.radialMenu) {
+      this.radialMenu.open();
     }
   }
 
@@ -826,24 +872,36 @@ export class LabAssistant {
     if (this._isClosing) return;
     this._isClosing = true;
     try {
+      this.state.interactionActive = false;
+      this.state.radialMenuOpen = false;
+      this.state.activeSubpanel = null;
+      this.state.speechState = 'idle';
+
       if (this.subpanels) {
-        this.subpanels.close();
+        this.subpanels.close(true);
       }
       if (this.radialMenu) {
         this.radialMenu.close();
       }
       this.setTutorState('idle');
+      if (this.speechService && typeof this.speechService.stop === 'function') {
+        this.speechService.stop();
+      }
     } finally {
       this._isClosing = false;
     }
   }
 
   getClickableObjects() {
-    const list = [this.hitBox];
-    if (this.radialMenu && typeof this.radialMenu.getClickableObjects === 'function') {
+    const list = [];
+    // Only allow hitbox clicks when interaction is NOT active (prevents background miss clicks)
+    if (!this.state.interactionActive) {
+      list.push(this.hitBox);
+    }
+    if (this.radialMenu && typeof this.radialMenu.getClickableObjects === 'function' && this.state.radialMenuOpen) {
       list.push(...this.radialMenu.getClickableObjects());
     }
-    if (this.subpanels && typeof this.subpanels.getClickableObjects === 'function') {
+    if (this.subpanels && typeof this.subpanels.getClickableObjects === 'function' && this.state.activeSubpanel) {
       list.push(...this.subpanels.getClickableObjects());
     }
     return list;
@@ -853,11 +911,14 @@ export class LabAssistant {
     return this.hitBox;
   }
 
-  setPosition(pos, targetLook = new THREE.Vector3(0, 0.85, 0.75)) {
+  setPosition(pos, targetLook = new THREE.Vector3(0, 0.85, 0.40)) {
     this.position.copy(pos);
     this.group.position.copy(pos);
     const angle = Math.atan2(targetLook.x - pos.x, targetLook.z - pos.z);
     this.group.rotation.y = angle;
+    if (this.subpanels && typeof this.subpanels.setPosition === 'function') {
+      this.subpanels.setPosition(new THREE.Vector3(pos.x + 0.40, 1.28, pos.z + 0.07));
+    }
   }
 
   update(delta, timeSec) {

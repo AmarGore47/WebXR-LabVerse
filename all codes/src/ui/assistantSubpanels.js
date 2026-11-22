@@ -155,18 +155,20 @@ export class AssistantSubpanels {
     this.onBackToMenu = options.onBackToMenu || (() => {});
     this.onClose = options.onClose || (() => {});
 
-    // 3D Panel Root Group placed beside assistant
+    // 3D Panel Root Group placed beside assistant on learner's left side
     this.group = new THREE.Group();
     this.group.name = 'AssistantSubpanels';
-    this.group.position.set(0.88, 1.28, 0.42);
+    this.group.position.set(-1.20, 1.28, 0.72);
 
     // Angle towards student at workbench (0, 1.3, 0.82)
     const targetLook = new THREE.Vector3(0.0, 1.25, 0.82);
-    const angleToStudent = Math.atan2(targetLook.x - 0.88, targetLook.z - 0.42);
+    const angleToStudent = Math.atan2(targetLook.x - (-1.20), targetLook.z - 0.72);
     this.group.rotation.set(0, angleToStudent, 0);
 
     this.group.visible = false;
     this.currentView = 'ask_anything'; // 'ask_anything' | 'hints' | 'next_step' | 'video' | 'examples' | 'qna'
+    this.aiError = null;
+    this.currentRequestId = 0;
 
     // Feature States
     // 1. Ask Anything
@@ -290,20 +292,26 @@ export class AssistantSubpanels {
     this.group.add(this.screenMesh);
   }
 
+  setPosition(pos, targetLook = new THREE.Vector3(0.0, 1.25, 0.82)) {
+    this.group.position.copy(pos);
+    const angle = Math.atan2(targetLook.x - pos.x, targetLook.z - pos.z);
+    this.group.rotation.set(0, angle, 0);
+  }
+
   openView(viewName) {
     this.currentView = viewName;
     this.group.visible = true;
     this.redraw();
   }
 
-  close() {
+  close(isExplicitAssistantClose = false) {
     if (!this.group.visible) return;
     this.group.visible = false;
-    if (this.speechService && this.isSpeakingVoice) {
+    if (isExplicitAssistantClose && this.speechService && this.isSpeakingVoice) {
       this.speechService.stop();
       this.isSpeakingVoice = false;
     }
-    if (typeof this.onClose === 'function') {
+    if (isExplicitAssistantClose && typeof this.onClose === 'function') {
       this.onClose();
     }
   }
@@ -521,11 +529,18 @@ export class AssistantSubpanels {
     ctx.fillStyle = '#38bdf8';
     ctx.fillText('🤖 Socratic Physics Tutor Response', 48, cardY + 38);
 
-    // Audio Voice Controls
+    // Audio Voice Controls & Retry Button
+    let voiceBtnX = w - 220;
+    if (this.aiError) {
+      voiceBtnX = w - 200;
+      this._drawPillButton(ctx, w - 370, cardY + 20, 155, 42, '🔄 Retry', '#d97706', '#ffffff');
+      this._registerButton('ask_btn_retry', w - 370, cardY + 20, 155, 42, 'Retry', () => this.submitQuestion());
+    }
+
     const voiceLabel = this.isSpeakingVoice ? '⏹️ Stop Voice' : '🔊 Listen Voice';
     const voiceBg = this.isSpeakingVoice ? '#ef4444' : '#10b981';
-    this._drawPillButton(ctx, w - 220, cardY + 20, 180, 42, voiceLabel, voiceBg, '#ffffff');
-    this._registerButton('ask_btn_voice', w - 220, cardY + 20, 180, 42, 'Voice', () => this.toggleVoiceSpeech());
+    this._drawPillButton(ctx, voiceBtnX, cardY + 20, 175, 42, voiceLabel, voiceBg, '#ffffff');
+    this._registerButton('ask_btn_voice', voiceBtnX, cardY + 20, 175, 42, 'Voice', () => this.toggleVoiceSpeech());
 
     // Response Content
     ctx.font = '20px "Segoe UI", Arial, sans-serif';
@@ -1229,11 +1244,16 @@ export class AssistantSubpanels {
   async submitQuestion() {
     if (!this.currentQuestionText || this.isLoadingAI) return;
     this.isLoadingAI = true;
-    this.redraw();
+    this.currentRequestId = (this.currentRequestId || 0) + 1;
+    const reqId = this.currentRequestId;
 
-    if (this.assistant && this.assistant.setTutorState) {
-      this.assistant.setTutorState('thinking');
+    if (this.assistant) {
+      if (this.assistant.state) this.assistant.state.aiRequestState = 'loading';
+      if (typeof this.assistant.setTutorState === 'function') {
+        this.assistant.setTutorState('thinking');
+      }
     }
+    this.redraw();
 
     try {
       if (this.tutorClient && typeof this.tutorClient.askQuestion === 'function') {
@@ -1244,55 +1264,122 @@ export class AssistantSubpanels {
         const res = await this.tutorClient.askQuestion({
           question: this.currentQuestionText,
           language: 'English',
-          simulationContext: simContext
+          simulationContext: simContext,
+          customContext: simContext
         });
 
-        if (res) {
+        if (this.currentRequestId !== reqId) return; // Stale request, ignore
+
+        // Check whether request succeeded and has valid payload
+        const payload = (res && res.response) ? res.response : res;
+        const isSuccess = Boolean(res && (res.success !== false) && (payload.message || payload.answer));
+
+        if (isSuccess) {
+          this.aiError = null;
           this.aiResponse = {
-            message: res.message || res.answer || 'Thank you for your question.',
-            explanation: res.explanation || 'Ohm’s Law establishes V = I * R.',
-            hint: res.hint || 'Check circuit connections.',
-            suggestedAction: res.suggestedAction || 'Observe instrument needles.'
+            message: payload.message || payload.answer || 'Thank you for your question.',
+            explanation: payload.explanation || 'Ohm’s Law establishes V = I * R across a metallic conductor.',
+            hint: payload.hint || 'Check circuit connections.',
+            suggestedAction: payload.suggestedAction || 'Observe instrument needles.'
           };
 
-          if (this.assistant && this.assistant.setTutorState) {
-            this.assistant.setTutorState('speaking', { text: this.aiResponse.message });
+          if (this.assistant) {
+            if (this.assistant.state) this.assistant.state.aiRequestState = 'success';
+            if (typeof this.assistant.setTutorState === 'function') {
+              this.assistant.setTutorState('speaking', { text: this.aiResponse.message });
+            }
           }
 
           // Trigger voice speech
           if (this.speechService && typeof this.speechService.speak === 'function') {
             this.speechService.speak(this.aiResponse.message);
             this.isSpeakingVoice = true;
+            if (this.assistant && this.assistant.state) {
+              this.assistant.state.speechState = 'speaking';
+            }
           }
+        } else {
+          // Failure / server error
+          const errMsg = res?.error?.message || 'Server returned error or invalid response.';
+          this.aiError = { code: res?.error?.code || 'ERROR', message: errMsg };
+          this.aiResponse = {
+            message: `Notice: ${errMsg}`,
+            explanation: 'Curriculum Fallback (Maharashtra SSC Std. 10 Ch. 4): Potential difference V is directly proportional to current I (V = I × R).',
+            hint: 'Use the progressive hints tab or click Retry to reconnect.',
+            suggestedAction: 'Check your circuit wiring and ensure plug key is closed.'
+          };
+
+          if (this.assistant) {
+            if (this.assistant.state) this.assistant.state.aiRequestState = 'error';
+            if (typeof this.assistant.setTutorState === 'function') {
+              this.assistant.setTutorState('warning', { text: 'AI unavailable. Showing curriculum fallback.' });
+            }
+          }
+        }
+      } else {
+        // Fallback when tutorClient is unassigned
+        this.aiError = null;
+        this.aiResponse = {
+          message: 'An ammeter has very low internal resistance (~0.2 Ω) and is connected in series.',
+          explanation: 'Series connection ensures all electrons in the loop flow through the meter for accurate current measurement.',
+          hint: 'Keep Ammeter in the main loop and Voltmeter across the resistor coil.',
+          suggestedAction: 'Observe the 3D tabletop instruments and adjust the rheostat.'
+        };
+        if (this.assistant && this.assistant.state) {
+          this.assistant.state.aiRequestState = 'success';
         }
       }
     } catch (err) {
+      if (this.currentRequestId !== reqId) return;
       console.warn('[AssistantSubpanels] Error asking tutor client:', err);
+      this.aiError = { code: 'NETWORK_ERROR', message: err.message || 'Connection error' };
       this.aiResponse = {
-        message: 'Could not connect to Gemini AI backend. Please verify your internet connection or server status.',
-        explanation: 'Ohm’s Law verifies V ∝ I across a metallic conductor under constant temperature.',
+        message: 'Could not connect to Gemini AI backend. Offline curriculum guidance active.',
+        explanation: 'Ohm’s Law verifies V ∝ I across a metallic conductor under constant physical conditions (R = V / I).',
         hint: 'Use the progressive hints tab for offline practical guidance.',
-        suggestedAction: 'Click on Hints tab.'
+        suggestedAction: 'Click on Hints tab or Retry Question.'
       };
-      if (this.assistant && this.assistant.setTutorState) {
-        this.assistant.setTutorState('warning', { text: 'Backend unavailable. Offline guidance active.' });
+      if (this.assistant) {
+        if (this.assistant.state) this.assistant.state.aiRequestState = 'error';
+        if (typeof this.assistant.setTutorState === 'function') {
+          this.assistant.setTutorState('warning', { text: 'Backend offline. Standard guidance active.' });
+        }
       }
     } finally {
-      this.isLoadingAI = false;
-      this.redraw();
+      if (this.currentRequestId === reqId) {
+        this.isLoadingAI = false;
+        this.redraw();
+      }
     }
   }
 
   toggleVoiceSpeech() {
     if (!this.speechService) return;
 
+    if (this.sound && typeof this.sound.unlock === 'function') {
+      this.sound.unlock();
+    }
+
     if (this.isSpeakingVoice) {
       this.speechService.stop();
       this.isSpeakingVoice = false;
+      if (this.assistant && this.assistant.state) {
+        this.assistant.state.speechState = 'idle';
+      }
     } else {
       const txt = (this.aiResponse && this.aiResponse.message) ? this.aiResponse.message : 'Welcome to Ohm’s Law.';
-      this.speechService.speak(txt);
-      this.isSpeakingVoice = true;
+      try {
+        this.speechService.speak(txt);
+        this.isSpeakingVoice = true;
+        if (this.assistant && this.assistant.state) {
+          this.assistant.state.speechState = 'speaking';
+        }
+      } catch (e) {
+        console.warn('[AssistantSubpanels] Speech failed:', e);
+        if (this.assistant && this.assistant.state) {
+          this.assistant.state.speechState = 'error';
+        }
+      }
     }
     this.redraw();
   }

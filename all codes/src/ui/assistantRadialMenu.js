@@ -252,6 +252,13 @@ export class AssistantRadialMenu {
     this.group.scale.set(0.01, 0.01, 0.01);
   }
 
+  minimize() {
+    if (!this.isOpen && !this.group.visible) return;
+    this.isOpen = false;
+    this.isAnimating = true;
+    // Visually minimize without triggering onClose callback
+  }
+
   close() {
     if (!this.isOpen && !this.group.visible) return;
     this.isOpen = false;
@@ -284,8 +291,8 @@ export class AssistantRadialMenu {
       this.onSelectOption(optionId);
     }
 
-    // Smoothly minimize radial menu while subpanel opens
-    this.close();
+    // Smoothly minimize radial menu while subpanel opens (do not trigger assistant close)
+    this.minimize();
   }
 
   update(delta) {

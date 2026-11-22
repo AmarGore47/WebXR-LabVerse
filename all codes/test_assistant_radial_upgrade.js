@@ -59,17 +59,27 @@ const bridge = new SimulationStateBridge({ simulation, circuitState, workflowMan
 runTest('1. LabAssistant reuses existing character, positions naturally and attaches interactive hitbox', () => {
   const assistant = new LabAssistant({
     scene,
-    position: new THREE.Vector3(1.25, 0, 0.35)
+    position: new THREE.Vector3(-1.60, 0, 0.65)
   });
 
   assert.ok(assistant.group, 'LabAssistant group must exist in scene');
-  assert.strictEqual(assistant.position.x, 1.25);
-  assert.strictEqual(assistant.position.z, 0.35);
+  assert.strictEqual(assistant.position.x, -1.60, 'Assistant must be positioned at x = -1.60m');
+  assert.strictEqual(assistant.position.z, 0.65, 'Assistant must be positioned at z = 0.65m');
+  assert.ok(assistant.position.x < -1.34, 'Assistant position must be fully clear of workbench edge (-1.34m)');
 
   const hitbox = assistant.getHitbox();
   assert.ok(hitbox, 'Hitbox must exist');
   assert.strictEqual(hitbox.userData.isAssistantHitbox, true, 'Hitbox must have isAssistantHitbox flag');
   assert.strictEqual(typeof hitbox.userData.onPress, 'function', 'Hitbox must have onPress callback for clicks/pinches');
+
+  // Verify explicit state model
+  assert.ok(assistant.state, 'State model must exist');
+  assert.strictEqual(assistant.state.assistantVisible, true);
+  assert.strictEqual(assistant.state.interactionActive, false);
+  assert.strictEqual(assistant.state.radialMenuOpen, false);
+  assert.strictEqual(assistant.state.activeSubpanel, null);
+  assert.strictEqual(assistant.state.speechState, 'idle');
+  assert.strictEqual(assistant.state.aiRequestState, 'idle');
 });
 
 runTest('2. Overhead status badge displays interaction prompt when idle', () => {
@@ -95,6 +105,16 @@ runTest('3. onStudentClick turns assistant towards student, sets greeting state 
   assert.ok(speechSpoken && speechSpoken.includes('Welcome to Physics VR Simulation!'), 'Should trigger welcome speech');
   assert.strictEqual(assistant.radialMenu.isOpen, true, 'Radial menu must be open');
   assert.strictEqual(assistant.radialMenu.group.visible, true, 'Radial menu group must be visible in scene');
+  assert.strictEqual(assistant.state.interactionActive, true, 'State interactionActive must be true');
+  assert.strictEqual(assistant.state.radialMenuOpen, true, 'State radialMenuOpen must be true');
+
+  // Verify hitbox is shielded while interaction is active
+  const clickables = assistant.getClickableObjects();
+  assert.ok(!clickables.includes(assistant.hitBox), 'Hitbox must NOT be clickable while interaction is active');
+
+  // Subsequent click while active should be ignored
+  assistant.onStudentClick(studentPos);
+  assert.strictEqual(assistant.state.interactionActive, true);
 });
 
 // ─── 2. Radial Menu Structure Audit ───────────────────────────────────────
@@ -116,13 +136,25 @@ runTest('5. Selecting a radial option opens the corresponding subpanel and minim
   const assistant = new LabAssistant({ scene });
   assistant.initTutorServices({ workflowManager, bridge });
 
-  assistant.radialMenu.open();
+  assistant.onStudentClick();
   assert.strictEqual(assistant.radialMenu.isOpen, true);
+  assert.strictEqual(assistant.state.interactionActive, true);
+  assert.strictEqual(assistant.state.radialMenuOpen, true);
 
   // Click "Ask Anything"
   assistant.onRadialSelect('radial_ask');
   assert.strictEqual(assistant.subpanels.group.visible, true);
   assert.strictEqual(assistant.subpanels.currentView, 'ask_anything');
+  assert.strictEqual(assistant.state.radialMenuOpen, false, 'Radial menu should be minimized');
+  assert.strictEqual(assistant.state.activeSubpanel, 'ask_anything', 'Subpanel state must be set');
+  assert.strictEqual(assistant.state.interactionActive, true, 'Interaction session must persist');
+
+  // Test "Back to Radial"
+  assistant.onBackToRadial();
+  assert.strictEqual(assistant.subpanels.group.visible, false);
+  assert.strictEqual(assistant.radialMenu.isOpen, true);
+  assert.strictEqual(assistant.state.radialMenuOpen, true);
+  assert.strictEqual(assistant.state.activeSubpanel, null);
 
   // Click "Hints"
   assistant.onRadialSelect('radial_hints');
@@ -153,10 +185,13 @@ runTest('6. Ask Anything handles student questions, loading states and AI respon
     askQuestion: async (payload) => {
       askedPayload = payload;
       return {
-        message: 'An ammeter has very low internal resistance (~0.2 Ω) and is connected in series.',
-        explanation: 'Series connection ensures all electrons flow through the meter.',
-        hint: 'Check table wiring.',
-        suggestedAction: 'Verify connection to Resistor (+).'
+        success: true,
+        response: {
+          message: 'An ammeter has very low internal resistance (~0.2 Ω) and is connected in series.',
+          explanation: 'Series connection ensures all electrons flow through the meter.',
+          hint: 'Check table wiring.',
+          suggestedAction: 'Verify connection to Resistor (+).'
+        }
       };
     }
   };
@@ -169,6 +204,7 @@ runTest('6. Ask Anything handles student questions, loading states and AI respon
   assert.strictEqual(askedPayload.question, 'Why is the ammeter in series?');
   assert.strictEqual(subpanels.aiResponse.message.includes('low internal resistance'), true);
   assert.strictEqual(subpanels.isLoadingAI, false, 'Loading state must resolve to false');
+  assert.strictEqual(subpanels.aiError, null, 'aiError must be null on successful response');
 });
 
 // ─── 4. Feature 2: Hints Audit ────────────────────────────────────────────
@@ -271,6 +307,8 @@ runTest('12. Closing menu smoothly hides subpanels, radial menu and resets assis
   assistant.onRadialSelect('radial_ask');
 
   assert.strictEqual(assistant.subpanels.group.visible, true);
+  assert.strictEqual(assistant.state.interactionActive, true);
+  assert.strictEqual(assistant.state.activeSubpanel, 'ask_anything');
 
   // Student clicks Close
   assistant.onRadialClose();
@@ -278,6 +316,53 @@ runTest('12. Closing menu smoothly hides subpanels, radial menu and resets assis
   assert.strictEqual(assistant.subpanels.group.visible, false);
   assert.strictEqual(assistant.radialMenu.isOpen, false);
   assert.strictEqual(assistant.tutorState, 'idle');
+  assert.strictEqual(assistant.state.interactionActive, false);
+  assert.strictEqual(assistant.state.radialMenuOpen, false);
+  assert.strictEqual(assistant.state.activeSubpanel, null);
+
+  // Hitbox becomes clickable again when idle
+  const clickables = assistant.getClickableObjects();
+  assert.ok(clickables.includes(assistant.hitBox), 'Hitbox must be clickable when assistant returns to idle');
+});
+
+// ─── 10. AI Error Handling & Deterministic Fallback ────────────────────────
+
+runTest('13. Ask Anything handles backend failure gracefully with error display and curriculum fallback', async () => {
+  const failingTutorClient = {
+    askQuestion: async () => {
+      return {
+        success: false,
+        error: {
+          code: 'BACKEND_UNAVAILABLE',
+          message: 'AI Tutor service is temporarily unreachable.'
+        }
+      };
+    }
+  };
+
+  const assistant = new LabAssistant({ scene });
+  const subpanels = new AssistantSubpanels({ scene, assistant, tutorClient: failingTutorClient });
+  subpanels.currentQuestionText = 'What is the unit of resistance?';
+  await subpanels.submitQuestion();
+
+  assert.strictEqual(subpanels.isLoadingAI, false, 'Loading should be false after error');
+  assert.ok(subpanels.aiError, 'aiError must be populated');
+  assert.strictEqual(subpanels.aiError.code, 'BACKEND_UNAVAILABLE');
+  assert.ok(subpanels.aiResponse.message.includes('AI Tutor service is temporarily unreachable'), 'Response must show error notice');
+  assert.ok(subpanels.aiResponse.explanation.includes('Maharashtra SSC Std. 10 Ch. 4'), 'Must supply curriculum fallback guidance');
+  assert.strictEqual(assistant.state.aiRequestState, 'error', 'Assistant state must reflect error');
+  assert.strictEqual(assistant.tutorState, 'warning', 'Tutor badge should show warning posture on error');
+});
+
+runTest('14. Assistant Placement and Subpanel coordinates are clear of wooden workbench', () => {
+  const assistant = new LabAssistant({ scene });
+  // Workbench spans x in [-1.34, 1.34]
+  assert.ok(assistant.position.x <= -1.34, 'Assistant must be positioned outside workbench bounds (x <= -1.34m)');
+  assert.strictEqual(assistant.position.x, -1.60);
+  assert.strictEqual(assistant.position.z, 0.65);
+
+  assert.ok(assistant.subpanels.group.position.x <= -1.0, 'Subpanels must be positioned on student left side');
+  assert.strictEqual(assistant.subpanels.group.position.y, 1.28);
 });
 
 console.log('\n================================================================');

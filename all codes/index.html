@@ -36,6 +36,13 @@
       <button id="cancel-selection-btn" class="cancel-btn">✕ Cancel Selection</button>
     </div>
 
+    <!-- 2b. Calm Assistant Invitation Pill -->
+    <div id="assistant-invite-pill" class="assistant-invite-pill" role="button" tabindex="0" title="Click to interact with 3D AI Lab Assistant">
+      <span class="invite-icon">🤖</span>
+      <span class="invite-text">Need guidance? Click your AI Lab Assistant on the left!</span>
+      <span class="invite-badge">3D Hologram</span>
+    </div>
+
     <!-- 3. Top Right Laptop & VR Toolbar (Streamlined 7-Button Architecture) -->
     <nav class="panel toolbar-panel" id="toolbar-panel" aria-label="Laptop Navigation Controls">
       <button id="reset-view-btn" class="btn" title="Reset camera to default overview">
@@ -101,7 +108,7 @@
     </div>
 
     <!-- 5. Circuit Connections Side/Bottom Panel -->
-    <section class="panel circuit-panel" id="circuit-panel" aria-label="Circuit Connections Manager">
+    <section class="panel circuit-panel collapsed" id="circuit-panel" aria-label="Circuit Connections Manager">
       <div class="panel-header">
         <div>
           <h3>Circuit Assembly</h3>
@@ -114,7 +121,7 @@
             title="View photographic circuit connection guide">📸 Photo Guide</button>
           <span id="circuit-status-badge" class="status-tag incomplete">Incomplete Circuit</span>
           <button id="toggle-circuit-collapse-btn" class="btn-icon" title="Minimize / expand wires list"
-            aria-label="Collapse panel">−</button>
+            aria-label="Collapse panel">+</button>
         </div>
       </div>
 
