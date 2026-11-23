@@ -116,23 +116,48 @@ export class TerminalMarkers {
 
   /**
    * Set visual highlight for selected terminal.
+   * Requirement: Valid selected terminal = one green state only.
    */
   setSelectedTerminal(termId) {
     this.selectedTerminalId = termId;
+    this._refreshTerminalVisuals();
+  }
 
+  /**
+   * Set visual highlight for hovered terminal.
+   * Requirement: Terminal hover = one amber ring only.
+   */
+  setHoveredTerminal(termId) {
+    if (this.hoveredTerminalId === termId) return;
+    this.hoveredTerminalId = termId;
+    this._refreshTerminalVisuals();
+  }
+
+  _refreshTerminalVisuals() {
     this.markerMeshes.forEach((container) => {
-      const isSelected = container.userData.terminalId === termId;
+      const tId = container.userData.terminalId;
+      const isSelected = tId === this.selectedTerminalId;
+      const isHovered = !isSelected && tId === this.hoveredTerminalId;
       const ring = container.userData.ring;
       const dot = container.userData.dot;
       const config = container.userData.terminalConfig;
 
+      if (!ring || !dot || !ring.material || !dot.material) return;
+
       if (isSelected) {
-        // Bright neon cyan pulse state for selected terminal
-        ring.material.color.setHex(0x38bdf8);
+        // Valid selected terminal = one green state only
+        ring.material.color.setHex(0x22c55e);
         ring.material.opacity = 1.0;
         ring.scale.set(1.4, 1.4, 1.4);
-        dot.material.emissive.setHex(0x38bdf8);
-        dot.material.emissiveIntensity = 0.8;
+        dot.material.emissive.setHex(0x22c55e);
+        dot.material.emissiveIntensity = 0.9;
+      } else if (isHovered) {
+        // Terminal hover = one amber ring only
+        ring.material.color.setHex(0xfbbf24);
+        ring.material.opacity = 1.0;
+        ring.scale.set(1.3, 1.3, 1.3);
+        dot.material.emissive.setHex(0xfbbf24);
+        dot.material.emissiveIntensity = 0.7;
       } else if (!container.userData.isGlowed) {
         ring.material.color.setHex(config.colorHex);
         ring.material.opacity = 0.8;

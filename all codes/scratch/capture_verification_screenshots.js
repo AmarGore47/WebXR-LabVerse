@@ -39,7 +39,7 @@ function sendCDP(ws, method, params = {}) {
             resolve(data.result);
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
     ws.addEventListener('message', listener);
     ws.send(payload);

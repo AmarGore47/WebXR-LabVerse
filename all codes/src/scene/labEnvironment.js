@@ -210,9 +210,9 @@ export class LabEnvironment {
     const neonY = 0.76;
 
     const np1 = new THREE.Vector3(-halfW, neonY, -halfD);
-    const np2 = new THREE.Vector3( halfW, neonY, -halfD);
-    const np3 = new THREE.Vector3( halfW, neonY,  halfD);
-    const np4 = new THREE.Vector3(-halfW, neonY,  halfD);
+    const np2 = new THREE.Vector3(halfW, neonY, -halfD);
+    const np3 = new THREE.Vector3(halfW, neonY, halfD);
+    const np4 = new THREE.Vector3(-halfW, neonY, halfD);
 
     neonPath.add(new THREE.LineCurve3(np1, np2));
     neonPath.add(new THREE.LineCurve3(np2, np3));
@@ -235,9 +235,9 @@ export class LabEnvironment {
     const hd2 = 0.73;
     const ny2 = 0.758;
     const pp1 = new THREE.Vector3(-hw2, ny2, -hd2);
-    const pp2 = new THREE.Vector3( hw2, ny2, -hd2);
-    const pp3 = new THREE.Vector3( hw2, ny2,  hd2);
-    const pp4 = new THREE.Vector3(-hw2, ny2,  hd2);
+    const pp2 = new THREE.Vector3(hw2, ny2, -hd2);
+    const pp3 = new THREE.Vector3(hw2, ny2, hd2);
+    const pp4 = new THREE.Vector3(-hw2, ny2, hd2);
     neonPath2.add(new THREE.LineCurve3(pp1, pp2));
     neonPath2.add(new THREE.LineCurve3(pp2, pp3));
     neonPath2.add(new THREE.LineCurve3(pp3, pp4));
@@ -255,13 +255,13 @@ export class LabEnvironment {
     const PARTICLE_COUNT = 180;
     const particleGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(PARTICLE_COUNT * 3);
-    const initialY  = new Float32Array(PARTICLE_COUNT);
+    const initialY = new Float32Array(PARTICLE_COUNT);
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      positions[i * 3]     = (Math.random() - 0.5) * 3.2;  // X
+      positions[i * 3] = (Math.random() - 0.5) * 3.2;  // X
       positions[i * 3 + 1] = 0.9 + Math.random() * 1.4;    // Y (above table)
       positions[i * 3 + 2] = (Math.random() - 0.5) * 2.0;  // Z
-      initialY[i]           = positions[i * 3 + 1];
+      initialY[i] = positions[i * 3 + 1];
     }
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particleMat = new THREE.PointsMaterial({
@@ -296,9 +296,9 @@ export class LabEnvironment {
     // ── 5. Neon corner accent posts ───────────────────────────────────────
     const postPositions = [
       [-1.35, 0.97, -0.74],
-      [ 1.35, 0.97, -0.74],
-      [-1.35, 0.97,  0.74],
-      [ 1.35, 0.97,  0.74]
+      [1.35, 0.97, -0.74],
+      [-1.35, 0.97, 0.74],
+      [1.35, 0.97, 0.74]
     ];
     const postGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.18, 8);
     const postMat = new THREE.MeshStandardMaterial({
@@ -327,7 +327,7 @@ export class LabEnvironment {
 
     // 1. Pulsing neon ring opacity
     if (this._neonMat) {
-      this._neonMat.opacity  = 0.7 + Math.sin(time * 3.5) * 0.28;
+      this._neonMat.opacity = 0.7 + Math.sin(time * 3.5) * 0.28;
     }
     if (this._neonMat2) {
       this._neonMat2.opacity = 0.35 + Math.sin(time * 4.2 + 1.5) * 0.22;
@@ -341,17 +341,17 @@ export class LabEnvironment {
     // 3. Floating particles drift upward and gently oscillate
     if (this._particles && this._particlePositions) {
       const pos = this._particlePositions;
-      const N   = pos.length / 3;
+      const N = pos.length / 3;
       for (let i = 0; i < N; i++) {
         // Gentle upward float
         pos[i * 3 + 1] += 0.00018;
         // Horizontal oscillation
-        pos[i * 3]     += Math.sin(time * 0.9 + i * 0.4) * 0.00008;
+        pos[i * 3] += Math.sin(time * 0.9 + i * 0.4) * 0.00008;
 
         // Reset when particle drifts too high
         if (pos[i * 3 + 1] > 2.5) {
           pos[i * 3 + 1] = 0.88;
-          pos[i * 3]     = (Math.random() - 0.5) * 3.2;
+          pos[i * 3] = (Math.random() - 0.5) * 3.2;
           pos[i * 3 + 2] = (Math.random() - 0.5) * 2.0;
         }
       }
@@ -429,16 +429,16 @@ export class LabEnvironment {
     this.mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
     this.mainLight.position.set(2.4, 4.8, 2.0);
     this.mainLight.castShadow = true;
-    this.mainLight.shadow.mapSize.width  = 1024;
+    this.mainLight.shadow.mapSize.width = 1024;
     this.mainLight.shadow.mapSize.height = 1024;
-    this.mainLight.shadow.camera.near   = 0.5;
-    this.mainLight.shadow.camera.far    = 10.0;
-    this.mainLight.shadow.camera.left   = -2.2;
-    this.mainLight.shadow.camera.right  =  2.2;
-    this.mainLight.shadow.camera.top    =  2.2;
+    this.mainLight.shadow.camera.near = 0.5;
+    this.mainLight.shadow.camera.far = 10.0;
+    this.mainLight.shadow.camera.left = -2.2;
+    this.mainLight.shadow.camera.right = 2.2;
+    this.mainLight.shadow.camera.top = 2.2;
     this.mainLight.shadow.camera.bottom = -2.2;
-    this.mainLight.shadow.bias          = -0.0004;
-    this.mainLight.shadow.radius        = 2.0;
+    this.mainLight.shadow.bias = -0.0004;
+    this.mainLight.shadow.radius = 2.0;
     this.scene.add(this.mainLight);
 
     // 3. Warm / purple fill light
@@ -494,7 +494,7 @@ export class LabEnvironment {
         this.frontRim.intensity = 0.65;
       }
       // Gentle under-table glow (soft, zero glare on tabletop)
-      if (this.scifiTableLight)  this.scifiTableLight.intensity = 0.45;
+      if (this.scifiTableLight) this.scifiTableLight.intensity = 0.45;
       if (this.scifiPurpleLight) this.scifiPurpleLight.intensity = 0.70;
       if (this.scifiGroup) this.scifiGroup.visible = true;
     } else {
@@ -520,7 +520,7 @@ export class LabEnvironment {
         this.frontRim.color.setHex(0x38bdf8);
         this.frontRim.intensity = 0.4;
       }
-      if (this.scifiTableLight)  this.scifiTableLight.intensity = 0;
+      if (this.scifiTableLight) this.scifiTableLight.intensity = 0;
       if (this.scifiPurpleLight) this.scifiPurpleLight.intensity = 0;
       if (this.scifiGroup) this.scifiGroup.visible = false;
     }

@@ -782,6 +782,7 @@ xrHandManager = new XRHandManager({
   vrObservationStation,
   vrAITutorPanel,
   assistant: labAssistant,
+  workflowManager,
   throwableManager,
   measurementController: measurement,
   wireRenderer,

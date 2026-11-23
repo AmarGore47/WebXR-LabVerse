@@ -85,12 +85,22 @@ export class XRHandManager {
     this.vrObservationStation = options.vrObservationStation || null;
     this.vrAITutorPanel = options.vrAITutorPanel || null;
     this.assistant = options.assistant || options.labAssistant || null;
+    this.workflowManager = options.workflowManager || null;
     this.throwableManager = options.throwableManager || null;
     this.vrSessionManager = options.vrSessionManager || null;
     this.circuitState = options.circuitState || null;
     this.narration = options.narration || null;
     this.camera = options.camera || null;
     this.onFeedback = options.onFeedback || (() => { });
+
+    // Raycast Diagnostics Mode Data
+    this.raycastDiagnostics = {
+      activeTargetType: 'none',
+      targetId: 'none',
+      distance: '--',
+      skippedHitCount: 0,
+      phase: 'WIRING'
+    };
 
     // VR Wire Disconnect Confirm state (show floating confirm near wire)
     this.vrWireDisconnectPending = null; // { wireId, position, confirmTime }
@@ -138,6 +148,350 @@ export class XRHandManager {
 
     // Setup both WebXR hands (0 and 1)
     this.setupHands();
+  }
+
+  // ─── Phase, Visibility & Actionable Raycast Helpers ───────────────────────
+
+  /**
+   * Get current raycast diagnostics readout.
+   */
+  getRaycastDiagnostics() {
+    return { ...this.raycastDiagnostics };
+  }
+
+  /**
+   * Determine current practical phase from workflowManager.
+   * Returns: 'WIRING' | 'OBSERVATION' | 'RESULT'
+   */
+  getPracticalPhase() {
+    if (!this.workflowManager) return 'WIRING';
+    const stage = typeof this.workflowManager.getCurrentStage === 'function'
+      ? this.workflowManager.getCurrentStage()
+      : this.workflowManager.currentStage;
+
+    if (!stage) return 'WIRING';
+
+    if (
+      stage === 'NOT_STARTED' ||
+      stage === 'INTRODUCTION' ||
+      stage === 'APPARATUS_IDENTIFICATION' ||
+      stage === 'CIRCUIT_ASSEMBLY' ||
+      stage === 'CIRCUIT_VALIDATION'
+    ) {
+      return 'WIRING';
+    }
+
+    if (stage === 'EXPERIMENT_RUNNING' || stage === 'OBSERVATION_RECORDING') {
+      return 'OBSERVATION';
+    }
+
+    if (
+      stage === 'GRAPH_ANALYSIS' ||
+      stage === 'RESULT_VERIFICATION' ||
+      stage === 'STUDENT_ASSESSMENT' ||
+      stage === 'COMPLETED'
+    ) {
+      return 'RESULT';
+    }
+
+    return 'WIRING';
+  }
+
+  /**
+   * Helper that confirms every ancestor up to the scene is visible.
+   */
+  isHierarchyVisible(obj) {
+    if (!obj || obj.visible === false) return false;
+    let curr = obj.parent;
+    while (curr) {
+      if (curr === this.scene) break;
+      if (curr.visible === false) return false;
+      curr = curr.parent;
+    }
+    return true;
+  }
+
+  /**
+   * Resolves whether an object is a real actionable collider/terminal/button,
+   * returning its parsed target descriptor, or null if decorative art.
+   */
+  resolveActionableTarget(obj) {
+    if (!obj) return null;
+
+    // 1. Terminal colliders (highest priority snap points)
+    if (obj.userData && (obj.userData.terminalId || obj.userData.isTerminal)) {
+      const tId = obj.userData.terminalId || (obj.parent && obj.parent.userData && obj.parent.userData.terminalId);
+      if (tId) return { type: 'terminal', id: tId, target: obj };
+    }
+    if (obj.parent && obj.parent.userData && (obj.parent.userData.terminalId || obj.parent.userData.isTerminal)) {
+      return { type: 'terminal', id: obj.parent.userData.terminalId, target: obj };
+    }
+
+    // 2. Wire meshes
+    if (obj.parent && obj.parent.userData && obj.parent.userData.connectionId) {
+      return { type: 'wire', id: obj.parent.userData.connectionId, target: obj };
+    }
+    if (obj.userData && obj.userData.connectionId) {
+      return { type: 'wire', id: obj.userData.connectionId, target: obj };
+    }
+
+    // 3. Physical Start Current Push Button
+    if (this.startCurrentButton && (
+      obj === this.startCurrentButton.hitBox ||
+      obj === this.startCurrentButton.cap ||
+      (this.startCurrentButton.group && (obj === this.startCurrentButton.group || obj.parent === this.startCurrentButton.group))
+    )) {
+      return { type: 'start_button', target: this.startCurrentButton };
+    }
+
+    // 4. Physical Plug Key Lever
+    if (this.measurementController && this.measurementController.switchLever && (
+      obj === this.measurementController.switchLever ||
+      obj.parent === this.measurementController.switchLever
+    )) {
+      return { type: 'key', target: this.measurementController.switchLever };
+    }
+
+    // 5. Rheostat Slider Handle
+    if (this.measurementController && this.measurementController.rheostatHandle && (
+      obj === this.measurementController.rheostatHandle ||
+      obj.parent === this.measurementController.rheostatHandle
+    )) {
+      return { type: 'rheostat', target: this.measurementController.rheostatHandle };
+    }
+
+    // 6. Observation Station Buttons
+    if (obj.userData && (obj.userData.type === 'obs_button' || (obj.userData.vrButtonId && obj.userData.vrButtonId.startsWith('obs_')))) {
+      return { type: 'obs_button', id: obj.userData.vrButtonId, target: obj };
+    }
+
+    // 7. World Panel Buttons
+    if (obj.userData && obj.userData.vrButtonId) {
+      return { type: 'button', id: obj.userData.vrButtonId, target: obj };
+    }
+
+    // 8. AI Tutor Buttons
+    if (obj.userData && (obj.userData.type === 'tutor_button' || (obj.userData.buttonId && obj.userData.buttonId.startsWith('tutor_')))) {
+      return { type: 'tutor_button', id: obj.userData.buttonId, target: obj };
+    }
+
+    // 9. Wall Assistant Subpanel Buttons (Left Wall)
+    if (obj.userData && (obj.userData.type === 'subpanel_button' || obj.userData.type === 'radial_button')) {
+      return {
+        type: obj.userData.type,
+        id: obj.userData.buttonId || obj.userData.optionId,
+        target: obj,
+        onPress: obj.userData.onPress
+      };
+    }
+
+    // 10. Assistant Hitbox
+    if (obj.userData && (obj.userData.isAssistantHitbox || obj.userData.type === 'assistant_hitbox' || (this.assistant && obj === this.assistant.hitBox))) {
+      return {
+        type: 'assistant_hitbox',
+        id: 'assistant_body',
+        target: obj
+      };
+    }
+
+    // 11. Holographic Switches
+    if (obj.userData && obj.userData.isHoloSwitch) {
+      return { type: 'holo_switch', switchType: obj.userData.switchType, target: obj };
+    }
+    if (obj.parent && obj.parent.userData && obj.parent.userData.isHoloSwitch) {
+      return { type: 'holo_switch', switchType: obj.parent.userData.switchType, target: obj.parent };
+    }
+
+    // 12. Wrist Rheostat & Buttons
+    if (obj.userData && obj.userData.isRheostatSlider) {
+      return { type: 'wrist_rheostat', target: obj };
+    }
+    if (obj.userData && obj.userData.isWristButton) {
+      return { type: 'wrist_button', id: obj.userData.buttonId, target: obj };
+    }
+
+    // 13. HUD Button
+    if (obj.userData && obj.userData.isHUDButton) {
+      return { type: 'hud_button', id: obj.userData.buttonId, target: obj };
+    }
+    if (this.vrHandCircuitHUD && (obj === this.vrHandCircuitHUD.toggleTabBtn || obj.parent === this.vrHandCircuitHUD.toggleTabBtn || obj === this.vrHandCircuitHUD.displayMesh)) {
+      return { type: 'hud_button', id: 'hud_toggle_mode', target: this.vrHandCircuitHUD.toggleTabBtn };
+    }
+
+    // 14. Orientation System
+    if (obj.userData && (obj.userData.isVRStartButton || obj.userData.isVROrientButton)) {
+      return { type: 'orient_button', id: obj.userData.buttonId, target: obj };
+    }
+
+    // 15. Throwables
+    if (obj.userData && obj.userData.isThrowable) {
+      return { type: 'throwable', target: obj.userData.throwable, object: obj };
+    }
+
+    // Reject decorative meshes, casings, text labels, background boards, chassis
+    return null;
+  }
+
+  /**
+   * Primary Raycast & Proximity Eligibility Validator.
+   * Confirms:
+   * 1. object exists and is an Object3D
+   * 2. object.visible is true
+   * 3. every parent up to the scene is visible
+   * 4. object is an actionable collider/button/terminal, not decorative art
+   * 5. object is allowed under practical phase rules (wiring vs observation vs result)
+   */
+  isRaycastable(obj, phase = null) {
+    if (!obj || !obj.isObject3D) return false;
+    if (obj.visible === false) return false;
+    if (!this.isHierarchyVisible(obj)) return false;
+
+    const currentPhase = phase || this.getPracticalPhase();
+    const target = this.resolveActionableTarget(obj);
+    if (!target) {
+      // Decorative art, chassis, frame, text, background mesh -> SKIP
+      return false;
+    }
+
+    // Phase Rules Enforcement
+    if (currentPhase === 'WIRING') {
+      // During wiring phase: allow ONLY terminals, existing wires, start_button, and active guidance control
+      if (target.type === 'terminal' || target.type === 'wire') {
+        return true;
+      }
+      if (target.type === 'start_button') {
+        return true;
+      }
+      if (target.type === 'button' && this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        return true;
+      }
+      // Assistant body/hitbox, radial buttons, tutor buttons, throwables, holo switches,
+      // observation station buttons, wall HUD and wrist controls MUST NOT intercept rays during wiring!
+      return false;
+    }
+
+    if (currentPhase === 'OBSERVATION') {
+      if (target.type === 'terminal' || target.type === 'wire' || target.type === 'start_button') {
+        return true;
+      }
+      if (target.type === 'key' || target.type === 'rheostat') {
+        return true;
+      }
+      if (target.type === 'obs_button' && this.vrObservationStation && this.isHierarchyVisible(this.vrObservationStation.group)) {
+        return true;
+      }
+      if (target.type === 'button' && this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        return true;
+      }
+      if (target.type === 'tutor_button' && this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
+        return true;
+      }
+      if (target.type === 'subpanel_button' && this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
+        return true;
+      }
+      if ((target.type === 'wrist_button' || target.type === 'wrist_rheostat') && this.vrWrist3DController && this.isHierarchyVisible(this.vrWrist3DController.group)) {
+        return true;
+      }
+      // Assistant body hitbox must NEVER intercept rays targeting the workbench
+      if (target.type === 'assistant_hitbox') {
+        return false;
+      }
+      return false;
+    }
+
+    if (currentPhase === 'RESULT') {
+      if (target.type === 'obs_button' && this.vrObservationStation && this.isHierarchyVisible(this.vrObservationStation.group)) {
+        return true;
+      }
+      if (target.type === 'button' && this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        return true;
+      }
+      if (target.type === 'tutor_button' && this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
+        return true;
+      }
+      if (target.type === 'subpanel_button' && this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
+        return true;
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Gathers active candidate interaction objects based on current practical phase.
+   * Hidden groups never provide raycast or proximity candidates.
+   */
+  getActiveCandidates(currentPhase) {
+    const candidates = [];
+
+    if (currentPhase === 'WIRING') {
+      if (this.terminalMarkers && this.isHierarchyVisible(this.terminalMarkers.group)) {
+        candidates.push(...this.terminalMarkers.getClickableObjects());
+      }
+      if (this.wireRenderer && this.isHierarchyVisible(this.wireRenderer.group)) {
+        candidates.push(...this.wireRenderer.getClickableWireMeshes());
+      }
+      if (this.startCurrentButton && this.startCurrentButton.getClickableObjects && this.isHierarchyVisible(this.startCurrentButton.group)) {
+        candidates.push(...this.startCurrentButton.getClickableObjects());
+      }
+      if (this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        candidates.push(...this.vrWorldPanel.getButtons());
+      }
+      return candidates;
+    }
+
+    if (currentPhase === 'OBSERVATION') {
+      if (this.terminalMarkers && this.isHierarchyVisible(this.terminalMarkers.group)) {
+        candidates.push(...this.terminalMarkers.getClickableObjects());
+      }
+      if (this.wireRenderer && this.isHierarchyVisible(this.wireRenderer.group)) {
+        candidates.push(...this.wireRenderer.getClickableWireMeshes());
+      }
+      if (this.startCurrentButton && this.startCurrentButton.getClickableObjects && this.isHierarchyVisible(this.startCurrentButton.group)) {
+        candidates.push(...this.startCurrentButton.getClickableObjects());
+      }
+      if (this.measurementController && this.measurementController.switchLever && this.isHierarchyVisible(this.measurementController.switchLever)) {
+        candidates.push(this.measurementController.switchLever);
+      }
+      if (this.measurementController && this.measurementController.rheostatHandle && this.isHierarchyVisible(this.measurementController.rheostatHandle)) {
+        candidates.push(this.measurementController.rheostatHandle);
+      }
+      if (this.vrObservationStation && this.isHierarchyVisible(this.vrObservationStation.group)) {
+        candidates.push(...this.vrObservationStation.getClickableObjects());
+      }
+      if (this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        candidates.push(...this.vrWorldPanel.getButtons());
+      }
+      if (this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
+        candidates.push(...this.vrAITutorPanel.getClickableObjects());
+      }
+      if (this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
+        candidates.push(...this.assistant.subpanels.getClickableObjects());
+      }
+      if (this.vrWrist3DController && this.isHierarchyVisible(this.vrWrist3DController.group)) {
+        candidates.push(...this.vrWrist3DController.getClickables());
+      }
+      return candidates;
+    }
+
+    if (currentPhase === 'RESULT') {
+      if (this.vrObservationStation && this.isHierarchyVisible(this.vrObservationStation.group)) {
+        candidates.push(...this.vrObservationStation.getClickableObjects());
+      }
+      if (this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
+        candidates.push(...this.vrWorldPanel.getButtons());
+      }
+      if (this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
+        candidates.push(...this.vrAITutorPanel.getClickableObjects());
+      }
+      if (this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
+        candidates.push(...this.assistant.subpanels.getClickableObjects());
+      }
+      return candidates;
+    }
+
+    return candidates;
   }
 
   /**
@@ -352,33 +706,33 @@ export class XRHandManager {
       skeletonGroup.visible = false;
       this.scene.add(skeletonGroup);
 
-      // Vibrant, high-contrast self-illuminating hand skeleton materials (Meta Quest style)
+      // Classic Unity VR minimalist clean matte dark charcoal/black hands (as per user reference image)
       const jointMat = new THREE.MeshStandardMaterial({
-        color: isLeft ? 0x10b981 : 0x00f0ff,
-        emissive: isLeft ? 0x059669 : 0x0284c7,
-        emissiveIntensity: 0.85,
-        roughness: 0.25,
-        metalness: 0.2
+        color: 0x22262c,
+        emissive: 0x000000,
+        emissiveIntensity: 0.0,
+        roughness: 0.70,
+        metalness: 0.08
       });
       const tipMat = new THREE.MeshStandardMaterial({
-        color: 0xfbbf24,
-        emissive: 0xd97706,
-        emissiveIntensity: 0.95,
-        roughness: 0.20,
-        metalness: 0.3
+        color: 0x22262c,
+        emissive: 0x000000,
+        emissiveIntensity: 0.0,
+        roughness: 0.70,
+        metalness: 0.08
       });
       const boneCylMat = new THREE.MeshStandardMaterial({
-        color: isLeft ? 0x34d399 : 0x38bdf8,
-        emissive: isLeft ? 0x059669 : 0x0369a1,
-        emissiveIntensity: 0.55,
-        roughness: 0.35,
-        metalness: 0.2
+        color: 0x252a32,
+        emissive: 0x000000,
+        emissiveIntensity: 0.0,
+        roughness: 0.70,
+        metalness: 0.08
       });
 
       // Prominent, anatomically scaled joint spheres (10-18mm)
-      const jointGeo = new THREE.SphereGeometry(0.010, 14, 14);
-      const tipGeo = new THREE.SphereGeometry(0.012, 16, 16);
-      const wristGeo = new THREE.SphereGeometry(0.018, 16, 16);
+      const jointGeo = new THREE.SphereGeometry(0.010, 16, 16);
+      const tipGeo = new THREE.SphereGeometry(0.0105, 16, 16);
+      const wristGeo = new THREE.SphereGeometry(0.016, 16, 16);
 
       const jointMeshes = {};
       JOINT_NAMES.forEach((jName) => {
@@ -392,7 +746,7 @@ export class XRHandManager {
 
       // Solid 3D Cylinder Finger & Metacarpal Bones (tangible volumetric segments)
       const boneCylinders = [];
-      const boneCylGeo = new THREE.CylinderGeometry(0.0055, 0.0055, 1.0, 8);
+      const boneCylGeo = new THREE.CylinderGeometry(0.0075, 0.0075, 1.0, 12);
       boneCylGeo.translate(0, 0.5, 0); // Origin at base so scale.z reaches target
       boneCylGeo.rotateX(Math.PI / 2); // Point along +Z
 
@@ -407,7 +761,7 @@ export class XRHandManager {
       const boneGeo = new THREE.BufferGeometry();
       boneGeo.setAttribute('position', new THREE.BufferAttribute(bonePositions, 3));
       const boneMat = new THREE.LineBasicMaterial({
-        color: isLeft ? 0x10b981 : 0x00f0ff,
+        color: 0x252a32,
         transparent: true,
         opacity: 0.85
       });
@@ -875,60 +1229,11 @@ export class XRHandManager {
 
         this.handRaycaster.set(rayOrigin, handObj.smoothedRayDir);
 
-        // Gather candidate interactable objects in the scene
-        const candidates = [];
-        if (this.vrWorldPanel) {
-          candidates.push(...this.vrWorldPanel.getButtons());
-        }
-        if (this.terminalMarkers) {
-          candidates.push(...this.terminalMarkers.getClickableObjects());
-        }
-        if (this.wireRenderer) {
-          candidates.push(...this.wireRenderer.getClickableWireMeshes());
-        }
-        if (this.startCurrentButton && this.startCurrentButton.getClickableObjects) {
-          candidates.push(...this.startCurrentButton.getClickableObjects());
-        }
-        if (this.measurementController && this.measurementController.switchLever) {
-          candidates.push(this.measurementController.switchLever);
-        }
-        if (this.measurementController && this.measurementController.rheostatHandle) {
-          candidates.push(this.measurementController.rheostatHandle);
-        }
-        if (this.vrHandCircuitHUD && this.vrHandCircuitHUD.group.visible) {
-          if (this.vrHandCircuitHUD.getButtons) {
-            candidates.push(...this.vrHandCircuitHUD.getButtons());
-          } else if (this.vrHandCircuitHUD.toggleTabBtn) {
-            candidates.push(this.vrHandCircuitHUD.toggleTabBtn);
-          }
-          if (this.vrHandCircuitHUD.displayMesh) candidates.push(this.vrHandCircuitHUD.displayMesh);
-        }
-        if (this.holographicSwitches) {
-          candidates.push(...this.holographicSwitches.getClickableObjects());
-        }
-        if (this.vrWrist3DController && this.vrWrist3DController.group.visible) {
-          candidates.push(...this.vrWrist3DController.getClickables());
-        }
-        // VR Orientation System 3D Buttons & Holographic Controls
-        if (this.vrOrientationSystem && this.vrOrientationSystem.group.visible) {
-          candidates.push(...this.vrOrientationSystem.getClickableObjects());
-        }
-        // Focused 3D Observation Station (Record reading, repeat, view result)
-        if (this.vrObservationStation && this.vrObservationStation.group.visible) {
-          candidates.push(...this.vrObservationStation.getClickableObjects());
-        }
-        // Dedicated 3D Spatial AI Tutor Panel (Hint, Explain, Mistakes, Questions)
-        if (this.vrAITutorPanel && this.vrAITutorPanel.group.visible) {
-          candidates.push(...this.vrAITutorPanel.getClickableObjects());
-        }
-        // Interactive Throwables (Target Practice)
-        if (this.throwableManager) {
-          candidates.push(...this.throwableManager.getClickableObjects());
-        }
-        // 3D Lab Assistant, Radial Menu & Holographic Subpanels
-        if (this.assistant && typeof this.assistant.getClickableObjects === 'function') {
-          candidates.push(...this.assistant.getClickableObjects());
-        }
+        const currentPhase = this.getPracticalPhase();
+
+        // Gather candidate interactable objects filtered by active practical phase
+        // Hidden groups must never provide raycast or proximity candidates
+        const candidates = this.getActiveCandidates(currentPhase);
 
         // Filter out any null or invalid objects to avoid raycasting exceptions
         const validCandidates = candidates.filter((c) => c && c.isObject3D && (c.visible !== false || (c.userData && c.userData.isThrowable)));
@@ -941,58 +1246,39 @@ export class XRHandManager {
         let hitTarget = null;
         let hitDist = 3.5;
         let hitPoint = rayOrigin.clone().addScaledVector(handObj.smoothedRayDir, 3.5);
+        let skippedHits = 0;
 
-        if (rayHits.length > 0) {
-          const topHit = rayHits[0];
-          hitDist = topHit.distance;
-          hitPoint = topHit.point;
+        // Iterate through sorted ray hits. Select the first actionable hit.
+        // Skip decorative meshes, panel backgrounds, text meshes, model body meshes, hidden meshes, and inactive colliders.
+        // A decorative object must never block a valid terminal behind it.
+        for (let hIdx = 0; hIdx < rayHits.length; hIdx++) {
+          const hit = rayHits[hIdx];
+          if (!hit || !hit.object) continue;
 
-          // Resolve target type
-          const obj = topHit.object;
-          if (obj.userData && (obj.userData.type === 'radial_button' || obj.userData.type === 'subpanel_button' || obj.userData.isAssistantHitbox)) {
-            hitTarget = {
-              type: obj.userData.type || 'assistant_hitbox',
-              id: obj.userData.buttonId || obj.userData.optionId,
-              target: obj,
-              onPress: obj.userData.onPress
-            };
-          } else if (obj.userData && (obj.userData.type === 'tutor_button' || (obj.userData.buttonId && obj.userData.buttonId.startsWith('tutor_')))) {
-            hitTarget = { type: 'tutor_button', id: obj.userData.buttonId, target: obj };
-          } else if (obj.userData && (obj.userData.type === 'obs_button' || (obj.userData.vrButtonId && obj.userData.vrButtonId.startsWith('obs_')))) {
-            hitTarget = { type: 'obs_button', id: obj.userData.vrButtonId, target: obj };
-          } else if (obj.userData && obj.userData.vrButtonId) {
-            hitTarget = { type: 'button', id: obj.userData.vrButtonId, target: obj };
-          } else if (obj.userData && (obj.userData.terminalId || (obj.parent && obj.parent.userData && obj.parent.userData.terminalId))) {
-            const tId = obj.userData.terminalId || obj.parent.userData.terminalId;
-            hitTarget = { type: 'terminal', id: tId, target: obj };
-          } else if (obj.parent && obj.parent.userData && obj.parent.userData.connectionId) {
-            hitTarget = { type: 'wire', id: obj.parent.userData.connectionId, target: obj };
-          } else if (obj.userData && obj.userData.isHoloSwitch) {
-            hitTarget = { type: 'holo_switch', switchType: obj.userData.switchType, target: obj };
-          } else if (obj.parent && obj.parent.userData && obj.parent.userData.isHoloSwitch) {
-            hitTarget = { type: 'holo_switch', switchType: obj.parent.userData.switchType, target: obj.parent };
-          } else if (this.startCurrentButton && (obj === this.startCurrentButton.hitBox || obj === this.startCurrentButton.cap)) {
-            hitTarget = { type: 'start_button', target: this.startCurrentButton };
-          } else if (this.measurementController && (obj === this.measurementController.switchLever || obj.parent === this.measurementController.switchLever)) {
-            hitTarget = { type: 'key', target: this.measurementController.switchLever };
-          } else if (this.measurementController && (obj === this.measurementController.rheostatHandle || obj.parent === this.measurementController.rheostatHandle)) {
-            hitTarget = { type: 'rheostat', target: this.measurementController.rheostatHandle };
-          } else if (obj.userData && obj.userData.isRheostatSlider) {
-            hitTarget = { type: 'wrist_rheostat', target: obj };
-          } else if (obj.userData && obj.userData.isWristButton) {
-            hitTarget = { type: 'wrist_button', id: obj.userData.buttonId, target: obj };
-          } else if (obj.userData && obj.userData.isBookButton) {
-            hitTarget = { type: 'book_button', id: obj.userData.buttonId, target: obj };
-          } else if (obj.userData && (obj.userData.isVRStartButton || obj.userData.isVROrientButton)) {
-            hitTarget = { type: 'orient_button', id: obj.userData.buttonId, target: obj };
-          } else if (obj.userData && obj.userData.isThrowable) {
-            hitTarget = { type: 'throwable', target: obj.userData.throwable, object: obj };
-          } else if (this.vrHandCircuitHUD && obj.userData && obj.userData.isHUDButton) {
-            hitTarget = { type: 'hud_button', id: obj.userData.buttonId, target: obj };
-          } else if (this.vrHandCircuitHUD && (obj === this.vrHandCircuitHUD.toggleTabBtn || obj.parent === this.vrHandCircuitHUD.toggleTabBtn || obj === this.vrHandCircuitHUD.displayMesh)) {
-            hitTarget = { type: 'hud_button', id: 'hud_toggle_mode', target: this.vrHandCircuitHUD.toggleTabBtn };
+          if (!this.isRaycastable(hit.object, currentPhase)) {
+            skippedHits++;
+            continue;
+          }
+
+          const resolved = this.resolveActionableTarget(hit.object);
+          if (resolved) {
+            hitTarget = resolved;
+            hitDist = hit.distance;
+            hitPoint = hit.point;
+            break; // First truly actionable hit selected!
+          } else {
+            skippedHits++;
           }
         }
+
+        // Raycast Diagnostic Data Mode
+        this.raycastDiagnostics = {
+          activeTargetType: hitTarget ? hitTarget.type : 'none',
+          targetId: hitTarget ? (hitTarget.id || hitTarget.switchType || 'active') : 'none',
+          distance: hitTarget ? hitDist.toFixed(2) + 'm' : '--',
+          skippedHitCount: skippedHits,
+          phase: currentPhase
+        };
 
         handObj.rayHoverInfo = hitTarget;
         if (hitTarget) {
@@ -1029,7 +1315,16 @@ export class XRHandManager {
         handObj.reticleGroup.visible = true;
 
         // Color coding laser ray, 3D volumetric beam & reticle
-        if (hitTarget && hitTarget.type === 'wire') {
+        const isReticlePulsing = (now < (handObj.reticlePulseUntil || 0));
+        if (isReticlePulsing) {
+          // Successful pinch = short green reticle pulse
+          const greenCol = 0x22c55e;
+          handObj.rayMat.color.setHex(greenCol);
+          if (handObj.beamMat) handObj.beamMat.color.setHex(greenCol);
+          handObj.retRingMat.color.setHex(greenCol);
+          handObj.retDotMat.color.setHex(greenCol);
+          handObj.reticleGroup.scale.setScalar(1.55);
+        } else if (hitTarget && hitTarget.type === 'wire') {
           // Red cue indicates wire can be removed/cut
           const redCol = 0xef4444;
           handObj.rayMat.color.setHex(redCol);
@@ -1046,12 +1341,13 @@ export class XRHandManager {
           handObj.retDotMat.color.setHex(amberCol);
           handObj.reticleGroup.scale.setScalar(1.20);
         } else {
-          const idleCol = handObj.index === 0 ? 0x10b981 : 0x00f0ff;
+          // Subtle idle slate ray - no feedback for inactive or hidden objects
+          const idleCol = 0x64748b;
           handObj.rayMat.color.setHex(idleCol);
           if (handObj.beamMat) handObj.beamMat.color.setHex(idleCol);
           handObj.retRingMat.color.setHex(idleCol);
           handObj.retDotMat.color.setHex(idleCol);
-          handObj.reticleGroup.scale.setScalar(0.95);
+          handObj.reticleGroup.scale.setScalar(0.90);
         }
 
         // Proximity Hover Check (for direct near-hand touching)
@@ -1065,16 +1361,6 @@ export class XRHandManager {
           } else if (handObj.lastHoverTarget && handObj.lastHoverTarget.type === 'throwable') {
             this.throwableManager.setHover(handObj.lastHoverTarget.target, false);
           }
-        }
-
-        // Visual feedback: pulse tip meshes when pinching
-        const idxTipMesh = handObj.jointMeshes['index-finger-tip'];
-        const thbTipMesh = handObj.jointMeshes['thumb-tip'];
-        if (idxTipMesh && idxTipMesh.material && idxTipMesh.material.emissiveIntensity !== undefined) {
-          idxTipMesh.material.emissiveIntensity = isPinching ? 1.4 : 0.65;
-        }
-        if (thbTipMesh && thbTipMesh.material && thbTipMesh.material.emissiveIntensity !== undefined) {
-          thbTipMesh.material.emissiveIntensity = isPinching ? 1.4 : 0.65;
         }
 
         // Update beacon visuals based on state
@@ -1104,11 +1390,14 @@ export class XRHandManager {
           this.handlePinchStart(handObj, targetToClick);
           this.cooldowns[handObj.index] = now + XR_CONFIG.pinchCooldownMs;
 
-          // Visual click feedback: reticle pulses green and expands
-          handObj.reticleGroup.scale.setScalar(1.6);
-          handObj.retRingMat.color.setHex(0x22c55e);
-          handObj.retDotMat.color.setHex(0x22c55e);
-          if (handObj.beamMat) handObj.beamMat.color.setHex(0x22c55e);
+          // Successful pinch = short green reticle pulse
+          if (targetToClick) {
+            handObj.reticlePulseUntil = now + 180;
+            handObj.reticleGroup.scale.setScalar(1.6);
+            handObj.retRingMat.color.setHex(0x22c55e);
+            handObj.retDotMat.color.setHex(0x22c55e);
+            if (handObj.beamMat) handObj.beamMat.color.setHex(0x22c55e);
+          }
         }
 
         // 2. ACTIVE DRAGGING (e.g. Rheostat Slider Handle)
@@ -1131,14 +1420,21 @@ export class XRHandManager {
     let activeWorldButtonId = null;
     let activeHUDButtonId = null;
     let activeObsButtonId = null;
+    let activeHoveredTerminalId = null;
     this.hands.forEach((h) => {
       const hov = h.rayHoverInfo;
       if (hov) {
+        if (hov.type === 'terminal') activeHoveredTerminalId = hov.id;
         if (hov.type === 'obs_button' || (hov.id && hov.id.startsWith('obs_'))) activeObsButtonId = hov.id;
         if (hov.type === 'button') activeWorldButtonId = hov.id;
         if (hov.type === 'hud_button') activeHUDButtonId = hov.id;
       }
     });
+
+    // Update Terminal Hover: Terminal hover = one amber ring only
+    if (this.terminalMarkers && typeof this.terminalMarkers.setHoveredTerminal === 'function') {
+      this.terminalMarkers.setHoveredTerminal(activeHoveredTerminalId);
+    }
 
     if (this.vrObservationStation) {
       this.vrObservationStation.setHoveredButton(activeObsButtonId);
@@ -1212,23 +1508,31 @@ export class XRHandManager {
 
   /**
    * Check direct near-hand proximity to interactive apparatus elements.
+   * Enforces the same strict hierarchy visibility and phase eligibility as raycasting.
+   * Inactive or hidden objects must never produce false touch feedback.
    */
   checkProximity(fingerPos) {
+    const currentPhase = this.getPracticalPhase();
+
     // A. Check Physical 3D "Start Current" Push Button
     if (this.startCurrentButton && this.startCurrentButton.group) {
-      this.startCurrentButton.group.getWorldPosition(this.tempTargetPos);
-      if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.5) {
-        return { type: 'start_button', target: this.startCurrentButton };
+      const btnObj = this.startCurrentButton.hitBox || this.startCurrentButton.cap || this.startCurrentButton.group;
+      if (this.isRaycastable(btnObj, currentPhase)) {
+        this.startCurrentButton.group.getWorldPosition(this.tempTargetPos);
+        if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.5) {
+          return { type: 'start_button', target: this.startCurrentButton };
+        }
       }
     }
 
     // B. Check Apparatus Terminals
-    if (this.terminalMarkers) {
+    if (this.terminalMarkers && this.isHierarchyVisible(this.terminalMarkers.group)) {
       let closestTerm = null;
       let closestDist = XR_CONFIG.terminalHoverRadius;
 
       const clickables = this.terminalMarkers.getClickableObjects();
       for (const obj of clickables) {
+        if (!this.isRaycastable(obj, currentPhase)) continue;
         obj.getWorldPosition(this.tempTargetPos);
         const dist = fingerPos.distanceTo(this.tempTargetPos);
         if (dist < closestDist) {
@@ -1244,24 +1548,29 @@ export class XRHandManager {
 
     // C. Check Rheostat Slider Handle
     if (this.measurementController && this.measurementController.rheostatHandle) {
-      this.measurementController.rheostatHandle.getWorldPosition(this.tempTargetPos);
-      if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.rheostatHoverRadius) {
-        return { type: 'rheostat', target: this.measurementController.rheostatHandle };
+      if (this.isRaycastable(this.measurementController.rheostatHandle, currentPhase)) {
+        this.measurementController.rheostatHandle.getWorldPosition(this.tempTargetPos);
+        if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.rheostatHoverRadius) {
+          return { type: 'rheostat', target: this.measurementController.rheostatHandle };
+        }
       }
     }
 
     // D. Check Physical Plug Key Lever
     if (this.measurementController && this.measurementController.switchLever) {
-      this.measurementController.switchLever.getWorldPosition(this.tempTargetPos);
-      if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.switchHoverRadius) {
-        return { type: 'key', target: this.measurementController.switchLever };
+      if (this.isRaycastable(this.measurementController.switchLever, currentPhase)) {
+        this.measurementController.switchLever.getWorldPosition(this.tempTargetPos);
+        if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.switchHoverRadius) {
+          return { type: 'key', target: this.measurementController.switchLever };
+        }
       }
     }
 
     // E. Check 3D Wires for Direct Touch Disconnection
-    if (this.wireRenderer) {
+    if (this.wireRenderer && this.isHierarchyVisible(this.wireRenderer.group)) {
       const wireMeshes = this.wireRenderer.getClickableWireMeshes();
       for (const mesh of wireMeshes) {
+        if (!this.isRaycastable(mesh, currentPhase)) continue;
         mesh.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.terminalHoverRadius) {
           const wireGroup = mesh.parent;
@@ -1273,9 +1582,10 @@ export class XRHandManager {
     }
 
     // F. Check VR World Panel Buttons
-    if (this.vrWorldPanel) {
+    if (this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
       const buttons = this.vrWorldPanel.getButtons();
       for (const btn of buttons) {
+        if (!this.isRaycastable(btn, currentPhase)) continue;
         btn.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius) {
           return { type: 'button', id: btn.userData.vrButtonId, target: btn };
@@ -1284,17 +1594,20 @@ export class XRHandManager {
     }
 
     // G. Check VR Wall HUD Toggle View Button
-    if (this.vrHandCircuitHUD && this.vrHandCircuitHUD.toggleTabBtn && this.vrHandCircuitHUD.group.visible) {
-      this.vrHandCircuitHUD.toggleTabBtn.getWorldPosition(this.tempTargetPos);
-      if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius) {
-        return { type: 'hud_button', id: 'hud_toggle_mode', target: this.vrHandCircuitHUD.toggleTabBtn };
+    if (this.vrHandCircuitHUD && this.vrHandCircuitHUD.toggleTabBtn && this.isHierarchyVisible(this.vrHandCircuitHUD.group)) {
+      if (this.isRaycastable(this.vrHandCircuitHUD.toggleTabBtn, currentPhase)) {
+        this.vrHandCircuitHUD.toggleTabBtn.getWorldPosition(this.tempTargetPos);
+        if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius) {
+          return { type: 'hud_button', id: 'hud_toggle_mode', target: this.vrHandCircuitHUD.toggleTabBtn };
+        }
       }
     }
 
     // G2. Check VR Wrist 3D Controller
-    if (this.vrWrist3DController && this.vrWrist3DController.group.visible) {
+    if (this.vrWrist3DController && this.isHierarchyVisible(this.vrWrist3DController.group)) {
       const clickables = this.vrWrist3DController.getClickables();
       for (const obj of clickables) {
+        if (!this.isRaycastable(obj, currentPhase)) continue;
         obj.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.6) {
           if (obj.userData.isRheostatSlider) {
@@ -1307,9 +1620,10 @@ export class XRHandManager {
     }
 
     // H. Check Tabletop Holographic Switches (X-Ray & Dark Lab)
-    if (this.holographicSwitches) {
+    if (this.holographicSwitches && this.isHierarchyVisible(this.holographicSwitches.group)) {
       const switchHits = this.holographicSwitches.getClickableObjects();
       for (const obj of switchHits) {
+        if (!this.isRaycastable(obj, currentPhase)) continue;
         obj.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.5) {
           const swType = obj.userData.switchType || (obj.parent && obj.parent.userData && obj.parent.userData.switchType);
@@ -1319,9 +1633,10 @@ export class XRHandManager {
     }
 
     // J. Check VR Orientation 3D Start Button & Controls
-    if (this.vrOrientationSystem && this.vrOrientationSystem.group.visible) {
+    if (this.vrOrientationSystem && this.isHierarchyVisible(this.vrOrientationSystem.group)) {
       const orientObjs = this.vrOrientationSystem.getClickableObjects();
       for (const btn of orientObjs) {
+        if (!this.isRaycastable(btn, currentPhase)) continue;
         btn.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.8) {
           return { type: 'orient_button', id: btn.userData.buttonId, target: btn };
@@ -1330,9 +1645,10 @@ export class XRHandManager {
     }
 
     // K. Check Interactive Throwables Near Hand Proximity
-    if (this.throwableManager) {
+    if (this.throwableManager && this.isHierarchyVisible(this.throwableManager.group)) {
       const tObjs = this.throwableManager.getClickableObjects();
       for (const tMesh of tObjs) {
+        if (!this.isRaycastable(tMesh, currentPhase)) continue;
         tMesh.getWorldPosition(this.tempTargetPos);
         if (fingerPos.distanceTo(this.tempTargetPos) < XR_CONFIG.buttonHoverRadius * 1.8) {
           return { type: 'throwable', target: tMesh.userData.throwable, object: tMesh };
