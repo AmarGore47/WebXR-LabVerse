@@ -641,11 +641,11 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Restored to original position at x = 1.25, y = 0.0, z = 0.35)
+// 3D Animated Lab Assistant (Positioned near left wall beside wall-mounted AI display)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(1.25, 0.0, 0.35)
+  position: new THREE.Vector3(-2.05, 0.0, 0.75)
 });
 
 // Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
@@ -1027,6 +1027,9 @@ function applyThemeMode(isSciFi) {
 // 10b. Sci-Fi Theme toolbar toggle
 const toggleThemeBtn = document.getElementById('toggle-theme-btn');
 if (toggleThemeBtn) {
+  const isSciFiInitial = environment.currentTheme === 'scifi';
+  toggleThemeBtn.classList.toggle('active', isSciFiInitial);
+  toggleThemeBtn.innerHTML = `<span>🌌</span> Sci-Fi Lab: ${isSciFiInitial ? 'ON' : 'OFF'}`;
   toggleThemeBtn.addEventListener('click', () => {
     applyThemeMode(environment.currentTheme !== 'scifi');
   });

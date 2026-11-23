@@ -3,9 +3,9 @@
  * Professional Wall-Mounted Scientific Information Display for LabVerse Physics Laboratory.
  *
  * Designed as a precision laboratory digital console mounted flush on the left wall:
- * - Matte dark graphite/slate aluminum bezel (1.44m x 0.81m, 16:9 ratio).
- * - High-DPI 1600x900 canvas texture with architectural laboratory typography.
- * - Restrained cyan (#0284c7) and teal (#0d9488) accents, white primary text (#ffffff), light slate secondary text (#94a3b8).
+ * - Matte dark navy aluminum bezel (2.20m x 1.24m, 16:9 ratio).
+ * - High-DPI 1920x1080 canvas texture with architectural laboratory typography.
+ * - Deep navy (#071326), cyan (#38bdf8), teal (#0d9488) accents, white text (#ffffff), slate secondary (#cbd5e1).
  * - Thin 1px borders, subtle 4-6px corner radii, clean rectangular buttons.
  * - Single consistent visual system across Standby, 6-Option Menu Grid, and all Feature Views.
  *
@@ -162,9 +162,9 @@ export class AssistantSubpanels {
     this.group.name = 'AssistantWallDisplay';
 
     // Flush mounted on left wall inside red-marked area, centered at adult eye level
-    this.group.position.set(-2.96, 1.48, 1.15);
-    // Parallel to left wall, subtle 2.8 deg tilt inward toward student at workbench (0, 1.25, 0.82)
-    this.group.rotation.set(0, Math.PI / 2 - 0.05, 0);
+    this.group.position.set(-2.95, 1.52, 1.15);
+    // Parallel to left wall, subtle tilt inward toward student at workbench
+    this.group.rotation.set(0, Math.PI / 2 - 0.04, 0);
 
     // Permanent laboratory wall-mounted display: always present in scene
     this.group.visible = true;
@@ -202,11 +202,11 @@ export class AssistantSubpanels {
     this.isAnswerSubmitted = false;
     this.sessionScore = { correct: 0, total: 0 };
 
-    // Widescreen 16:9 Display: 1600x900 canvas texture on 1.44m x 0.81m precision plane
-    this.canvasW = 1600;
-    this.canvasH = 900;
-    this.panelW = 1.44;
-    this.panelH = 0.81;
+    // High-resolution 16:9 Display: 1920x1080 canvas texture on 2.20m x 1.24m precision plane
+    this.canvasW = 1920;
+    this.canvasH = 1080;
+    this.panelW = 2.20;
+    this.panelH = 1.24;
     this.clickableButtons = [];
 
     this._buildPhysicalFrame();
@@ -240,15 +240,26 @@ export class AssistantSubpanels {
   }
 
   _buildPhysicalFrame() {
-    // Professional Thin-Bezel Laboratory Wall Chassis (Dark matte aluminum / slate)
-    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.024, this.panelH + 0.024, 0.014);
+    // Professional Thin-Bezel Laboratory Wall Chassis (Dark navy aluminum / slate with cyan rim)
+    const frameGeo = new THREE.BoxGeometry(this.panelW + 0.03, this.panelH + 0.03, 0.016);
     const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x141a24,
-      roughness: 0.6,
-      metalness: 0.5
+      color: 0x071326,
+      roughness: 0.5,
+      metalness: 0.6
     });
     this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
     this.group.add(this.frameMesh);
+
+    // Thin cyan accent rim wireframe around bezel
+    const rimGeo = new THREE.BoxGeometry(this.panelW + 0.034, this.panelH + 0.034, 0.018);
+    const rimMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.45
+    });
+    const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+    this.group.add(rimMesh);
   }
 
   _initCanvas() {
@@ -390,7 +401,7 @@ export class AssistantSubpanels {
     this.clickableButtons = [];
   }
 
-  _drawButton(ctx, x, y, w, h, text, bg = '#7F0508', border = 'rgba(236, 230, 223, 0.4)', fg = '#ECE6DF', font = '600 14px "Inter", system-ui, sans-serif') {
+  _drawButton(ctx, x, y, w, h, text, bg = '#0284c7', border = 'rgba(56, 189, 248, 0.45)', fg = '#FFFFFF', font = '600 15px "Inter", "Segoe UI", sans-serif') {
     ctx.fillStyle = bg;
     ctx.strokeStyle = border;
     ctx.lineWidth = 1.5;
@@ -407,9 +418,9 @@ export class AssistantSubpanels {
     ctx.textAlign = 'left';
   }
 
-  _drawTag(ctx, x, y, w, h, text, bg = '#0C323A', fg = '#ECE6DF', font = '600 11px "Inter", system-ui, sans-serif') {
+  _drawTag(ctx, x, y, w, h, text, bg = '#0c2340', fg = '#38bdf8', font = '600 12px "Inter", "Segoe UI", sans-serif') {
     ctx.fillStyle = bg;
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.3)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 4);
@@ -424,8 +435,8 @@ export class AssistantSubpanels {
     ctx.textAlign = 'left';
   }
 
-  _drawPillButton(ctx, x, y, w, h, text, bg = '#7F0508', fg = '#ECE6DF') {
-    this._drawButton(ctx, x, y, w, h, text, bg, 'rgba(236, 230, 223, 0.4)', fg);
+  _drawPillButton(ctx, x, y, w, h, text, bg = '#0284c7', fg = '#FFFFFF') {
+    this._drawButton(ctx, x, y, w, h, text, bg, 'rgba(56, 189, 248, 0.45)', fg);
   }
 
   redraw() {
@@ -436,22 +447,21 @@ export class AssistantSubpanels {
     const w = this.canvasW;
     const h = this.canvasH;
 
-    // Strict 60/30/10 Visual System:
-    // Background: Aquamarine #0F3F49 (60%)
+    // Professional Navy-and-Cyan Laboratory Workstation
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#0F3F49';
+    ctx.fillStyle = '#071326';
     ctx.fillRect(0, 0, w, h);
 
-    // Deep Aquamarine header bar
-    ctx.fillStyle = '#0C323A';
-    ctx.fillRect(0, 0, w, 70);
+    // Dark Navy header bar
+    ctx.fillStyle = '#0b1a2e';
+    ctx.fillRect(0, 0, w, 75);
 
-    // Light Concrete subtle divider
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+    // Subtle Cyan divider
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, 70);
-    ctx.lineTo(w, 70);
+    ctx.moveTo(0, 75);
+    ctx.lineTo(w, 75);
     ctx.stroke();
 
     // 2. Render Global Navigation Header
@@ -492,35 +502,35 @@ export class AssistantSubpanels {
 
   _renderHeader(ctx, w) {
     // Top-left breadcrumb & title
-    ctx.font = '500 11px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.7)';
+    ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('MAHARASHTRA SSC STD. 10 • SCIENCE & TECHNOLOGY PART 1', 32, 24);
+    ctx.fillText('MAHARASHTRA SSC STD. 10 • SCIENCE & TECHNOLOGY PART 1', 36, 26);
 
     if (this.currentView === 'standby') {
-      ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
-      ctx.fillStyle = '#ECE6DF';
-      ctx.fillText('Ohm’s Law Virtual Laboratory • Interactive Assistant', 32, 48);
+      ctx.font = 'bold 24px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('Ohm’s Law Virtual Laboratory • Interactive Wall Workstation', 36, 52);
 
       // Status indicator tag
-      this._drawTag(ctx, w - 340, 20, 110, 30, '● READY', '#0C323A', '#ECE6DF');
+      this._drawTag(ctx, w - 380, 22, 120, 32, '● READY / ONLINE', '#0c2340', '#38bdf8');
 
-      // Standby CTA button in Burgundy
-      this._drawButton(ctx, w - 210, 16, 178, 38, 'Open Assistant →', '#7F0508', 'rgba(236, 230, 223, 0.4)', '#ECE6DF');
-      this._registerButton('hdr_open_menu', w - 210, 16, 178, 38, 'Open Menu', () => this.openMenu());
+      // Standby CTA button in Cyan
+      this._drawButton(ctx, w - 240, 18, 200, 40, 'Open Assistant →', '#0284c7', 'rgba(56, 189, 248, 0.5)', '#FFFFFF');
+      this._registerButton('hdr_open_menu', w - 240, 18, 200, 40, 'Open Menu', () => this.openMenu());
       return;
     }
 
     if (this.currentView === 'menu') {
-      ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
-      ctx.fillStyle = '#ECE6DF';
-      ctx.fillText('Laboratory AI Assistant • Select Practical Guidance Module', 32, 48);
+      ctx.font = 'bold 24px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('Laboratory AI Assistant • Select Practical Guidance Module', 36, 52);
 
-      this._drawTag(ctx, w - 290, 20, 130, 30, '6 MODULES ACTIVE', '#0C323A', '#ECE6DF');
+      this._drawTag(ctx, w - 320, 22, 140, 32, '6 MODULES ACTIVE', '#0c2340', '#38bdf8');
 
-      this._drawButton(ctx, w - 145, 16, 115, 38, 'Standby', '#0C323A', 'rgba(236, 230, 223, 0.3)', '#ECE6DF');
-      this._registerButton('hdr_standby', w - 145, 16, 115, 38, 'Standby', () => this.openStandby());
+      this._drawButton(ctx, w - 160, 18, 124, 40, 'Standby', '#0c2340', 'rgba(56, 189, 248, 0.3)', '#cbd5e1');
+      this._registerButton('hdr_standby', w - 160, 18, 124, 40, 'Standby', () => this.openStandby());
       return;
     }
 
@@ -535,88 +545,87 @@ export class AssistantSubpanels {
 
     const cur = titles[this.currentView] || titles.ask_anything;
 
-    ctx.font = '500 11px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.7)';
-    ctx.fillText(cur.code, 32, 24);
+    ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(cur.code, 36, 26);
 
-    ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText(cur.title, 32, 48);
+    ctx.font = 'bold 24px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(cur.title, 36, 52);
 
-    // Top Controls: "← All Options" in Burgundy and "Standby" in Deep Aquamarine
-    this._drawButton(ctx, w - 280, 16, 140, 38, '← All Options', '#7F0508', 'rgba(236, 230, 223, 0.4)', '#ECE6DF');
-    this._registerButton('hdr_back', w - 280, 16, 140, 38, 'Back', () => this.backToMenu());
+    // Top Controls: "← Back to Options" in Cyan and "✖ Close Assistant"
+    this._drawButton(ctx, w - 340, 18, 170, 40, '← Back to Options', '#0284c7', 'rgba(56, 189, 248, 0.45)', '#FFFFFF');
+    this._registerButton('hdr_back', w - 340, 18, 170, 40, 'Back', () => this.backToMenu());
 
-    this._drawButton(ctx, w - 125, 16, 95, 38, 'Standby', '#0C323A', 'rgba(236, 230, 223, 0.3)', '#ECE6DF');
-    this._registerButton('hdr_close', w - 125, 16, 95, 38, 'Close', () => this.close(true));
+    this._drawButton(ctx, w - 150, 18, 120, 40, '✖ Close', '#0c2340', 'rgba(56, 189, 248, 0.35)', '#cbd5e1');
+    this._registerButton('hdr_close', w - 150, 18, 120, 40, 'Close', () => this.close(true));
   }
 
   // ─── Standby View ─────────────────────────────────────────────────────────
 
   _renderStandbyView(ctx, w, h) {
     const cardX = 80;
-    const cardY = 95;
+    const cardY = 105;
     const cardW = w - 160;
-    const cardH = 760;
+    const cardH = 920;
 
-    // Outer console panel: Deep Aquamarine #0C323A with Concrete border
-    ctx.fillStyle = '#0C323A';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+    // Outer console panel: Dark Navy #0b1a2e with Cyan border
+    ctx.fillStyle = '#0b1a2e';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, 8);
     ctx.fill();
     ctx.stroke();
 
-    // Top subtle bar inside panel
-    ctx.fillStyle = '#09282F';
-    ctx.fillRect(cardX, cardY, cardW, 54);
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+    // Top bar inside panel
+    ctx.fillStyle = '#08162b';
+    ctx.fillRect(cardX, cardY, cardW, 58);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
     ctx.beginPath();
-    ctx.moveTo(cardX, cardY + 54);
-    ctx.lineTo(cardX + cardW, cardY + 54);
+    ctx.moveTo(cardX, cardY + 58);
+    ctx.lineTo(cardX + cardW, cardY + 58);
     ctx.stroke();
 
-    ctx.font = 'bold 16px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
+    ctx.font = 'bold 18px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('LABORATORY AI TUTOR TERMINAL', cardX + 24, cardY + 27);
+    ctx.fillText('LABVERSE AI TUTOR WORKSTATION', cardX + 28, cardY + 29);
 
-    this._drawTag(ctx, cardX + cardW - 130, cardY + 14, 106, 26, '● OPERATIONAL', '#7F0508', '#ECE6DF');
+    this._drawTag(ctx, cardX + cardW - 150, cardY + 15, 120, 28, '● OPERATIONAL', '#0c2340', '#38bdf8');
 
     // Main content: Two Columns
-    // Left Column: Practical Overview & Verification Target
-    const leftColX = cardX + 36;
-    const leftColW = 660;
-    const colStartY = cardY + 84;
+    const leftColX = cardX + 44;
+    const leftColW = 820;
+    const colStartY = cardY + 90;
 
-    ctx.font = '500 11px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.7)';
+    ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
     ctx.fillText('PRACTICAL SPECIFICATION', leftColX, colStartY);
 
-    ctx.font = 'bold 24px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText('Verification of Ohm’s Law (V = I × R)', leftColX, colStartY + 32);
+    ctx.font = 'bold 26px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('Verification of Ohm’s Law (V = I × R)', leftColX, colStartY + 36);
 
-    ctx.font = '14px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.85)';
+    ctx.font = '15px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
     const specDesc = 'This interactive scientific simulation guides Class 10 students through circuit wiring, taking 5 sets of voltage and current observations, plotting the linear V-I relationship, and verifying resistance via slope R = ΔV / ΔI.';
-    this._wrapText(ctx, specDesc, leftColX, colStartY + 64, leftColW, 22);
+    this._wrapText(ctx, specDesc, leftColX, colStartY + 72, leftColW, 24);
 
-    // Apparatus checklist box: Card surface #134B57
-    const appY = colStartY + 155;
-    ctx.fillStyle = '#134B57';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+    // Apparatus checklist box: Card surface #0d223f
+    const appY = colStartY + 165;
+    ctx.fillStyle = '#0d223f';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(leftColX, appY, leftColW, 210, 6);
+    ctx.roundRect(leftColX, appY, leftColW, 230, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 14px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText('REQUIRED APPARATUS & INSTRUMENTS', leftColX + 20, appY + 26);
+    ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('REQUIRED APPARATUS & INSTRUMENTS', leftColX + 24, appY + 30);
 
     const apparatusList = [
       '• Standard Resistor Coil (10 Ω calibrated load)',
@@ -626,18 +635,18 @@ export class AssistantSubpanels {
       '• Rheostat (Variable sliding resistor for current adjustment)',
       '• Plug Key Switch (Single-pole circuit contact)'
     ];
-    ctx.font = '13px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.85)';
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
     apparatusList.forEach((item, idx) => {
-      ctx.fillText(item, leftColX + 20, appY + 56 + idx * 24);
+      ctx.fillText(item, leftColX + 24, appY + 62 + idx * 26);
     });
 
     // Right Column: 6 Modules Overview
-    const rightColX = cardX + 740;
-    const rightColW = cardW - 776;
+    const rightColX = cardX + 910;
+    const rightColW = cardW - 954;
 
-    ctx.font = '500 11px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.7)';
+    ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
     ctx.fillText('INTEGRATED GUIDANCE MODULES', rightColX, colStartY);
 
     const modules = [
@@ -650,49 +659,49 @@ export class AssistantSubpanels {
     ];
 
     modules.forEach((mod, idx) => {
-      const my = colStartY + 24 + idx * 64;
-      ctx.fillStyle = '#134B57';
-      ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+      const my = colStartY + 26 + idx * 72;
+      ctx.fillStyle = '#0d223f';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(rightColX, my, rightColW, 54, 6);
+      ctx.roundRect(rightColX, my, rightColW, 60, 6);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = 'bold 12px "Playfair Display", Georgia, serif';
-      ctx.fillStyle = '#7F0508';
-      ctx.fillText(mod.id, rightColX + 16, my + 27);
+      ctx.font = 'bold 14px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(mod.id, rightColX + 18, my + 30);
 
-      ctx.font = 'bold 14px "Playfair Display", Georgia, serif';
-      ctx.fillStyle = '#ECE6DF';
-      ctx.fillText(mod.title, rightColX + 46, my + 20);
+      ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(mod.title, rightColX + 54, my + 24);
 
-      ctx.font = '12px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(236, 230, 223, 0.75)';
-      ctx.fillText(mod.desc, rightColX + 46, my + 38);
+      ctx.font = '13px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(mod.desc, rightColX + 54, my + 44);
     });
 
     // Bottom Action Strip across panel
-    const botY = cardY + cardH - 120;
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+    const botY = cardY + cardH - 130;
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cardX, botY);
     ctx.lineTo(cardX + cardW, botY);
     ctx.stroke();
 
-    const ctaW = 460;
-    const ctaH = 48;
+    const ctaW = 540;
+    const ctaH = 52;
     const ctaX = cardX + (cardW - ctaW) / 2;
     const ctaY = botY + 24;
 
-    this._drawButton(ctx, ctaX, ctaY, ctaW, ctaH, 'Activate Practical Guidance Display →', '#7F0508', 'rgba(236, 230, 223, 0.4)', '#ECE6DF', '600 15px "Inter", sans-serif');
+    this._drawButton(ctx, ctaX, ctaY, ctaW, ctaH, 'Activate Practical Guidance Display →', '#0284c7', 'rgba(56, 189, 248, 0.5)', '#FFFFFF', '600 16px "Inter", "Segoe UI", sans-serif');
     this._registerButton('standby_cta', ctaX, ctaY, ctaW, ctaH, 'Open Menu', () => this.activateSession());
 
-    ctx.font = '13px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.7)';
+    ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'center';
-    ctx.fillText('Tap this display or click the 3D Lab Assistant to open the guidance menu.', cardX + cardW / 2, botY + 90);
+    ctx.fillText('Click or pinch your 3D Lab Assistant to begin guidance, or tap this display.', cardX + cardW / 2, botY + 98);
     ctx.textAlign = 'left';
 
     // Register full card area
@@ -741,12 +750,12 @@ export class AssistantSubpanels {
       }
     ];
 
-    const cardW = 470;
-    const cardH = 360;
-    const startX = 60;
-    const gapX = 45;
-    const startY = 100;
-    const gapY = 35;
+    const cardW = 560;
+    const cardH = 430;
+    const startX = 80;
+    const gapX = 40;
+    const startY = 120;
+    const gapY = 40;
 
     cards.forEach((card, index) => {
       const col = index % 3;
@@ -754,17 +763,17 @@ export class AssistantSubpanels {
       const cx = startX + col * (cardW + gapX);
       const cy = startY + row * (cardH + gapY);
 
-      // Card Background: Aquamarine surface #134B57 with Concrete border
-      ctx.fillStyle = '#134B57';
-      ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+      // Card Background: Dark Navy surface #0d223f with thin Cyan border
+      ctx.fillStyle = '#0d223f';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(cx, cy, cardW, cardH, 8);
       ctx.fill();
       ctx.stroke();
 
-      // Top subtle accent line in Burgundy (2px)
-      ctx.strokeStyle = '#7F0508';
+      // Top subtle accent line in Cyan (2px)
+      ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(cx + 2, cy + 2);
@@ -772,36 +781,36 @@ export class AssistantSubpanels {
       ctx.stroke();
 
       // Card Header: Code & Title
-      ctx.font = '500 11px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = '#7F0508';
+      ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#38bdf8';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(card.code, cx + 24, cy + 32);
 
-      ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
-      ctx.fillStyle = '#ECE6DF';
-      ctx.fillText(card.title, cx + 24, cy + 62);
+      ctx.font = 'bold 22px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(card.title, cx + 24, cy + 68);
 
       // Divider line
-      ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx + 24, cy + 88);
-      ctx.lineTo(cx + cardW - 24, cy + 88);
+      ctx.moveTo(cx + 24, cy + 96);
+      ctx.lineTo(cx + cardW - 24, cy + 96);
       ctx.stroke();
 
-      // Description text: Concrete, clean line-height
-      ctx.font = '14px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(236, 230, 223, 0.85)';
-      this._wrapText(ctx, card.desc, cx + 24, cy + 118, cardW - 48, 22);
+      // Description text: Clean line-height
+      ctx.font = '15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#CBD5E1';
+      this._wrapText(ctx, card.desc, cx + 24, cy + 128, cardW - 48, 24);
 
-      // Clean rectangular action button across bottom in Burgundy
+      // Clean rectangular action button across bottom in Cyan
       const btnW = cardW - 48;
-      const btnH = 42;
+      const btnH = 46;
       const btnX = cx + 24;
       const btnY = cy + cardH - btnH - 24;
 
-      this._drawButton(ctx, btnX, btnY, btnW, btnH, 'Open Module →', '#7F0508', 'rgba(236, 230, 223, 0.4)', '#ECE6DF', '600 14px "Inter", sans-serif');
+      this._drawButton(ctx, btnX, btnY, btnW, btnH, 'Open Module →', '#0284c7', 'rgba(56, 189, 248, 0.45)', '#FFFFFF', '600 15px "Inter", "Segoe UI", sans-serif');
 
       // Register click collider for button and entire card
       this._registerButton(`menu_btn_${card.id}`, btnX, btnY, btnW, btnH, card.title, () => this.openView(card.id));
@@ -812,26 +821,26 @@ export class AssistantSubpanels {
   // ─── 1. View: Ask Anything ────────────────────────────────────────────────
 
   _renderAskAnythingView(ctx, w, h) {
-    const startX = 60;
-    const contentW = w - 120;
+    const startX = 80;
+    const contentW = w - 160;
 
     // 1. Text Input Bar
-    ctx.fillStyle = '#134B57';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.3)';
+    ctx.fillStyle = '#0d223f';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(startX, 95, contentW, 54, 6);
+    ctx.roundRect(startX, 100, contentW, 58, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = '500 16px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#ECE6DF';
+    ctx.font = '500 16px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Question: "${this.currentQuestionText}"`, startX + 20, 122);
+    ctx.fillText(`Question: "${this.currentQuestionText}"`, startX + 24, 129);
 
     // Register click on text bar for custom question input
-    this._registerButton('ask_input_bar', startX, 95, contentW - 170, 54, 'Input Bar', () => {
+    this._registerButton('ask_input_bar', startX, 100, contentW - 190, 58, 'Input Bar', () => {
       const customQ = window.prompt('Type your question for the AI Physics Assistant:', this.currentQuestionText);
       if (customQ && customQ.trim()) {
         this.currentQuestionText = customQ.trim();
@@ -839,16 +848,16 @@ export class AssistantSubpanels {
       }
     });
 
-    // Send Button in Burgundy #7F0508
+    // Send Button in Cyan
     const sendLabel = this.isLoadingAI ? 'Thinking…' : 'Submit Question →';
-    const sendBg = this.isLoadingAI ? '#0C323A' : '#7F0508';
-    this._drawButton(ctx, startX + contentW - 160, 102, 150, 40, sendLabel, sendBg, 'rgba(236, 230, 223, 0.4)', '#ECE6DF', '600 13px "Inter", sans-serif');
-    this._registerButton('ask_btn_send', startX + contentW - 160, 102, 150, 40, 'Send', () => this.submitQuestion());
+    const sendBg = this.isLoadingAI ? '#0b1a2e' : '#0284c7';
+    this._drawButton(ctx, startX + contentW - 180, 108, 168, 42, sendLabel, sendBg, 'rgba(56, 189, 248, 0.45)', '#FFFFFF', '600 14px "Inter", sans-serif');
+    this._registerButton('ask_btn_send', startX + contentW - 180, 108, 168, 42, 'Send', () => this.submitQuestion());
 
     // 2. Suggested Questions Chips
-    ctx.font = '500 12px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.75)';
-    ctx.fillText('QUICK SUGGESTIONS:', startX, 172);
+    ctx.font = '600 12px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('QUICK SUGGESTIONS:', startX, 185);
 
     const suggestions = [
       'Why is ammeter in series?',
@@ -859,94 +868,94 @@ export class AssistantSubpanels {
     ];
 
     let chipX = startX;
-    let chipY = 190;
+    let chipY = 205;
     suggestions.forEach((sug, idx) => {
-      ctx.font = '13px "Inter", system-ui, sans-serif';
-      const chipW = ctx.measureText(sug).width + 30;
+      ctx.font = '14px "Inter", "Segoe UI", sans-serif';
+      const chipW = ctx.measureText(sug).width + 32;
       if (chipX + chipW > startX + contentW) {
         chipX = startX;
-        chipY += 38;
+        chipY += 42;
       }
-      this._drawButton(ctx, chipX, chipY, chipW, 30, sug, '#0C323A', 'rgba(236, 230, 223, 0.25)', '#ECE6DF', '13px "Inter", sans-serif');
+      this._drawButton(ctx, chipX, chipY, chipW, 34, sug, '#0c2340', 'rgba(56, 189, 248, 0.3)', '#cbd5e1', '14px "Inter", sans-serif');
       const sugText = sug;
-      this._registerButton(`sug_${idx}`, chipX, chipY, chipW, 30, sug, () => {
+      this._registerButton(`sug_${idx}`, chipX, chipY, chipW, 34, sug, () => {
         this.currentQuestionText = sugText;
         this.submitQuestion();
       });
-      chipX += chipW + 10;
+      chipX += chipW + 12;
     });
 
     // 3. AI Response Area Card
-    const cardY = 280;
-    const cardH = 580;
-    ctx.fillStyle = '#0C323A';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+    const cardY = chipY + 55;
+    const cardH = h - cardY - 45;
+    ctx.fillStyle = '#0b1a2e';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(startX, cardY, contentW, cardH, 8);
     ctx.fill();
     ctx.stroke();
 
-    // Response Header: Editorial Serif
-    ctx.font = 'bold 15px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText('SOCRATIC PHYSICS TUTOR RESPONSE', startX + 24, cardY + 28);
+    // Response Header
+    ctx.font = 'bold 16px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('SOCRATIC PHYSICS TUTOR RESPONSE', startX + 28, cardY + 32);
 
     // Audio Voice Controls & Retry Button
-    let voiceBtnX = startX + contentW - 150;
+    let voiceBtnX = startX + contentW - 160;
     if (this.aiError) {
-      voiceBtnX = startX + contentW - 140;
-      this._drawButton(ctx, startX + contentW - 260, cardY + 16, 110, 34, 'Retry', '#7F0508', 'rgba(236, 230, 223, 0.4)', '#ECE6DF', '600 13px "Inter", sans-serif');
-      this._registerButton('ask_btn_retry', startX + contentW - 260, cardY + 16, 110, 34, 'Retry', () => this.submitQuestion());
+      voiceBtnX = startX + contentW - 150;
+      this._drawButton(ctx, startX + contentW - 280, cardY + 18, 120, 36, 'Retry', '#ef4444', 'rgba(239, 68, 68, 0.5)', '#FFFFFF', '600 14px "Inter", sans-serif');
+      this._registerButton('ask_btn_retry', startX + contentW - 280, cardY + 18, 120, 36, 'Retry', () => this.submitQuestion());
     }
 
     const voiceLabel = this.isSpeakingVoice ? 'Stop Voice' : 'Listen Voice';
-    const voiceBg = this.isSpeakingVoice ? '#7F0508' : '#09282F';
-    const voiceBorder = 'rgba(236, 230, 223, 0.35)';
-    const voiceFg = '#ECE6DF';
-    this._drawButton(ctx, voiceBtnX, cardY + 16, 130, 34, voiceLabel, voiceBg, voiceBorder, voiceFg, '600 13px "Inter", sans-serif');
-    this._registerButton('ask_btn_voice', voiceBtnX, cardY + 16, 130, 34, 'Voice', () => this.toggleVoiceSpeech());
+    const voiceBg = this.isSpeakingVoice ? '#0284c7' : '#0c2340';
+    const voiceBorder = 'rgba(56, 189, 248, 0.4)';
+    const voiceFg = '#FFFFFF';
+    this._drawButton(ctx, voiceBtnX, cardY + 18, 140, 36, voiceLabel, voiceBg, voiceBorder, voiceFg, '600 14px "Inter", sans-serif');
+    this._registerButton('ask_btn_voice', voiceBtnX, cardY + 18, 140, 36, 'Voice', () => this.toggleVoiceSpeech());
 
-    // Response Primary Message: Editorial Serif
-    ctx.font = 'bold 20px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    this._wrapText(ctx, this.aiResponse.message || '', startX + 24, cardY + 75, contentW - 48, 26);
+    // Response Primary Message
+    ctx.font = 'bold 22px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    this._wrapText(ctx, this.aiResponse.message || '', startX + 28, cardY + 85, contentW - 56, 28);
 
-    // Physics Explanation Box: Card surface #134B57
-    const explY = cardY + 175;
-    ctx.fillStyle = '#134B57';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+    // Physics Explanation Box: Card surface #0d223f
+    const explY = cardY + 185;
+    ctx.fillStyle = '#0d223f';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(startX + 24, explY, contentW - 48, 160, 6);
+    ctx.roundRect(startX + 28, explY, contentW - 56, 180, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 14px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText('DETAILED EXPLANATION', startX + 44, explY + 28);
+    ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('DETAILED EXPLANATION', startX + 48, explY + 30);
 
-    ctx.font = '15px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(236, 230, 223, 0.9)';
-    this._wrapText(ctx, this.aiResponse.explanation || '', startX + 44, explY + 60, contentW - 88, 24);
+    ctx.font = '16px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#CBD5E1';
+    this._wrapText(ctx, this.aiResponse.explanation || '', startX + 48, explY + 65, contentW - 96, 26);
 
     // Suggested Action Box
-    const actY = explY + 180;
-    ctx.fillStyle = '#09282F';
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.25)';
+    const actY = explY + 205;
+    ctx.fillStyle = '#08162b';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(startX + 24, actY, contentW - 48, 90, 6);
+    ctx.roundRect(startX + 28, actY, contentW - 56, 95, 6);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 14px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
-    ctx.fillText('RECOMMENDED PRACTICAL ACTION', startX + 44, actY + 28);
+    ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText('RECOMMENDED PRACTICAL ACTION', startX + 48, actY + 30);
 
-    ctx.font = '15px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#ECE6DF';
-    this._wrapText(ctx, this.aiResponse.suggestedAction || 'Verify tabletop instruments and observe readings.', startX + 44, actY + 56, contentW - 88, 22);
+    ctx.font = '16px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    this._wrapText(ctx, this.aiResponse.suggestedAction || 'Verify tabletop instruments and observe readings.', startX + 48, actY + 62, contentW - 96, 24);
 
     // Status Footer
     ctx.font = '12px "Inter", "Segoe UI", sans-serif';

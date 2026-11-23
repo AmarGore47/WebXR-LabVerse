@@ -57,11 +57,9 @@ export class AssistantRadialMenu {
     this._buildRadialNodes();
     this._buildCenterCloseButton();
 
-    if (this.assistant && this.assistant.group) {
-      this.assistant.group.add(this.group);
-    } else if (this.scene) {
-      this.scene.add(this.group);
-    }
+    // Floating radial menu deprecated in favor of wall-mounted AI workstation display.
+    // Do not attach floating 3D radial menu to assistant or scene.
+    this.group.visible = false;
   }
 
   _buildCenterBackdrop() {

@@ -122,85 +122,74 @@ async function run() {
   `);
   await new Promise((r) => setTimeout(r, 1200));
 
-  // --- 1. Repositioned Assistant with Subtle Idle Badge ---
-  console.log('\n[1/6] Capturing: Repositioned Character with Subtle Idle Badge...');
+  // --- 1. Repositioned Assistant Beside Left Wall Display ---
+  console.log('\n[1/7] Capturing: 3D Assistant Positioned Near Left Wall Beside Display...');
   await evalInBrowser(ws, `(() => {
     if (window.labCircuit.animateCameraTo) {
-      window.labCircuit.animateCameraTo({ x: 0.35, y: 1.35, z: 1.35 }, { x: 1.40, y: 0.95, z: 0.0 });
+      window.labCircuit.animateCameraTo({ x: -0.6, y: 1.35, z: 1.75 }, { x: -2.05, y: 1.0, z: 0.75 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '01_character_original_position.png');
 
-  // --- 1b. Radial Holographic Menu Open Around Character ---
-  console.log('\n[1b/6] Capturing: 3D Radial Holographic Menu in Aquamarine/Burgundy/Concrete...');
-  await evalInBrowser(ws, `(() => {
-    const { labAssistant } = window.labCircuit;
-    if (labAssistant) {
-      labAssistant.onStudentClick();
-    }
-  })()`);
-  await new Promise((r) => setTimeout(r, 1500));
-  await captureScreenshot(ws, '07_radial_holographic_menu.png');
-
   // --- 2. Wall Display in Standby Mode ---
-  console.log('\n[2/6] Capturing: Wall Display in Standby Mode...');
+  console.log('\n[2/7] Capturing: Enlarged Wall Display in Standby Mode (Navy-Cyan)...');
   await evalInBrowser(ws, `(() => {
     const { labAssistant, animateCameraTo } = window.labCircuit;
     if (labAssistant && labAssistant.subpanels) {
       labAssistant.subpanels.openStandby();
     }
     if (animateCameraTo) {
-      animateCameraTo({ x: -1.10, y: 1.48, z: 1.15 }, { x: -2.96, y: 1.48, z: 1.15 });
+      animateCameraTo({ x: -0.9, y: 1.52, z: 1.15 }, { x: -2.95, y: 1.52, z: 1.15 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '02_wall_display_standby.png');
 
   // --- 3. Wall Display Showing All 6 Options Grid ---
-  console.log('\n[3/6] Capturing: Wall Display Showing All 6 Options...');
+  console.log('\n[3/7] Capturing: Wall Display Showing All 6 Educational Options (3x2 Grid)...');
   await evalInBrowser(ws, `(() => {
     const { labAssistant, animateCameraTo } = window.labCircuit;
     if (labAssistant && labAssistant.subpanels) {
       labAssistant.subpanels.openMenu();
     }
     if (animateCameraTo) {
-      animateCameraTo({ x: -1.10, y: 1.48, z: 1.15 }, { x: -2.96, y: 1.48, z: 1.15 });
+      animateCameraTo({ x: -0.9, y: 1.52, z: 1.15 }, { x: -2.95, y: 1.52, z: 1.15 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '03_wall_display_menu_six_options.png');
 
   // --- 4. Ask Anything Feature View ---
-  console.log('\n[4/6] Capturing: Ask Anything Feature View...');
+  console.log('\n[4/7] Capturing: Ask Anything Feature View on Wall Display...');
   await evalInBrowser(ws, `(() => {
     const { labAssistant, animateCameraTo } = window.labCircuit;
     if (labAssistant && labAssistant.subpanels) {
       labAssistant.subpanels.openView('ask_anything');
     }
     if (animateCameraTo) {
-      animateCameraTo({ x: -1.10, y: 1.48, z: 1.15 }, { x: -2.96, y: 1.48, z: 1.15 });
+      animateCameraTo({ x: -0.9, y: 1.52, z: 1.15 }, { x: -2.95, y: 1.52, z: 1.15 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '04_feature_ask_anything.png');
 
   // --- 5. Video Feature View ---
-  console.log('\n[5/6] Capturing: Video Feature View...');
+  console.log('\n[5/7] Capturing: Practical Video Feature View on Wall Display...');
   await evalInBrowser(ws, `(() => {
     const { labAssistant, animateCameraTo } = window.labCircuit;
     if (labAssistant && labAssistant.subpanels) {
       labAssistant.subpanels.openView('video');
     }
     if (animateCameraTo) {
-      animateCameraTo({ x: -1.10, y: 1.48, z: 1.15 }, { x: -2.96, y: 1.48, z: 1.15 });
+      animateCameraTo({ x: -0.9, y: 1.52, z: 1.15 }, { x: -2.95, y: 1.52, z: 1.15 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '05_feature_ai_video.png');
 
-  // --- 6. Full Laboratory View (Workbench & Apparatus Unobstructed) ---
-  console.log('\n[6/6] Capturing: Full Laboratory View from Default Overview...');
+  // --- 6. Full Laboratory View in Normal Daylight Mode (No Old Floating UI) ---
+  console.log('\n[6/7] Capturing: Full Laboratory View from Overview in Daylight Mode...');
   await evalInBrowser(ws, `(() => {
     const { labAssistant, animateCameraTo } = window.labCircuit;
     if (labAssistant && labAssistant.subpanels) {
@@ -209,11 +198,15 @@ async function run() {
     const rightPanel = document.getElementById('right-panel');
     if (rightPanel) rightPanel.style.display = '';
     if (animateCameraTo) {
-      animateCameraTo({ x: 0.0, y: 1.40, z: 1.65 }, { x: 0.0, y: 0.95, z: 0.20 });
+      animateCameraTo({ x: 0.0, y: 1.38, z: 1.65 }, { x: -0.3, y: 0.95, z: 0.25 });
     }
   })()`);
-  await new Promise((r) => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1800));
   await captureScreenshot(ws, '06_full_lab_unobstructed.png');
+
+  // --- 7. Normal Laboratory Mode Startup View ---
+  console.log('\n[7/7] Capturing: Normal Daylight Laboratory Mode at Startup...');
+  await captureScreenshot(ws, '07_normal_mode_startup.png');
 
   console.log('\n✅ All 6 verification screenshots captured successfully!');
   ws.close();

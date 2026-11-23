@@ -16,7 +16,7 @@ export class LabEnvironment {
     this.scene = scene;
     this.renderer = renderer;
 
-    this.currentTheme = 'scifi'; // Default to exciting futuristic cyberpunk theme
+    this.currentTheme = 'standard'; // Default to classic bright physics laboratory mode
     this.scifiGroup = new THREE.Group();
     this.scifiGroup.name = 'SciFiEnvironmentElements';
 

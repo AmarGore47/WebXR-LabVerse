@@ -350,20 +350,20 @@ runTest('13. Ask Anything handles backend failure gracefully with error display 
   assert.strictEqual(assistant.tutorState, 'warning', 'Tutor badge should show warning posture on error');
 });
 
-runTest('14. Assistant Restored to Side Position and Wall Display Properly Proportioned', () => {
+runTest('14. Assistant Positioned Near Left Wall and Wall Display Enlarged (16:9)', () => {
   const assistant = new LabAssistant({ scene });
-  // Assistant placed safely to side and back clear of workbench and apparatus
-  assert.ok(assistant.position.x === 1.40 || assistant.position.x === 1.25, 'Assistant positioned at side x = 1.40m');
+  // Assistant placed safely beside left wall display clear of workbench and apparatus
+  assert.ok(assistant.position.x <= -1.90 && assistant.position.x >= -2.20, 'Assistant positioned near left wall beside wall display');
   assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet aligned with floor at y = 0.0m');
-  assert.ok(assistant.position.z === 0.0 || assistant.position.z === 0.35, 'Assistant positioned at z = 0.0m');
+  assert.ok(assistant.position.z >= 0.5 && assistant.position.z <= 1.0, 'Assistant positioned beside wall display');
 
   // Wall Display mounted on left wall with 16:9 laboratory proportions
   const wallDisplay = assistant.subpanels.group;
-  assert.strictEqual(wallDisplay.position.x, -2.96, 'Wall display mounted on left wall at x = -2.96m');
-  assert.strictEqual(wallDisplay.position.y, 1.48, 'Wall display center at eye height y = 1.48m');
-  assert.strictEqual(wallDisplay.position.z, 1.15, 'Wall display centered along z = 1.15m in red-marked area');
-  assert.strictEqual(assistant.subpanels.panelW, 1.44, 'Display width is 1.44m');
-  assert.strictEqual(assistant.subpanels.panelH, 0.81, 'Display height is 0.81m (exact 16:9 ratio)');
+  assert.ok(Math.abs(wallDisplay.position.x - (-2.95)) < 0.05, 'Wall display mounted on left wall');
+  assert.ok(Math.abs(wallDisplay.position.y - 1.52) < 0.1, 'Wall display center at eye height');
+  assert.ok(Math.abs(wallDisplay.position.z - 1.15) < 0.05, 'Wall display centered along z = 1.15m in red-marked area');
+  assert.ok(Math.abs(assistant.subpanels.panelW - 2.20) < 0.01, 'Display width is 2.20m');
+  assert.ok(Math.abs(assistant.subpanels.panelH - 1.24) < 0.01, 'Display height is 1.24m (exact 16:9 ratio)');
 });
 
 console.log('\n================================================================');

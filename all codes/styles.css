@@ -5,30 +5,33 @@
 
 :root {
   color-scheme: dark;
-  /* Strict 60/30/10 Visual System */
-  --color-chocolate: #432F2E; /* 60% - Main UI surfaces, panels, navigation, HUD, dark cards, text on light surfaces */
-  --color-butter: #FEEFB8;    /* 30% - Cards, soft content panels, readable areas, gentle highlights, text on dark surfaces */
-  --color-lightblue: #C4DAE8; /* 10% - Controlled accent: active focus rings, tiny status indicators, subtle progress details, hover states, small icons */
-
-  --bg-deep: #2A1D1C;
-  --panel-bg: rgba(67, 47, 46, 0.95);
-  --panel-border: rgba(254, 239, 184, 0.22);
-  --panel-hover: rgba(196, 218, 232, 0.45);
-  --text-main: #FEEFB8;
-  --text-muted: rgba(254, 239, 184, 0.72);
-  --card-bg: #FEEFB8;
-  --card-text: #432F2E;
-  --accent-cyan: #C4DAE8;
-  --accent-aqua: #C4DAE8;
-  --accent-gold: #FEEFB8;
-  --accent-rose: #432F2E;
-  --accent-green: #C4DAE8;
-  --radius-lg: 10px;
-  --radius-md: 7px;
-  --radius-sm: 5px;
-  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Authentic LabVerse Navy-and-Cyan Design System */
+  --bg-deep: #071326;
+  --panel-bg: rgba(7, 19, 38, 0.94);
+  --panel-border: rgba(56, 189, 248, 0.28);
+  --panel-hover: rgba(56, 189, 248, 0.45);
+  --text-main: #FFFFFF;
+  --text-muted: #CBD5E1;
+  --card-bg: #0d223f;
+  --card-text: #FFFFFF;
+  --accent-cyan: #38bdf8;
+  --accent-aqua: #0ea5e9;
+  --accent-teal: #0d9488;
+  --accent-blue: #0284c7;
+  --accent-gold: #f59e0b;
+  --accent-rose: #ef4444;
+  --accent-green: #10b981;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --font-serif: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Theme compatibility aliases */
+  --color-chocolate: #071326;
+  --color-butter: #FFFFFF;
+  --color-lightblue: #38bdf8;
 }
 
 * {
@@ -148,17 +151,17 @@ body {
 /* 2b. Assistant Invitation Pill */
 .assistant-invite-pill {
   position: absolute;
-  top: 122px;
+  top: 110px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 6px 14px;
+  padding: 6px 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(67, 47, 46, 0.94);
-  border: 1px solid rgba(254, 239, 184, 0.3);
+  background: rgba(7, 19, 38, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 999px;
-  box-shadow: 0 4px 16px rgba(42, 29, 28, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   cursor: pointer;
   z-index: 15;
   transition: all 0.2s ease;
@@ -167,9 +170,9 @@ body {
 }
 
 .assistant-invite-pill:hover {
-  background: rgba(84, 59, 58, 0.98);
-  border-color: var(--color-lightblue);
-  box-shadow: 0 0 14px rgba(196, 218, 232, 0.35);
+  background: rgba(11, 29, 56, 0.98);
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
   transform: translateX(-50%) translateY(-1px);
 }
 
@@ -180,7 +183,7 @@ body {
 .assistant-invite-pill .invite-text {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-butter);
+  color: #FFFFFF;
 }
 
 .assistant-invite-pill .invite-badge {
@@ -188,8 +191,8 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   padding: 2px 7px;
-  background: var(--color-butter);
-  color: var(--color-chocolate);
+  background: #0284c7;
+  color: #FFFFFF;
   border-radius: 4px;
 }
 
