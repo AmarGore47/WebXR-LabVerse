@@ -11,12 +11,16 @@ export function createTutorRouter(options = {}) {
   const router = Router();
   const tutorService = options.tutorService ?? new TutorService(options);
 
-  // Health check for tutor service
+  // Health check for tutor service with safe developer diagnostics
   router.get('/health', (req, res) => {
+    const isKeyConfigured = Boolean(tutorService.provider?.apiKey && tutorService.provider.apiKey.trim().length > 0);
+    const model = tutorService.provider?.modelName || 'gemini-1.5-flash';
     res.json({
       status: 'ok',
       service: 'labverse-ai-tutor',
       provider: tutorService.provider?.getProviderName() ?? 'gemini',
+      keyConfigured: isKeyConfigured,
+      modelName: model,
       timestamp: Date.now()
     });
   });

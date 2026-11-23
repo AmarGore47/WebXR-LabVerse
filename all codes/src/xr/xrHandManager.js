@@ -1371,7 +1371,7 @@ export class XRHandManager {
           sound.unlock();
           if (!this._vrAudioRouted) {
             this._vrAudioRouted = true;
-            sound.routeToVRHeadset().catch(() => {});
+            sound.routeToVRHeadset().catch(() => { });
           }
           if (this.narration) {
             this.narration.init();

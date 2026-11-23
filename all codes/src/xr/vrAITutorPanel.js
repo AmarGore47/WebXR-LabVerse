@@ -505,20 +505,27 @@ export class VRAITutorPanel {
 
   _handleError(code, message) {
     this.lastError = { code, message, question: this.lastStudentQuestion };
-    this.statusMessage = `⚠️ Error [${code}]: ${message}`;
-    this.statusType = 'error';
+    this.statusMessage = 'AI Tutor unavailable — use Guided Steps';
+    this.statusType = 'warning';
 
-    // Replace stale card display with explicit actionable error notice
+    const isDev = Boolean(
+      typeof window !== 'undefined' &&
+      (window.location?.search?.includes('dev=1') || window.localStorage?.getItem('labverse_dev') === '1')
+    );
+
+    const safeDiagSuffix = isDev ? ` [DIAG: ${code}]` : '';
+
+    // Non-blocking fallback: keeps circuit practical functioning normally and offers retry
     this.lastTutorResponse = {
-      message: `Tutor Notice: Error [${code}]`,
-      explanation: message || 'The AI physics tutor encountered a temporary connection issue. Please retry your question.',
-      hint: 'Click "🔄 Retry" or ask another question to reconnect.',
-      suggestedAction: 'Press the "🔄 Retry" button below to resubmit your query.',
+      message: `AI Tutor unavailable — use Guided Steps${safeDiagSuffix}`,
+      explanation: 'Under Maharashtra SSC Std. 10 Ch. 4: Ohm’s Law establishes V = I * R for metallic conductors. Circuit wiring, meters, and rheostat operate normally.',
+      hint: 'Click "🔄 Retry" below to reconnect or proceed with guided steps on the clipboard.',
+      suggestedAction: 'Use Guided Practical Steps; practical continues without interruption.',
       responseType: 'error'
     };
 
     if (this.assistant && typeof this.assistant.setTutorState === 'function') {
-      this.assistant.setTutorState('warning');
+      this.assistant.setTutorState('warning', { text: 'AI Tutor unavailable — use Guided Steps' });
       if (this.warningTimeout) clearTimeout(this.warningTimeout);
       this.warningTimeout = setTimeout(() => {
         if (this.assistant && typeof this.assistant.setTutorState === 'function') {

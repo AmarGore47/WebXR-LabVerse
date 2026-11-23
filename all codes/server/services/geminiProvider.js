@@ -9,8 +9,8 @@ export class GeminiProvider extends AIProvider {
   constructor(options = {}) {
     super();
     this.apiKey = options.apiKey ?? process.env.GEMINI_API_KEY ?? '';
-    this.modelName = options.modelName ?? process.env.GEMINI_MODEL ?? 'gemini-3-flash-preview';
-    this.fallbackModels = options.fallbackModels ?? ['gemini-3-flash-preview', 'gemini-3.5-flash-lite'];
+    this.modelName = options.modelName ?? process.env.GEMINI_MODEL ?? 'gemini-1.5-flash';
+    this.fallbackModels = options.fallbackModels ?? ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash'];
     this.mockClient = options.mockClient ?? null;
   }
 

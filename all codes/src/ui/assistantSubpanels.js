@@ -171,6 +171,12 @@ export class AssistantSubpanels {
     this.currentView = 'standby'; // 'standby' | 'menu' | 'ask_anything' | 'hints' | 'next_step' | 'video' | 'examples' | 'qna'
     this.aiError = null;
     this.currentRequestId = 0;
+    this.showDiagnostics = false;
+    this.developerMode = typeof window !== 'undefined' && Boolean(
+      window.location?.search?.includes('dev=1') ||
+      window.location?.search?.includes('diag=1') ||
+      window.localStorage?.getItem('labverse_dev') === '1'
+    );
 
     // Feature States
     // 1. Ask Anything
@@ -889,7 +895,7 @@ export class AssistantSubpanels {
     const cardY = chipY + 55;
     const cardH = h - cardY - 45;
     ctx.fillStyle = '#0b1a2e';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+    ctx.strokeStyle = this.aiError ? 'rgba(239, 68, 68, 0.45)' : 'rgba(56, 189, 248, 0.28)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(startX, cardY, contentW, cardH, 8);
@@ -898,16 +904,27 @@ export class AssistantSubpanels {
 
     // Response Header
     ctx.font = 'bold 16px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('SOCRATIC PHYSICS TUTOR RESPONSE', startX + 28, cardY + 32);
+    ctx.fillStyle = this.aiError ? '#f87171' : '#38bdf8';
+    ctx.fillText(this.aiError ? 'AI TUTOR NOTICE' : 'SOCRATIC PHYSICS TUTOR RESPONSE', startX + 28, cardY + 32);
 
-    // Audio Voice Controls & Retry Button
+    // Audio Voice Controls, Retry Button & Developer Diagnostics Toggle
     let voiceBtnX = startX + contentW - 160;
     if (this.aiError) {
       voiceBtnX = startX + contentW - 150;
-      this._drawButton(ctx, startX + contentW - 280, cardY + 18, 120, 36, 'Retry', '#ef4444', 'rgba(239, 68, 68, 0.5)', '#FFFFFF', '600 14px "Inter", sans-serif');
+      this._drawButton(ctx, startX + contentW - 280, cardY + 18, 120, 36, '🔄 Retry', '#ef4444', 'rgba(239, 68, 68, 0.5)', '#FFFFFF', '600 14px "Inter", sans-serif');
       this._registerButton('ask_btn_retry', startX + contentW - 280, cardY + 18, 120, 36, 'Retry', () => this.submitQuestion());
     }
+
+    const diagLabel = this.showDiagnostics ? 'Hide Report' : '🛠️ Diagnostics';
+    const diagX = this.aiError ? (startX + contentW - 425) : (startX + contentW - 305);
+    this._drawButton(ctx, diagX, cardY + 18, 135, 36, diagLabel, '#0c2340', 'rgba(56, 189, 248, 0.4)', '#38bdf8', '600 13px "Inter", sans-serif');
+    this._registerButton('ask_btn_diag', diagX, cardY + 18, 135, 36, 'Diagnostics', () => {
+      this.showDiagnostics = !this.showDiagnostics;
+      if (this.showDiagnostics && this.tutorClient && typeof this.tutorClient.checkHealth === 'function') {
+        this.tutorClient.checkHealth().then(() => this.redraw());
+      }
+      this.redraw();
+    });
 
     const voiceLabel = this.isSpeakingVoice ? 'Stop Voice' : 'Listen Voice';
     const voiceBg = this.isSpeakingVoice ? '#0284c7' : '#0c2340';
@@ -916,51 +933,121 @@ export class AssistantSubpanels {
     this._drawButton(ctx, voiceBtnX, cardY + 18, 140, 36, voiceLabel, voiceBg, voiceBorder, voiceFg, '600 14px "Inter", sans-serif');
     this._registerButton('ask_btn_voice', voiceBtnX, cardY + 18, 140, 36, 'Voice', () => this.toggleVoiceSpeech());
 
-    // Response Primary Message
-    ctx.font = 'bold 22px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    this._wrapText(ctx, this.aiResponse.message || '', startX + 28, cardY + 85, contentW - 56, 28);
+    if (this.showDiagnostics) {
+      // ─── VISIBLE DEVELOPER DIAGNOSTIC REPORT ─────────────────────────────
+      const diag = (this.tutorClient && typeof this.tutorClient.getDiagnostics === 'function')
+        ? this.tutorClient.getDiagnostics()
+        : {
+            apiBaseUrl: '/api/tutor',
+            healthBaseUrl: '/api/health',
+            backendReachable: false,
+            apiHealthStatus: 'UNKNOWN',
+            tutorHealthStatus: 'UNKNOWN',
+            keyConfigured: false,
+            selectedModelName: 'unknown',
+            lastResponseStatus: null,
+            lastRequestLatencyMs: null,
+            lastErrorCode: this.aiError ? this.aiError.code : 'NONE'
+          };
 
-    // Physics Explanation Box: Card surface #0d223f
-    const explY = cardY + 185;
-    ctx.fillStyle = '#0d223f';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(startX + 28, explY, contentW - 56, 180, 6);
-    ctx.fill();
-    ctx.stroke();
+      const diagY = cardY + 70;
+      const diagW = contentW - 56;
+      const diagH = cardH - 95;
 
-    ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('DETAILED EXPLANATION', startX + 48, explY + 30);
+      ctx.fillStyle = '#050c18';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(startX + 28, diagY, diagW, diagH, 6);
+      ctx.fill();
+      ctx.stroke();
 
-    ctx.font = '16px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#CBD5E1';
-    this._wrapText(ctx, this.aiResponse.explanation || '', startX + 48, explY + 65, contentW - 96, 26);
+      ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('LABVERSE AI TUTOR — DEVELOPER DIAGNOSTIC REPORT', startX + 48, diagY + 30);
 
-    // Suggested Action Box
-    const actY = explY + 205;
-    ctx.fillStyle = '#08162b';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(startX + 28, actY, contentW - 56, 95, 6);
-    ctx.fill();
-    ctx.stroke();
+      const items = [
+        { label: 'Frontend API Base URL', val: diag.apiBaseUrl || '/api/tutor' },
+        { label: 'API Health Status (GET /api/health)', val: diag.apiHealthStatus },
+        { label: 'Tutor Health Status (GET /api/tutor/health)', val: diag.tutorHealthStatus },
+        { label: 'Backend Reachable', val: diag.backendReachable ? 'YES (Connected)' : 'NO (Unreachable)' },
+        { label: 'Exact Safe Error Code', val: this.aiError ? this.aiError.code : (diag.lastErrorCode || 'NONE (OK)') },
+        { label: 'Server GEMINI_API_KEY Configured', val: diag.keyConfigured ? 'YES (Configured on server)' : 'NO (Missing)' },
+        { label: 'Selected Gemini Model', val: diag.selectedModelName || 'gemini-1.5-flash' },
+        { label: 'Response Status & Latency', val: `${diag.lastResponseStatus ?? 'N/A'} (Latency: ${diag.lastRequestLatencyMs ? diag.lastRequestLatencyMs + 'ms' : '--'})` }
+      ];
 
-    ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillText('RECOMMENDED PRACTICAL ACTION', startX + 48, actY + 30);
+      ctx.font = '14px "Inter", "Segoe UI", monospace';
+      items.forEach((item, idx) => {
+        const rowY = diagY + 65 + idx * 32;
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`• ${item.label}:`, startX + 48, rowY);
+        ctx.fillStyle = item.label.includes('Error Code') && item.val !== 'NONE (OK)'
+          ? '#f87171'
+          : (item.val === 'YES (Connected)' || item.val === 'YES (Configured on server)' || item.val === 'OK')
+            ? '#4ade80'
+            : '#FFFFFF';
+        ctx.fillText(String(item.val), startX + 390, rowY);
+      });
 
-    ctx.font = '16px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#FFFFFF';
-    this._wrapText(ctx, this.aiResponse.suggestedAction || 'Verify tabletop instruments and observe readings.', startX + 48, actY + 62, contentW - 96, 24);
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('Note: GEMINI_API_KEY value is kept strictly server-side and never exposed to the client.', startX + 48, diagY + diagH - 18);
+    } else {
+      // Primary Response Message: If error, shows "AI Tutor unavailable — use Guided Steps"
+      ctx.font = 'bold 22px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = this.aiError ? '#fbbf24' : '#FFFFFF';
+      const mainMsg = this.aiError ? 'AI Tutor unavailable — use Guided Steps' : (this.aiResponse.message || '');
+      this._wrapText(ctx, mainMsg, startX + 28, cardY + 85, contentW - 56, 28);
 
-    // Status Footer
-    ctx.font = '12px "Inter", "Segoe UI", sans-serif';
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('Verified Maharashtra SSC Class 10 Physics Model • Gemini AI Service', startX + 24, cardY + cardH - 20);
+      // In Developer Mode, show exact safe diagnostic code below message
+      if (this.aiError && (this.developerMode || this.showDiagnostics)) {
+        ctx.font = '600 13px "Inter", monospace';
+        ctx.fillStyle = '#f87171';
+        ctx.fillText(`[SAFE DIAGNOSTIC CODE: ${this.aiError.code}]`, startX + 28, cardY + 145);
+      }
+
+      // Physics Explanation Box: Card surface #0d223f
+      const explY = cardY + 185;
+      ctx.fillStyle = '#0d223f';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(startX + 28, explY, contentW - 56, 180, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('DETAILED EXPLANATION', startX + 48, explY + 30);
+
+      ctx.font = '16px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#CBD5E1';
+      this._wrapText(ctx, this.aiResponse.explanation || '', startX + 48, explY + 65, contentW - 96, 26);
+
+      // Suggested Action Box
+      const actY = explY + 205;
+      ctx.fillStyle = '#08162b';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(startX + 28, actY, contentW - 56, 95, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 15px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('RECOMMENDED PRACTICAL ACTION', startX + 48, actY + 30);
+
+      ctx.font = '16px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      this._wrapText(ctx, this.aiResponse.suggestedAction || 'Verify tabletop instruments and observe readings.', startX + 48, actY + 62, contentW - 96, 24);
+
+      // Status Footer
+      ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('Verified Maharashtra SSC Class 10 Physics Model • Gemini AI Service', startX + 24, cardY + cardH - 20);
+    }
   }
 
   // ─── 2. View: Hints ───────────────────────────────────────────────────────
@@ -1600,10 +1687,11 @@ export class AssistantSubpanels {
 
     try {
       if (this.tutorClient && typeof this.tutorClient.askQuestion === 'function') {
+        const simulationCtx = this.bridge ? this.bridge.getAIContext() : null;
         const payload = {
           question: this.currentQuestionText,
-          stage: this.workflowManager ? this.workflowManager.currentStage : 'UNKNOWN',
-          context: 'ohms_law_practical'
+          language: 'English',
+          customContext: simulationCtx
         };
 
         const res = await this.tutorClient.askQuestion(payload);
@@ -1627,28 +1715,28 @@ export class AssistantSubpanels {
           const errObj = (res && res.error) ? res.error : { code: 'AI_UNAVAILABLE', message: 'Tutor backend unavailable' };
           this.aiError = errObj;
           this.aiResponse = {
-            message: 'AI Tutor service is temporarily unreachable. Standard curriculum guidance active.',
+            message: 'AI Tutor unavailable — use Guided Steps',
             explanation: 'Under Maharashtra SSC Std. 10 Ch. 4: Ohm’s Law establishes V = I * R for metallic conductors at constant temperature.',
             hint: 'Review the apparatus connections and observe tabletop meter readings.',
-            suggestedAction: 'Click on Progressive Hints tab or Retry Question.'
+            suggestedAction: 'Use Guided Practical Steps or Progressive Hints; practical continues normally.'
           };
           if (this.assistant) {
             if (this.assistant.state) this.assistant.state.aiRequestState = 'error';
             if (typeof this.assistant.setTutorState === 'function') {
-              this.assistant.setTutorState('warning', { text: 'AI unavailable. Showing curriculum fallback.' });
+              this.assistant.setTutorState('warning', { text: 'AI Tutor unavailable — use Guided Steps' });
             }
           }
         }
       } else {
-        this.aiError = null;
+        this.aiError = { code: 'CLIENT_UNINITIALIZED', message: 'AI Tutor client is not initialized.' };
         this.aiResponse = {
-          message: 'An ammeter has very low internal resistance (~0.2 Ω) and is connected in series.',
-          explanation: 'Series connection ensures all electrons in the loop flow through the meter for accurate current measurement.',
-          hint: 'Keep Ammeter in the main loop and Voltmeter across the resistor coil.',
-          suggestedAction: 'Observe the 3D tabletop instruments and adjust the rheostat.'
+          message: 'AI Tutor unavailable — use Guided Steps',
+          explanation: 'Under Maharashtra SSC Std. 10 Ch. 4: Ohm’s Law establishes V = I * R for metallic conductors at constant temperature.',
+          hint: 'Observe the 3D tabletop instruments and adjust the rheostat.',
+          suggestedAction: 'Use Guided Practical Steps or Progressive Hints.'
         };
         if (this.assistant && this.assistant.state) {
-          this.assistant.state.aiRequestState = 'success';
+          this.assistant.state.aiRequestState = 'error';
         }
       }
     } catch (err) {
@@ -1656,15 +1744,15 @@ export class AssistantSubpanels {
       console.warn('[AssistantSubpanels] Error asking tutor client:', err);
       this.aiError = { code: 'NETWORK_ERROR', message: err.message || 'Connection error' };
       this.aiResponse = {
-        message: 'Could not connect to Gemini AI backend. Offline curriculum guidance active.',
+        message: 'AI Tutor unavailable — use Guided Steps',
         explanation: 'Ohm’s Law verifies V ∝ I across a metallic conductor under constant physical conditions (R = V / I).',
-        hint: 'Use the progressive hints tab for offline practical guidance.',
-        suggestedAction: 'Click on Hints tab or Retry Question.'
+        hint: 'Follow the guided practical steps on the clipboard stand.',
+        suggestedAction: 'Click on Next Practical Step or Progressive Hints.'
       };
       if (this.assistant) {
         if (this.assistant.state) this.assistant.state.aiRequestState = 'error';
         if (typeof this.assistant.setTutorState === 'function') {
-          this.assistant.setTutorState('warning', { text: 'Backend offline. Standard guidance active.' });
+          this.assistant.setTutorState('warning', { text: 'AI Tutor unavailable — use Guided Steps' });
         }
       }
     } finally {

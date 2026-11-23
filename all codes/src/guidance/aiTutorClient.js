@@ -27,6 +27,29 @@ export class AITutorClient {
     this.currentState = TUTOR_STATES.IDLE;
     this.stateListeners = [];
     this.lastStudentQuestion = '';
+
+    // Safe Developer Diagnostics Report Data
+    this.diagnostics = {
+      apiBaseUrl: this.apiBaseUrl,
+      healthBaseUrl: this.healthBaseUrl,
+      backendReachable: false,
+      apiHealthStatus: 'UNKNOWN',
+      tutorHealthStatus: 'UNKNOWN',
+      keyConfigured: false,
+      selectedModelName: 'unknown',
+      lastResponseStatus: null,
+      lastRequestLatencyMs: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Return copy of current developer diagnostics report.
+   */
+  getDiagnostics() {
+    return { ...this.diagnostics };
   }
 
   /**
@@ -63,26 +86,85 @@ export class AITutorClient {
   }
 
   /**
-   * Reliable backend health check.
+   * Full reliable backend & tutor health check with latency measurement.
    */
   async checkHealth() {
     this._setState(TUTOR_STATES.CONNECTING, { action: 'health_check' });
+    const startTime = Date.now();
+
+    let apiHealthy = false;
+    let tutorHealthy = false;
+    let apiStatus = null;
+    let tutorStatus = null;
+
+    // 1. Check Global /api/health
     try {
       const response = await fetch(this.healthBaseUrl, {
         headers: { 'Accept': 'application/json' },
         cache: 'no-store'
       });
+      apiStatus = response.status;
       if (response.ok) {
-        const data = await response.json();
-        this._setState(TUTOR_STATES.READY, { health: data });
-        return { healthy: true, status: response.status, data };
+        const data = await response.json().catch(() => null);
+        if (data && data.status === 'healthy') {
+          apiHealthy = true;
+          this.diagnostics.apiHealthStatus = 'OK';
+        } else {
+          this.diagnostics.apiHealthStatus = 'UNEXPECTED_RESPONSE';
+        }
+      } else if (response.status === 404) {
+        this.diagnostics.apiHealthStatus = '404_NOT_FOUND';
+      } else {
+        this.diagnostics.apiHealthStatus = `HTTP_${response.status}`;
       }
-      this._setState(TUTOR_STATES.ERROR, { code: `HTTP_${response.status}` });
-      return { healthy: false, status: response.status };
     } catch (err) {
-      this._setState(TUTOR_STATES.ERROR, { error: err.message });
-      return { healthy: false, error: err.message };
+      this.diagnostics.apiHealthStatus = 'UNREACHABLE';
     }
+
+    // 2. Check /api/tutor/health
+    try {
+      const tutorHealthUrl = `${this.apiBaseUrl}/health`;
+      const response = await fetch(tutorHealthUrl, {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      tutorStatus = response.status;
+      if (response.ok) {
+        const data = await response.json().catch(() => null);
+        if (data && data.status === 'ok') {
+          tutorHealthy = true;
+          this.diagnostics.tutorHealthStatus = 'OK';
+          this.diagnostics.keyConfigured = Boolean(data.keyConfigured);
+          this.diagnostics.selectedModelName = data.modelName ?? 'unknown';
+        } else {
+          this.diagnostics.tutorHealthStatus = 'UNEXPECTED_RESPONSE';
+        }
+      } else if (response.status === 404) {
+        this.diagnostics.tutorHealthStatus = '404_NOT_FOUND';
+      } else {
+        this.diagnostics.tutorHealthStatus = `HTTP_${response.status}`;
+      }
+    } catch (err) {
+      this.diagnostics.tutorHealthStatus = 'UNREACHABLE';
+    }
+
+    const latency = Date.now() - startTime;
+    this.diagnostics.lastRequestLatencyMs = latency;
+    this.diagnostics.backendReachable = apiHealthy || tutorHealthy;
+    this.diagnostics.timestamp = Date.now();
+
+    if (apiHealthy && tutorHealthy) {
+      this._setState(TUTOR_STATES.READY, { health: 'healthy' });
+      return { healthy: true, status: 200, diagnostics: this.getDiagnostics() };
+    }
+
+    const safeCode = !this.diagnostics.backendReachable
+      ? 'BACKEND_OFFLINE'
+      : (tutorStatus === 404 ? 'API_NOT_FOUND' : 'SERVICE_UNHEALTHY');
+
+    this.diagnostics.lastErrorCode = safeCode;
+    this._setState(TUTOR_STATES.ERROR, { code: safeCode });
+    return { healthy: false, status: apiStatus ?? tutorStatus, diagnostics: this.getDiagnostics() };
   }
 
   /**
@@ -141,6 +223,7 @@ export class AITutorClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const reqStartTime = Date.now();
 
     try {
       const response = await fetch(this.apiBaseUrl, {
@@ -158,18 +241,37 @@ export class AITutorClient {
       });
 
       clearTimeout(timer);
+      const reqLatency = Date.now() - reqStartTime;
+      this.diagnostics.lastRequestLatencyMs = reqLatency;
+      this.diagnostics.lastResponseStatus = response.status;
+      this.diagnostics.timestamp = Date.now();
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const errObj = data?.error ?? {
-          code: `HTTP_${response.status}`,
-          message: `Server returned error (${response.status}): ${response.statusText}`
+        let safeCode = data?.error?.code;
+        let safeMsg = data?.error?.message;
+
+        if (response.status === 404) {
+          safeCode = 'API_NOT_FOUND';
+          safeMsg = `AI route ${this.apiBaseUrl} not found (404).`;
+        } else if (!safeCode) {
+          safeCode = `HTTP_${response.status}`;
+          safeMsg = `Server returned HTTP ${response.status}: ${response.statusText}`;
+        }
+
+        const errObj = {
+          code: safeCode,
+          message: safeMsg
         };
+
+        this.diagnostics.lastErrorCode = safeCode;
+        this.diagnostics.lastErrorMessage = safeMsg;
         this._setState(TUTOR_STATES.ERROR, errObj);
         return {
           success: false,
-          error: errObj
+          error: errObj,
+          diagnostics: this.getDiagnostics()
         };
       }
 
@@ -179,13 +281,19 @@ export class AITutorClient {
           code: 'INVALID_RESPONSE_SCHEMA',
           message: 'Received unexpected response structure from AI Tutor server.'
         };
+        this.diagnostics.lastErrorCode = 'INVALID_RESPONSE_SCHEMA';
+        this.diagnostics.lastErrorMessage = schemaErr.message;
         this._setState(TUTOR_STATES.ERROR, schemaErr);
         return {
           success: false,
-          error: schemaErr
+          error: schemaErr,
+          diagnostics: this.getDiagnostics()
         };
       }
 
+      this.diagnostics.lastErrorCode = null;
+      this.diagnostics.lastErrorMessage = null;
+      this.diagnostics.backendReachable = true;
       this._setState(TUTOR_STATES.RESPONDING, { response: data.response });
 
       // After brief responding transition, settle in READY
@@ -195,9 +303,15 @@ export class AITutorClient {
         }
       }, 1500);
 
-      return data;
+      return {
+        ...data,
+        diagnostics: this.getDiagnostics()
+      };
     } catch (err) {
       clearTimeout(timer);
+      const reqLatency = Date.now() - reqStartTime;
+      this.diagnostics.lastRequestLatencyMs = reqLatency;
+      this.diagnostics.timestamp = Date.now();
 
       let errResult;
       if (err.name === 'AbortError') {
@@ -208,14 +322,18 @@ export class AITutorClient {
       } else {
         errResult = {
           code: 'NETWORK_FAILURE',
-          message: err.message ?? 'Failed to connect to the LabVerse AI Tutor service.'
+          message: 'Backend unreachable. Check if dev server is running or proxy is active.'
         };
       }
 
+      this.diagnostics.lastErrorCode = errResult.code;
+      this.diagnostics.lastErrorMessage = errResult.message;
+      this.diagnostics.backendReachable = false;
       this._setState(TUTOR_STATES.ERROR, errResult);
       return {
         success: false,
-        error: errResult
+        error: errResult,
+        diagnostics: this.getDiagnostics()
       };
     } finally {
       this.isLoading = false;
