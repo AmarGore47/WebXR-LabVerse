@@ -5,20 +5,26 @@
 
 :root {
   color-scheme: dark;
-  --bg-deep: #050d18;
-  --panel-bg: rgba(7, 21, 38, 0.88);
-  --panel-border: rgba(56, 189, 248, 0.22);
-  --panel-hover: rgba(56, 189, 248, 0.45);
-  --text-main: #f0f9ff;
-  --text-muted: #94a3b8;
-  --accent-cyan: #38bdf8;
-  --accent-aqua: #2dd4bf;
-  --accent-gold: #fbbf24;
-  --accent-rose: #f43f5e;
-  --accent-green: #22c55e;
-  --radius-lg: 14px;
-  --radius-md: 9px;
+  /* Strict 60/30/10 Visual System */
+  --color-aquamarine: #0F3F49; /* 60% - Main UI surfaces, panels, glass overlays */
+  --color-burgundy: #7F0508;   /* 30% - Primary actions, active states, highlights, warnings */
+  --color-concrete: #ECE6DF;   /* 10% - Text areas, muted cards, input fields, borders */
+  
+  --bg-deep: #071e23;
+  --panel-bg: rgba(15, 63, 73, 0.90);
+  --panel-border: rgba(236, 230, 223, 0.25);
+  --panel-hover: rgba(236, 230, 223, 0.45);
+  --text-main: #ECE6DF;
+  --text-muted: rgba(236, 230, 223, 0.72);
+  --accent-cyan: #7F0508;
+  --accent-aqua: #0F3F49;
+  --accent-gold: #c2410c;
+  --accent-rose: #7F0508;
+  --accent-green: #115e59;
+  --radius-lg: 12px;
+  --radius-md: 8px;
   --radius-sm: 6px;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
@@ -102,15 +108,17 @@ body {
 .status-dot {
   width: 10px;
   height: 10px;
-  background: var(--accent-aqua);
+  background: var(--color-burgundy);
   border-radius: 50%;
-  box-shadow: 0 0 10px var(--accent-aqua);
+  box-shadow: 0 0 10px rgba(127, 5, 8, 0.7);
 }
 
 .brand-panel h1 {
-  font-size: 15px;
+  font-family: var(--font-serif);
+  font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
+  letter-spacing: 0.3px;
+  color: var(--color-concrete);
 }
 
 .brand-panel p {
@@ -128,8 +136,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(8, 28, 48, 0.92);
-  border: 1px solid var(--accent-cyan);
+  background: rgba(15, 63, 73, 0.95);
+  border: 1px solid rgba(236, 230, 223, 0.3);
   border-radius: 999px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 18;
@@ -145,8 +153,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(11, 25, 46, 0.88);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(15, 63, 73, 0.92);
+  border: 1px solid rgba(236, 230, 223, 0.35);
   border-radius: 999px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   cursor: pointer;
@@ -157,9 +165,9 @@ body {
 }
 
 .assistant-invite-pill:hover {
-  background: rgba(14, 38, 70, 0.95);
-  border-color: #38bdf8;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+  background: rgba(19, 75, 87, 0.98);
+  border-color: var(--color-concrete);
+  box-shadow: 0 0 16px rgba(127, 5, 8, 0.35);
   transform: translateX(-50%) translateY(-1px);
 }
 
@@ -170,16 +178,16 @@ body {
 .assistant-invite-pill .invite-text {
   font-size: 12px;
   font-weight: 600;
-  color: #bae6fd;
+  color: var(--color-concrete);
 }
 
 .assistant-invite-pill .invite-badge {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  padding: 2px 6px;
-  background: rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
+  padding: 2px 7px;
+  background: var(--color-burgundy);
+  color: var(--color-concrete);
   border-radius: 4px;
 }
 
@@ -190,17 +198,18 @@ body {
 .instruction-text {
   font-size: 13px;
   font-weight: 600;
-  color: #e0f2fe;
+  color: var(--color-concrete);
 }
 
 .instruction-text.selecting {
-  color: var(--accent-gold);
+  color: var(--color-burgundy);
+  font-weight: 700;
 }
 
 .cancel-btn {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid var(--accent-rose);
-  color: #fca5a5;
+  background: rgba(127, 5, 8, 0.25);
+  border: 1px solid var(--color-burgundy);
+  color: var(--color-concrete);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 9px;
@@ -211,7 +220,7 @@ body {
 }
 
 .cancel-btn:hover {
-  background: rgba(239, 68, 68, 0.4);
+  background: rgba(127, 5, 8, 0.55);
 }
 
 /* 3. Top Right Laptop Toolbar */
@@ -224,9 +233,9 @@ body {
 
 .btn {
   padding: 7px 12px;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  background: rgba(14, 43, 72, 0.85);
-  color: var(--text-main);
+  border: 1px solid rgba(236, 230, 223, 0.25);
+  background: rgba(15, 63, 73, 0.90);
+  color: var(--color-concrete);
   border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 12px;
@@ -238,9 +247,9 @@ body {
 }
 
 .btn:hover:not(:disabled) {
-  background: rgba(22, 63, 104, 0.95);
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+  background: rgba(19, 75, 87, 0.98);
+  border-color: var(--color-concrete);
+  box-shadow: 0 0 10px rgba(127, 5, 8, 0.25);
 }
 
 .btn:active:not(:disabled) {
@@ -253,28 +262,31 @@ body {
 }
 
 .btn.active {
-  background: #0284c7;
-  border-color: #38bdf8;
+  background: var(--color-burgundy);
+  border-color: var(--color-concrete);
+  color: var(--color-concrete);
+  box-shadow: 0 0 10px rgba(127, 5, 8, 0.4);
 }
 
 .btn-vr {
-  background: linear-gradient(135deg, #0284c7, #0d9488);
-  border-color: #38bdf8;
-  color: #ffffff;
+  background: var(--color-burgundy);
+  border-color: rgba(236, 230, 223, 0.4);
+  color: var(--color-concrete);
   font-weight: 700;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px rgba(127, 5, 8, 0.45);
 }
 
 .btn-vr:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0369a1, #0f766e);
-  box-shadow: 0 0 20px rgba(45, 212, 191, 0.6);
+  background: #99060a;
+  border-color: var(--color-concrete);
+  box-shadow: 0 0 18px rgba(127, 5, 8, 0.65);
   transform: translateY(-1px);
 }
 
 .btn-vr.active-session {
-  background: rgba(225, 29, 72, 0.85);
-  border-color: #f43f5e;
-  box-shadow: 0 0 14px rgba(244, 63, 94, 0.4);
+  background: rgba(127, 5, 8, 0.95);
+  border-color: var(--color-concrete);
+  box-shadow: 0 0 14px rgba(127, 5, 8, 0.6);
 }
 
 /* Settings Dropdown Component */
@@ -288,10 +300,10 @@ body {
   top: calc(100% + 8px);
   right: 0;
   width: 220px;
-  background: rgba(7, 21, 38, 0.96);
-  border: 1px solid var(--panel-border);
+  background: rgba(15, 63, 73, 0.98);
+  border: 1px solid rgba(236, 230, 223, 0.3);
   border-radius: var(--radius-md);
-  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   padding: 6px;
@@ -313,7 +325,7 @@ body {
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-main);
+  color: var(--color-concrete);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
@@ -326,21 +338,21 @@ body {
 }
 
 .dropdown-item:hover {
-  background: rgba(56, 189, 248, 0.12);
-  border-color: rgba(56, 189, 248, 0.3);
-  color: #ffffff;
+  background: rgba(236, 230, 223, 0.12);
+  border-color: rgba(236, 230, 223, 0.3);
+  color: var(--color-concrete);
 }
 
 .dropdown-item.active {
-  background: rgba(2, 132, 199, 0.35);
-  border-color: #38bdf8;
-  color: #7dd3fc;
+  background: var(--color-burgundy);
+  border-color: var(--color-concrete);
+  color: var(--color-concrete);
   font-weight: 600;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: rgba(56, 189, 248, 0.15);
+  background: rgba(236, 230, 223, 0.2);
   margin: 4px 0;
 }
 
@@ -437,9 +449,11 @@ body {
 }
 
 .panel-header h3 {
-  font-size: 14px;
+  font-family: var(--font-serif);
+  font-size: 15px;
   font-weight: 700;
-  color: #ffffff;
+  letter-spacing: 0.3px;
+  color: var(--color-concrete);
 }
 
 .status-tag {
@@ -851,9 +865,11 @@ kbd {
 }
 
 .exp-panel-title h3 {
-  font-size: 13.5px;
+  font-family: var(--font-serif);
+  font-size: 15px;
   font-weight: 700;
-  color: #ffffff;
+  letter-spacing: 0.3px;
+  color: var(--color-concrete);
 }
 
 .exp-panel-title p {

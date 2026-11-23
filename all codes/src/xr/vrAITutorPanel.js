@@ -28,15 +28,13 @@ export class VRAITutorPanel {
     this.speechService = options.speechService || null;
     this.onFeedback = options.onFeedback || (() => { });
 
-    // Root Group positioned beside the Lab Assistant
+    // Root Group flush mounted on the left laboratory wall (inside red-marked wall area)
     this.group = new THREE.Group();
     this.group.name = 'VRAITutorPanel';
-    this.group.position.set(0.92, 1.28, 0.42);
+    this.group.position.set(-2.95, 1.48, 0.55);
 
-    // Face student standing in front of table at (0, 1.3, 0.82)
-    const targetLook = new THREE.Vector3(0.0, 1.25, 0.82);
-    const angleToStudent = Math.atan2(targetLook.x - 0.92, targetLook.z - 0.42);
-    this.group.rotation.set(0, angleToStudent, 0);
+    // Parallel to left wall, subtle tilt inward toward student at workbench (0, 1.25, 0.82)
+    this.group.rotation.set(0, Math.PI / 2 - 0.08, 0);
 
     // Initial visibility (hidden by default until toggled)
     this.group.visible = false;
@@ -95,43 +93,40 @@ export class VRAITutorPanel {
   // ─── 1. Physical 3D Structure ─────────────────────────────────────────────
 
   _buildPhysicalFrame() {
-    // 1. Sleek metallic slate chassis
+    // 1. Sleek metallic chassis: Dark Aquamarine (#0F3F49)
     const frameGeo = new THREE.BoxGeometry(this.panelW + 0.035, this.panelH + 0.035, 0.02);
     const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x0a1628,
-      roughness: 0.35,
-      metalness: 0.8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.06
+      color: 0x0F3F49,
+      roughness: 0.4,
+      metalness: 0.7,
+      emissive: 0x0F3F49,
+      emissiveIntensity: 0.04
     });
     this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
     this.frameMesh.name = 'AITutorPanel_Frame';
     this.group.add(this.frameMesh);
 
-    // Subtle blue neon trim wireframe
+    // Subtle Concrete trim wireframe
     const trimGeo = new THREE.BoxGeometry(this.panelW + 0.04, this.panelH + 0.04, 0.005);
     const trimMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
+      color: 0xECE6DF,
       wireframe: true,
       transparent: true,
-      opacity: 0.4
+      opacity: 0.3
     });
     const trimMesh = new THREE.Mesh(trimGeo, trimMat);
     trimMesh.position.z = 0.008;
     this.group.add(trimMesh);
 
-    // Slim metallic mount pole extending to the floor
-    const poleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.75, 16);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.85 });
-    this.standPole = new THREE.Mesh(poleGeo, poleMat);
-    this.standPole.position.set(0, -this.panelH / 2 - 0.35, -0.015);
-    this.group.add(this.standPole);
-
-    // Stand circular base
-    const baseGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.025, 24);
-    this.standBase = new THREE.Mesh(baseGeo, poleMat);
-    this.standBase.position.set(0, -this.panelH / 2 - 0.71, -0.015);
-    this.group.add(this.standBase);
+    // Sleek wall mounting brackets extending to the left wall (no floor clutter)
+    const mountGeo = new THREE.BoxGeometry(0.04, 0.04, 0.08);
+    const mountMat = new THREE.MeshStandardMaterial({ color: 0x0C323A, roughness: 0.4, metalness: 0.8 });
+    const mountUpper = new THREE.Mesh(mountGeo, mountMat);
+    mountUpper.position.set(0, this.panelH / 4, -0.04);
+    this.group.add(mountUpper);
+    const mountLower = new THREE.Mesh(mountGeo, mountMat);
+    mountLower.position.set(0, -this.panelH / 4, -0.04);
+    this.group.add(mountLower);
   }
 
   _initCanvas() {

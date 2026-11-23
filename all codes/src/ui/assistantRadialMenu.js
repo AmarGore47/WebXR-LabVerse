@@ -65,10 +65,10 @@ export class AssistantRadialMenu {
   }
 
   _buildCenterBackdrop() {
-    // Holographic dashed circular orbit ring
-    const ringGeo = new THREE.RingGeometry(this.radialRadius - 0.005, this.radialRadius + 0.005, 64);
+    // Holographic circular orbit ring: Concrete with subtle glow
+    const ringGeo = new THREE.RingGeometry(this.radialRadius - 0.004, this.radialRadius + 0.004, 64);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
+      color: 0xECE6DF,
       transparent: true,
       opacity: 0.35,
       side: THREE.DoubleSide
@@ -77,12 +77,12 @@ export class AssistantRadialMenu {
     this.orbitRing.position.set(0, this.centerHeight, 0);
     this.group.add(this.orbitRing);
 
-    // Inner subtle glow disc
+    // Inner calm Aquamarine glow disc (#0F3F49)
     const discGeo = new THREE.CircleGeometry(this.radialRadius, 48);
     const discMat = new THREE.MeshBasicMaterial({
-      color: 0x0369a1,
+      color: 0x0F3F49,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.25,
       side: THREE.DoubleSide
     });
     this.glowDisc = new THREE.Mesh(discGeo, discMat);
@@ -150,23 +150,24 @@ export class AssistantRadialMenu {
     const ctx = canvas.getContext('2d');
     const texture = new THREE.CanvasTexture(canvas);
 
-    ctx.fillStyle = '#0f172a';
+    // Center Close button: Burgundy #7F0508 base with Concrete border and cross
+    ctx.fillStyle = '#7F0508';
     ctx.beginPath();
     ctx.arc(64, 64, 56, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#ECE6DF';
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 50px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#ECE6DF';
+    ctx.font = 'bold 44px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('✖', 64, 66);
     texture.needsUpdate = true;
 
     const geo = new THREE.PlaneGeometry(0.12, 0.12);
-    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.9 });
+    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.95 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(0, this.centerHeight, 0.02);
 
@@ -188,47 +189,45 @@ export class AssistantRadialMenu {
   _renderNodeCanvas(ctx, w, h, opt, isHovered) {
     ctx.clearRect(0, 0, w, h);
 
-    const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w / 2);
-    if (isHovered) {
-      bgGrad.addColorStop(0, '#0284c7');
-      bgGrad.addColorStop(1, '#0c2340');
-    } else {
-      bgGrad.addColorStop(0, '#0a1a33');
-      bgGrad.addColorStop(1, '#050c18');
-    }
+    // 60/30/10 Palette:
+    // Normal: Aquamarine #0F3F49 (60%) with Concrete #ECE6DF text (10%)
+    // Hover/Active: Burgundy #7F0508 (30%) with Concrete #ECE6DF text (10%)
+    const bgColor = isHovered ? '#7F0508' : '#0F3F49';
+    const borderColor = isHovered ? '#ECE6DF' : 'rgba(236, 230, 223, 0.4)';
+    const borderWidth = isHovered ? 6 : 3;
 
     // Outer circle
     ctx.beginPath();
     ctx.arc(w / 2, h / 2, w / 2 - 8, 0, Math.PI * 2);
-    ctx.fillStyle = bgGrad;
+    ctx.fillStyle = bgColor;
     ctx.fill();
 
     // Border
-    ctx.lineWidth = isHovered ? 8 : 4;
-    ctx.strokeStyle = isHovered ? '#38bdf8' : '#0284c7';
+    ctx.lineWidth = borderWidth;
+    ctx.strokeStyle = borderColor;
     ctx.stroke();
 
     // Inner subtle ring
     ctx.beginPath();
-    ctx.arc(w / 2, h / 2, w / 2 - 18, 0, Math.PI * 2);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.arc(w / 2, h / 2, w / 2 - 16, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
     ctx.stroke();
 
     // Icon
-    ctx.font = '54px "Segoe UI Emoji", Arial, sans-serif';
+    ctx.font = '50px "Segoe UI Emoji", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(opt.icon, w / 2, h / 2 - 38);
 
-    // Primary Label
-    ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    // Primary Label: Editorial Serif
+    ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
+    ctx.fillStyle = '#ECE6DF';
     ctx.fillText(opt.label, w / 2, h / 2 + 22);
 
-    // Sublabel
-    ctx.font = '16px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = isHovered ? '#bae6fd' : '#94a3b8';
+    // Sublabel: Clean Sans
+    ctx.font = '500 15px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = isHovered ? '#ECE6DF' : 'rgba(236, 230, 223, 0.8)';
     ctx.fillText(opt.sublabel, w / 2, h / 2 + 54);
   }
 

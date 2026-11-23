@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { getSharedAudioContext } from '../audio.js';
 
 export class ThrowableManager {
-  constructor({ scene, assistant, narration, onFeedback = () => {} } = {}) {
+  constructor({ scene, assistant, narration, onFeedback = () => { } } = {}) {
     this.scene = scene;
     this.assistant = assistant;
     this.narration = narration;
@@ -63,7 +63,7 @@ export class ThrowableManager {
       gain.connect(this.audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.08);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   _playThrowSound() {
@@ -84,7 +84,7 @@ export class ThrowableManager {
       gain.connect(this.audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.18);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   _playBounceSound() {
@@ -105,7 +105,7 @@ export class ThrowableManager {
       gain.connect(this.audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.08);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   _playRespawnSound() {
@@ -127,7 +127,7 @@ export class ThrowableManager {
       gain.connect(this.audioCtx.destination);
       osc.start(now);
       osc.stop(now + 0.22);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   _buildTrayAndPedestals() {

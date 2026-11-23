@@ -50,7 +50,7 @@ export const COMIC_HIT_TEXTS = [
 ];
 
 export class LabAssistant {
-  constructor({ scene, narration, position = new THREE.Vector3(1.25, 0.0, 0.35) } = {}) {
+  constructor({ scene, narration, position = new THREE.Vector3(1.40, 0.0, 0.0) } = {}) {
     this.scene = scene;
     this.narration = narration;
     this.position = position;
@@ -60,7 +60,7 @@ export class LabAssistant {
     this.group.position.copy(this.position);
 
     // Face student and experiment table naturally
-    const targetLook = new THREE.Vector3(0.0, 0.85, 0.70);
+    const targetLook = new THREE.Vector3(0.0, 0.85, 0.40);
     const angleToTable = Math.atan2(targetLook.x - this.position.x, targetLook.z - this.position.z);
     this.group.rotation.y = angleToTable;
 
@@ -354,44 +354,63 @@ export class LabAssistant {
     const h = 140;
     ctx.clearRect(0, 0, w, h);
 
-    const stateConfig = {
-      idle: { label: 'AI LAB ASSISTANT', color: '#38bdf8', bg: '#0b192e', icon: '🤖' },
-      greeting: { label: 'WELCOME TO LABVERSE!', color: '#34d399', bg: '#064e3b', icon: '👋' },
-      listening: { label: 'LISTENING...', color: '#60a5fa', bg: '#1e3a8a', icon: '🎧' },
-      thinking: { label: 'THINKING...', color: '#fbbf24', bg: '#78350f', icon: '🧠' },
-      speaking: { label: 'SPEAKING', color: '#34d399', bg: '#064e3b', icon: '🗣️' },
-      explaining: { label: 'EXPLAINING', color: '#c084fc', bg: '#581c87', icon: '💡' },
-      warning: { label: 'ATTENTION / WARNING', color: '#f87171', bg: '#7f1d1d', icon: '⚠️' }
-    };
+    const isIdle = this.tutorState === 'idle';
+    const isAlert = this.tutorState === 'warning';
+    const isAction = !isIdle && !isAlert;
 
-    const cfg = stateConfig[this.tutorState] ?? stateConfig.idle;
+    // Strict 60/30/10 Palette:
+    // Background: Aquamarine #0F3F49 (60%)
+    // Action/Alert: Burgundy #7F0508 (30%)
+    // Text/Border: Light Concrete #ECE6DF (10%)
+    const bgColor = isAlert ? '#7F0508' : '#0F3F49';
+    const borderColor = isAlert ? '#ECE6DF' : 'rgba(236, 230, 223, 0.4)';
+    const accentColor = isAction ? '#7F0508' : '#ECE6DF';
 
     // Outer pill container
-    ctx.fillStyle = cfg.bg;
-    ctx.strokeStyle = cfg.color;
-    ctx.lineWidth = 6;
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(10, 10, w - 20, h - 20, 28);
+    ctx.roundRect(12, 12, w - 24, h - 24, 24);
     ctx.fill();
     ctx.stroke();
 
-    // Icon + Label
-    if (this.tutorState === 'idle') {
-      ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${cfg.icon}  ${cfg.label}`, w / 2, h / 2 - 16);
+    // Subtle inner accent line
+    ctx.strokeStyle = 'rgba(236, 230, 223, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(16, 16, w - 32, h - 32, 20);
+    ctx.stroke();
 
-      ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText('✨ Click / Pinch to Interact', w / 2, h / 2 + 24);
-    } else {
-      ctx.font = 'bold 34px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#ffffff';
+    // Typography: Editorial Serif for headings, clean sans for guidance
+    if (isIdle) {
+      // Main Title: Editorial Serif
+      ctx.font = 'bold 28px "Playfair Display", Georgia, serif';
+      ctx.fillStyle = '#ECE6DF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${cfg.icon}  ${cfg.label}`, w / 2, h / 2);
+      ctx.fillText('AI Lab Assistant', w / 2, h / 2 - 16);
+
+      // Subtitle: Clean Sans
+      ctx.font = '500 19px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(236, 230, 223, 0.85)';
+      ctx.fillText('Click or pinch for help', w / 2, h / 2 + 22);
+    } else {
+      const stateLabels = {
+        greeting: 'Welcome to LabVerse',
+        listening: 'Listening…',
+        thinking: 'Analyzing Circuit…',
+        speaking: 'Explaining Step',
+        explaining: 'Physics Guidance',
+        warning: 'Circuit Alert'
+      };
+      const label = stateLabels[this.tutorState] || 'AI Assistant';
+
+      ctx.font = 'bold 30px "Playfair Display", Georgia, serif';
+      ctx.fillStyle = '#ECE6DF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, w / 2, h / 2);
     }
 
     this.tutorBadgeTex.needsUpdate = true;
@@ -500,10 +519,10 @@ export class LabAssistant {
     const h = 200;
     ctx.clearRect(0, 0, w, h);
 
-    // Educational Sci-Fi Bubble (Cyan/Blue)
-    ctx.fillStyle = '#0f172a';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 6;
+    // Calm Educational Bubble: Aquamarine #0F3F49, Concrete #ECE6DF
+    ctx.fillStyle = '#0F3F49';
+    ctx.strokeStyle = 'rgba(236, 230, 223, 0.4)';
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.roundRect(14, 14, w - 28, h - 50, 24);
     ctx.fill();
@@ -515,14 +534,14 @@ export class LabAssistant {
     ctx.lineTo(w / 2, h - 10);
     ctx.lineTo(w / 2 + 20, h - 48);
     ctx.closePath();
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#0F3F49';
     ctx.fill();
     ctx.stroke();
 
     // Text (truncated for speech bubble display)
-    const displayText = text.length > 55 ? text.substring(0, 52) + '...' : text;
-    ctx.font = 'bold 30px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
+    const displayText = text.length > 55 ? text.substring(0, 52) + '…' : text;
+    ctx.font = '600 26px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#ECE6DF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`🤖 ${displayText}`, w / 2, (h - 50) / 2 + 8);
