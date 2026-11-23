@@ -142,6 +142,13 @@ export class XRHandManager {
     this.tempJointPos = new THREE.Vector3();
     this.tempPosA = new THREE.Vector3();
     this.tempPosB = new THREE.Vector3();
+    this.tempRayOrigin = new THREE.Vector3();
+    this.tempHitPoint = new THREE.Vector3();
+    this.tempToKnuckle = new THREE.Vector3();
+    this.tempCtrlForward = new THREE.Vector3(0, 0, -1);
+    this.tempCtrlQuat = new THREE.Quaternion();
+    this.tempOffsetIndex = new THREE.Vector3(0, 0.04, -0.09);
+    this.tempOffsetWrist = new THREE.Vector3(0, -0.04, 0.09);
 
     // Floating Rheostat 3D Billboard label in VR
     this.initRheostatVRLabel();
@@ -1048,13 +1055,13 @@ export class XRHandManager {
 
             // Robust joint extrapolation if one fingertip is momentarily occluded
             if (!hasValidIndex && hasValidWrist) {
-              this.tempIndexPos.copy(this.tempWristPos).add(new THREE.Vector3(0, 0.04, -0.09));
+              this.tempIndexPos.copy(this.tempWristPos).add(this.tempOffsetIndex);
             }
             if (!hasValidThumb) {
               this.tempThumbPos.copy(this.tempIndexPos);
             }
             if (!hasValidWrist && hasValidIndex) {
-              this.tempWristPos.copy(this.tempIndexPos).add(new THREE.Vector3(0, -0.04, 0.09));
+              this.tempWristPos.copy(this.tempIndexPos).add(this.tempOffsetWrist);
             }
           }
         }
@@ -1067,10 +1074,8 @@ export class XRHandManager {
             isUsingController = true;
             this.tempIndexPos.copy(this.tempWristPos);
             this.tempThumbPos.copy(this.tempWristPos);
-            const forward = new THREE.Vector3(0, 0, -1);
-            const q = new THREE.Quaternion();
-            handObj.ctrlTarget.getWorldQuaternion(q);
-            this.tempRayDir.copy(forward).applyQuaternion(q).normalize();
+            handObj.ctrlTarget.getWorldQuaternion(this.tempCtrlQuat);
+            this.tempRayDir.copy(this.tempCtrlForward).applyQuaternion(this.tempCtrlQuat).normalize();
           }
         }
 
@@ -1096,41 +1101,61 @@ export class XRHandManager {
         handObj.hasValidPose = true;
 
         if (!isUsingController) {
-          // Hand tracking: Show full 25-joint skeleton & cylinder bones
-          handObj.skeletonGroup.visible = true;
+          // Skeleton visibility strictly governed by debugMode (hidden by default)
+          handObj.skeletonGroup.visible = this.debugMode;
           if (handObj.ctrlVisualGroup) handObj.ctrlVisualGroup.visible = false;
 
-          // Update visible hand skeleton joint meshes and bones
-          JOINT_NAMES.forEach((jName) => {
-            const j = hand.joints[jName];
-            const mesh = handObj.jointMeshes[jName];
-            if (j && mesh) {
-              j.getWorldPosition(this.tempJointPos);
-              mesh.position.copy(this.tempJointPos);
-            }
-          });
+          // Only calculate & update skeleton joints and bones when debugMode is active
+          if (this.debugMode) {
+            JOINT_NAMES.forEach((jName) => {
+              const j = hand.joints[jName];
+              const mesh = handObj.jointMeshes[jName];
+              if (j && mesh) {
+                j.getWorldPosition(this.tempJointPos);
+                mesh.position.copy(this.tempJointPos);
+              }
+            });
 
-          // Update Solid 3D Cylinder Finger & Metacarpal Bones
-          if (handObj.boneCylinders) {
-            handObj.boneCylinders.forEach((b) => {
-              const jointA = hand.joints[b.jA];
-              const jointB = hand.joints[b.jB];
-              if (jointA && jointB) {
-                jointA.getWorldPosition(this.tempPosA);
-                jointB.getWorldPosition(this.tempPosB);
-                const dist = this.tempPosA.distanceTo(this.tempPosB);
-                if (dist > 0.005) {
-                  b.mesh.position.copy(this.tempPosA);
-                  b.mesh.lookAt(this.tempPosB);
-                  b.mesh.scale.set(1.0, 1.0, dist);
-                  b.mesh.visible = true;
+            // Update Solid 3D Cylinder Finger & Metacarpal Bones
+            if (handObj.boneCylinders) {
+              handObj.boneCylinders.forEach((b) => {
+                const jointA = hand.joints[b.jA];
+                const jointB = hand.joints[b.jB];
+                if (jointA && jointB) {
+                  jointA.getWorldPosition(this.tempPosA);
+                  jointB.getWorldPosition(this.tempPosB);
+                  const dist = this.tempPosA.distanceTo(this.tempPosB);
+                  if (dist > 0.005) {
+                    b.mesh.position.copy(this.tempPosA);
+                    b.mesh.lookAt(this.tempPosB);
+                    b.mesh.scale.set(1.0, 1.0, dist);
+                    b.mesh.visible = true;
+                  } else {
+                    b.mesh.visible = false;
+                  }
                 } else {
                   b.mesh.visible = false;
                 }
-              } else {
-                b.mesh.visible = false;
+              });
+            }
+
+            let bIdx = 0;
+            for (let c = 0; c < BONE_CONNECTIONS.length; c++) {
+              const [jA, jB] = BONE_CONNECTIONS[c];
+              const jointA = hand.joints[jA];
+              const jointB = hand.joints[jB];
+              if (jointA && jointB) {
+                jointA.getWorldPosition(this.tempPosA);
+                jointB.getWorldPosition(this.tempPosB);
+                handObj.bonePositions[bIdx++] = this.tempPosA.x;
+                handObj.bonePositions[bIdx++] = this.tempPosA.y;
+                handObj.bonePositions[bIdx++] = this.tempPosA.z;
+                handObj.bonePositions[bIdx++] = this.tempPosB.x;
+                handObj.bonePositions[bIdx++] = this.tempPosB.y;
+                handObj.bonePositions[bIdx++] = this.tempPosB.z;
               }
-            });
+            }
+            handObj.boneGeo.attributes.position.needsUpdate = true;
           }
         } else {
           // Controller mode: hide joint skeleton, show controller model
@@ -1143,24 +1168,6 @@ export class XRHandManager {
             handObj.ctrlVisualGroup.visible = true;
           }
         }
-
-        let bIdx = 0;
-        for (let c = 0; c < BONE_CONNECTIONS.length; c++) {
-          const [jA, jB] = BONE_CONNECTIONS[c];
-          const jointA = hand.joints[jA];
-          const jointB = hand.joints[jB];
-          if (jointA && jointB) {
-            jointA.getWorldPosition(this.tempPosA);
-            jointB.getWorldPosition(this.tempPosB);
-            handObj.bonePositions[bIdx++] = this.tempPosA.x;
-            handObj.bonePositions[bIdx++] = this.tempPosA.y;
-            handObj.bonePositions[bIdx++] = this.tempPosA.z;
-            handObj.bonePositions[bIdx++] = this.tempPosB.x;
-            handObj.bonePositions[bIdx++] = this.tempPosB.y;
-            handObj.bonePositions[bIdx++] = this.tempPosB.z;
-          }
-        }
-        handObj.boneGeo.attributes.position.needsUpdate = true;
 
         // Apply light exponential smoothing to reduce tracking jitter
         const s = XR_CONFIG.smoothingFactor;
@@ -1184,7 +1191,7 @@ export class XRHandManager {
 
         // ─── VISIBLE LASER RAY DIRECTLY FROM WRIST (META QUEST NATIVE STYLE) ───────
         // Meta Quest emits the interaction pointer ray from the anterior wrist / palm base
-        const rayOrigin = this.tempWristPos.clone();
+        const rayOrigin = this.tempRayOrigin.copy(this.tempWristPos);
         if (!isUsingController) {
           if (wristJoint) {
             wristJoint.getWorldPosition(this.tempWristPos);
@@ -1195,9 +1202,9 @@ export class XRHandManager {
 
           // Slightly offset forward into base of palm (2.5cm) towards knuckles so beam emerges cleanly
           if (this.tempKnucklePos && this.tempKnucklePos.lengthSq() > 0.01) {
-            const toKnuckle = new THREE.Vector3().subVectors(this.tempKnucklePos, rayOrigin);
-            if (toKnuckle.lengthSq() > 0.0001) {
-              rayOrigin.addScaledVector(toKnuckle.normalize(), 0.025);
+            this.tempToKnuckle.subVectors(this.tempKnucklePos, rayOrigin);
+            if (this.tempToKnuckle.lengthSq() > 0.0001) {
+              rayOrigin.addScaledVector(this.tempToKnuckle.normalize(), 0.025);
             }
           }
 
@@ -1245,7 +1252,7 @@ export class XRHandManager {
         }
         let hitTarget = null;
         let hitDist = 3.5;
-        let hitPoint = rayOrigin.clone().addScaledVector(handObj.smoothedRayDir, 3.5);
+        let hitPoint = this.tempHitPoint.copy(rayOrigin).addScaledVector(handObj.smoothedRayDir, 3.5);
         let skippedHits = 0;
 
         // Iterate through sorted ray hits. Select the first actionable hit.
@@ -1286,17 +1293,28 @@ export class XRHandManager {
           handObj.lastHoverTime = now;
         }
 
+        // Proximity Hover Check (for direct near-hand touching)
+        const nearHoverInfo = this.checkProximity(handObj.smoothedIndexPos);
+        const isDirectTouch = Boolean(nearHoverInfo);
+        const activeHover = nearHoverInfo || handObj.rayHoverInfo;
+
+        // Interaction ray & reticle visibility rules:
+        // 1. Show thin ray + reticle ONLY when an actionable target is found by laser ray.
+        // 2. Hide beam, emitter, ray and reticle when pointing at empty space (hitTarget is null).
+        // 3. For direct near-touch, hide beam/reticle completely and show only fingertip feedback.
+        const showRayAndReticle = Boolean(hitTarget && !isDirectTouch);
+
         // Update visible 3D volumetric laser beam from wrist
         if (handObj.beamMesh) {
           handObj.beamMesh.position.copy(rayOrigin);
           handObj.beamMesh.lookAt(hitPoint);
           handObj.beamMesh.scale.set(1.0, 1.0, Math.max(0.04, hitDist));
-          handObj.beamMesh.visible = true;
+          handObj.beamMesh.visible = showRayAndReticle;
         }
         if (handObj.emitterMesh) {
           handObj.emitterMesh.position.copy(rayOrigin);
           handObj.emitterMesh.lookAt(hitPoint);
-          handObj.emitterMesh.visible = true;
+          handObj.emitterMesh.visible = showRayAndReticle;
         }
 
         // Update line vertices for compatibility
@@ -1307,52 +1325,42 @@ export class XRHandManager {
         handObj.rayPositions[4] = hitPoint.y;
         handObj.rayPositions[5] = hitPoint.z;
         handObj.rayGeo.attributes.position.needsUpdate = true;
-        handObj.rayGroup.visible = true;
+        handObj.rayGroup.visible = showRayAndReticle;
 
         // Update reticle dot at hit point
         handObj.reticleGroup.position.copy(hitPoint);
         if (cam) handObj.reticleGroup.quaternion.copy(cam.quaternion);
-        handObj.reticleGroup.visible = true;
+        handObj.reticleGroup.visible = showRayAndReticle;
 
         // Color coding laser ray, 3D volumetric beam & reticle
-        const isReticlePulsing = (now < (handObj.reticlePulseUntil || 0));
-        if (isReticlePulsing) {
-          // Successful pinch = short green reticle pulse
-          const greenCol = 0x22c55e;
-          handObj.rayMat.color.setHex(greenCol);
-          if (handObj.beamMat) handObj.beamMat.color.setHex(greenCol);
-          handObj.retRingMat.color.setHex(greenCol);
-          handObj.retDotMat.color.setHex(greenCol);
-          handObj.reticleGroup.scale.setScalar(1.55);
-        } else if (hitTarget && hitTarget.type === 'wire') {
-          // Red cue indicates wire can be removed/cut
-          const redCol = 0xef4444;
-          handObj.rayMat.color.setHex(redCol);
-          if (handObj.beamMat) handObj.beamMat.color.setHex(redCol);
-          handObj.retRingMat.color.setHex(redCol);
-          handObj.retDotMat.color.setHex(redCol);
-          handObj.reticleGroup.scale.setScalar(1.25);
-        } else if (hitTarget) {
-          // Vibrant Amber cue for interactable hover
-          const amberCol = 0xfbbf24;
-          handObj.rayMat.color.setHex(amberCol);
-          if (handObj.beamMat) handObj.beamMat.color.setHex(amberCol);
-          handObj.retRingMat.color.setHex(amberCol);
-          handObj.retDotMat.color.setHex(amberCol);
-          handObj.reticleGroup.scale.setScalar(1.20);
-        } else {
-          // Subtle idle slate ray - no feedback for inactive or hidden objects
-          const idleCol = 0x64748b;
-          handObj.rayMat.color.setHex(idleCol);
-          if (handObj.beamMat) handObj.beamMat.color.setHex(idleCol);
-          handObj.retRingMat.color.setHex(idleCol);
-          handObj.retDotMat.color.setHex(idleCol);
-          handObj.reticleGroup.scale.setScalar(0.90);
+        if (showRayAndReticle) {
+          const isReticlePulsing = (now < (handObj.reticlePulseUntil || 0));
+          if (isReticlePulsing) {
+            // Successful pinch = short green reticle pulse
+            const greenCol = 0x22c55e;
+            handObj.rayMat.color.setHex(greenCol);
+            if (handObj.beamMat) handObj.beamMat.color.setHex(greenCol);
+            handObj.retRingMat.color.setHex(greenCol);
+            handObj.retDotMat.color.setHex(greenCol);
+            handObj.reticleGroup.scale.setScalar(1.55);
+          } else if (hitTarget && hitTarget.type === 'wire') {
+            // Red cue indicates wire can be removed/cut
+            const redCol = 0xef4444;
+            handObj.rayMat.color.setHex(redCol);
+            if (handObj.beamMat) handObj.beamMat.color.setHex(redCol);
+            handObj.retRingMat.color.setHex(redCol);
+            handObj.retDotMat.color.setHex(redCol);
+            handObj.reticleGroup.scale.setScalar(1.25);
+          } else if (hitTarget) {
+            // Vibrant Amber cue for interactable hover
+            const amberCol = 0xfbbf24;
+            handObj.rayMat.color.setHex(amberCol);
+            if (handObj.beamMat) handObj.beamMat.color.setHex(amberCol);
+            handObj.retRingMat.color.setHex(amberCol);
+            handObj.retDotMat.color.setHex(amberCol);
+            handObj.reticleGroup.scale.setScalar(1.20);
+          }
         }
-
-        // Proximity Hover Check (for direct near-hand touching)
-        const nearHoverInfo = this.checkProximity(handObj.smoothedIndexPos);
-        const activeHover = nearHoverInfo || handObj.rayHoverInfo;
 
         // Throwable hover highlight
         if (this.throwableManager) {
@@ -1390,8 +1398,8 @@ export class XRHandManager {
           this.handlePinchStart(handObj, targetToClick);
           this.cooldowns[handObj.index] = now + XR_CONFIG.pinchCooldownMs;
 
-          // Successful pinch = short green reticle pulse
-          if (targetToClick) {
+          // Successful pinch = short green reticle pulse ONLY if reticle is visible
+          if (targetToClick && handObj.reticleGroup.visible) {
             handObj.reticlePulseUntil = now + 180;
             handObj.reticleGroup.scale.setScalar(1.6);
             handObj.retRingMat.color.setHex(0x22c55e);
@@ -2070,8 +2078,11 @@ export class XRHandManager {
   }
 
   setDebug(enable) {
-    this.debugMode = enable;
-    console.log(`[XRHandManager] Hand tracking debug mode: ${enable}`);
+    this.debugMode = Boolean(enable);
+    this.hands.forEach((h) => {
+      if (h.skeletonGroup) h.skeletonGroup.visible = this.debugMode;
+    });
+    console.log(`[XRHandManager] Hand tracking debug mode: ${this.debugMode ? 'ENABLED (Skeleton visible)' : 'DISABLED (Clean hands)'}`);
   }
 
   getDiagnostics() {

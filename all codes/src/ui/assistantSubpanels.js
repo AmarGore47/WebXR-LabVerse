@@ -938,17 +938,17 @@ export class AssistantSubpanels {
       const diag = (this.tutorClient && typeof this.tutorClient.getDiagnostics === 'function')
         ? this.tutorClient.getDiagnostics()
         : {
-            apiBaseUrl: '/api/tutor',
-            healthBaseUrl: '/api/health',
-            backendReachable: false,
-            apiHealthStatus: 'UNKNOWN',
-            tutorHealthStatus: 'UNKNOWN',
-            keyConfigured: false,
-            selectedModelName: 'unknown',
-            lastResponseStatus: null,
-            lastRequestLatencyMs: null,
-            lastErrorCode: this.aiError ? this.aiError.code : 'NONE'
-          };
+          apiBaseUrl: '/api/tutor',
+          healthBaseUrl: '/api/health',
+          backendReachable: false,
+          apiHealthStatus: 'UNKNOWN',
+          tutorHealthStatus: 'UNKNOWN',
+          keyConfigured: false,
+          selectedModelName: 'unknown',
+          lastResponseStatus: null,
+          lastRequestLatencyMs: null,
+          lastErrorCode: this.aiError ? this.aiError.code : 'NONE'
+        };
 
       const diagY = cardY + 70;
       const diagW = contentW - 56;
