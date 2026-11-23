@@ -641,20 +641,22 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Positioned near left wall beside wall-mounted AI display)
+// 3D Animated Lab Assistant (Positioned on student's RIGHT side of workbench table)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(-2.05, 0.0, 0.75)
+  position: new THREE.Vector3(1.92, 0.0, 0.65)
 });
 
-// Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
+// Interactive Lab Throwables (Disabled by default to keep lab focused on Ohm's Law practical)
 throwableManager = new ThrowableManager({
   scene,
   assistant: labAssistant,
   narration,
   onFeedback: (fb) => showFeedbackToast(fb)
 });
+throwableManager.enabled = false;
+throwableManager.group.visible = false;
 
 if (throwableManager && interaction) {
   interaction.registerExtraClickables(throwableManager.getClickableObjects());
@@ -758,7 +760,11 @@ if (labAssistant) {
     sound
   });
   if (interaction) {
+    interaction.setAssistant(labAssistant);
     interaction.registerClickableProvider(() => (labAssistant ? labAssistant.getClickableObjects() : []));
+  }
+  if (typeof window !== 'undefined') {
+    window.labAssistant = labAssistant;
   }
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

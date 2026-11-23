@@ -22,10 +22,10 @@ import * as THREE from 'three';
 export const RADIAL_OPTIONS = [
   { id: 'radial_ask', label: 'Ask Anything', sublabel: 'Gemini AI Chat', icon: '💬', angleDeg: 90 },
   { id: 'radial_hints', label: 'Hints', sublabel: 'Progressive Clues', icon: '💡', angleDeg: 30 },
-  { id: 'radial_next_step', label: 'Next Step', sublabel: 'Practical Guide', icon: '👣', angleDeg: 330 },
-  { id: 'radial_video', label: 'AI Video', sublabel: 'Demonstrations', icon: '🎥', angleDeg: 270 },
-  { id: 'radial_examples', label: 'Examples', sublabel: 'Calculations & Laws', icon: '📐', angleDeg: 210 },
-  { id: 'radial_qna', label: 'Q & A', sublabel: 'Interactive MCQs', icon: '❓', angleDeg: 150 }
+  { id: 'radial_examples', label: 'Examples', sublabel: 'Calculations & Laws', icon: '📐', angleDeg: 330 },
+  { id: 'radial_next_step', label: 'Next Step', sublabel: 'Practical Guide', icon: '👣', angleDeg: 270 },
+  { id: 'radial_qna', label: 'Q & A', sublabel: 'Interactive MCQs', icon: '❓', angleDeg: 210 },
+  { id: 'radial_video', label: 'AI Video', sublabel: 'Demonstrations', icon: '🎥', angleDeg: 150 }
 ];
 
 export class AssistantRadialMenu {
@@ -57,30 +57,34 @@ export class AssistantRadialMenu {
     this._buildRadialNodes();
     this._buildCenterCloseButton();
 
-    // Floating radial menu deprecated in favor of wall-mounted AI workstation display.
-    // Do not attach floating 3D radial menu to assistant or scene.
+    if (this.assistant && this.assistant.group) {
+      this.assistant.group.add(this.group);
+      this.group.position.set(0, 0, 0.32);
+    } else if (this.scene) {
+      this.scene.add(this.group);
+    }
     this.group.visible = false;
   }
 
   _buildCenterBackdrop() {
-    // Holographic circular orbit ring: Concrete with subtle glow
-    const ringGeo = new THREE.RingGeometry(this.radialRadius - 0.004, this.radialRadius + 0.004, 64);
+    // Holographic circular orbit ring: cyan glowing edge
+    const ringGeo = new THREE.RingGeometry(this.radialRadius - 0.005, this.radialRadius + 0.005, 64);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xECE6DF,
+      color: 0x00e5ff,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.55,
       side: THREE.DoubleSide
     });
     this.orbitRing = new THREE.Mesh(ringGeo, ringMat);
     this.orbitRing.position.set(0, this.centerHeight, 0);
     this.group.add(this.orbitRing);
 
-    // Inner calm Aquamarine glow disc (#0F3F49)
+    // Inner calm dark navy glow disc (#071326)
     const discGeo = new THREE.CircleGeometry(this.radialRadius, 48);
     const discMat = new THREE.MeshBasicMaterial({
-      color: 0x0F3F49,
+      color: 0x071326,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.75,
       side: THREE.DoubleSide
     });
     this.glowDisc = new THREE.Mesh(discGeo, discMat);
@@ -125,14 +129,25 @@ export class AssistantRadialMenu {
 
       hitMesh.userData = {
         type: 'radial_button',
+        actionId: opt.id,
         optionId: opt.id,
         option: opt,
         visualMesh: mesh,
+        hitMesh: hitMesh,
         canvas,
         ctx,
         texture,
-        onPress: () => this.selectOption(opt.id)
+        onPress: () => {
+          if (this.assistant && typeof this.assistant.handleAssistantAction === 'function') {
+            this.assistant.handleAssistantAction(opt.id);
+          } else {
+            this.selectOption(opt.id);
+          }
+        }
       };
+
+      // Both visual plane mesh and hit mesh share identical userData
+      mesh.userData = hitMesh.userData;
 
       this.group.add(mesh);
       this.group.add(hitMesh);
@@ -148,16 +163,16 @@ export class AssistantRadialMenu {
     const ctx = canvas.getContext('2d');
     const texture = new THREE.CanvasTexture(canvas);
 
-    // Center Close button: Burgundy #7F0508 base with Concrete border and cross
-    ctx.fillStyle = '#7F0508';
+    // Center Close button: Dark navy #071326 base with cyan glow border and white cross
+    ctx.fillStyle = '#071326';
     ctx.beginPath();
     ctx.arc(64, 64, 56, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#ECE6DF';
+    ctx.strokeStyle = '#00e5ff';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    ctx.fillStyle = '#ECE6DF';
+    ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 44px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -175,9 +190,19 @@ export class AssistantRadialMenu {
     hitMesh.position.set(0, this.centerHeight, 0.025);
     hitMesh.userData = {
       type: 'radial_button',
+      actionId: 'radial_close',
       optionId: 'radial_close',
-      onPress: () => this.close()
+      visualMesh: mesh,
+      hitMesh: hitMesh,
+      onPress: () => {
+        if (this.assistant && typeof this.assistant.handleAssistantAction === 'function') {
+          this.assistant.handleAssistantAction('radial_close');
+        } else {
+          this.close();
+        }
+      }
     };
+    mesh.userData = hitMesh.userData;
 
     this.group.add(mesh);
     this.group.add(hitMesh);
@@ -187,12 +212,10 @@ export class AssistantRadialMenu {
   _renderNodeCanvas(ctx, w, h, opt, isHovered) {
     ctx.clearRect(0, 0, w, h);
 
-    // 60/30/10 Palette:
-    // Normal: Aquamarine #0F3F49 (60%) with Concrete #ECE6DF text (10%)
-    // Hover/Active: Burgundy #7F0508 (30%) with Concrete #ECE6DF text (10%)
-    const bgColor = isHovered ? '#7F0508' : '#0F3F49';
-    const borderColor = isHovered ? '#ECE6DF' : 'rgba(236, 230, 223, 0.4)';
-    const borderWidth = isHovered ? 6 : 3;
+    // Dark navy disc (#071326 / #0a192f) with cyan/blue glowing border (#00e5ff / #38bdf8) and white text (#ffffff)
+    const bgColor = isHovered ? '#0f2b48' : '#071326';
+    const borderColor = isHovered ? '#38bdf8' : '#00e5ff';
+    const borderWidth = isHovered ? 6 : 3.5;
 
     // Outer circle
     ctx.beginPath();
@@ -205,11 +228,11 @@ export class AssistantRadialMenu {
     ctx.strokeStyle = borderColor;
     ctx.stroke();
 
-    // Inner subtle ring
+    // Inner subtle glow ring
     ctx.beginPath();
     ctx.arc(w / 2, h / 2, w / 2 - 16, 0, Math.PI * 2);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(236, 230, 223, 0.2)';
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.25)';
     ctx.stroke();
 
     // Icon
@@ -218,14 +241,14 @@ export class AssistantRadialMenu {
     ctx.textBaseline = 'middle';
     ctx.fillText(opt.icon, w / 2, h / 2 - 38);
 
-    // Primary Label: Editorial Serif
-    ctx.font = 'bold 22px "Playfair Display", Georgia, serif';
-    ctx.fillStyle = '#ECE6DF';
+    // Primary Label: Clean bold modern title
+    ctx.font = 'bold 22px "Inter", "Segoe UI", sans-serif';
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(opt.label, w / 2, h / 2 + 22);
 
-    // Sublabel: Clean Sans
+    // Sublabel: Cyan accent
     ctx.font = '500 15px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = isHovered ? '#ECE6DF' : 'rgba(236, 230, 223, 0.8)';
+    ctx.fillStyle = isHovered ? '#38bdf8' : 'rgba(196, 218, 232, 0.85)';
     ctx.fillText(opt.sublabel, w / 2, h / 2 + 54);
   }
 
@@ -327,6 +350,7 @@ export class AssistantRadialMenu {
   }
 
   getClickableObjects() {
-    return this.group.visible ? this.clickableObjects : [];
+    if (!this.group.visible || !this.isOpen) return [];
+    return this.clickableObjects;
   }
 }

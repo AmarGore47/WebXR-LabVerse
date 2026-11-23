@@ -30,11 +30,17 @@ export class ThrowableManager {
     this.throwables = [];
     this.heldObjects = new Map(); // holderId/handIndex -> throwable
 
+    // Normal mode: throwables & target practice are disabled by default
+    this.enabled = false;
+
     // Web Audio context for whoosh, grab, and bounce sounds
     this.audioCtx = null;
 
     this._buildTrayAndPedestals();
     this._buildThrowables();
+
+    // Hide entire throwable tray and target practice billboard by default
+    this.group.visible = false;
 
     if (this.scene) {
       this.scene.add(this.group);
@@ -411,6 +417,7 @@ export class ThrowableManager {
   }
 
   getClickableObjects() {
+    if (!this.enabled || !this.group.visible) return [];
     const list = [];
     this.throwables.forEach((t) => {
       if (t.state === 'idle' || t.state === 'landed') {
@@ -626,6 +633,7 @@ export class ThrowableManager {
   }
 
   update(delta) {
+    if (!this.enabled || !this.group.visible) return;
     // Buoyant aerodynamic gravity for satisfying VR throws across the lab
     const g = -4.2;
     const now = performance.now();

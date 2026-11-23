@@ -89,7 +89,7 @@ runTest('2. Overhead status badge displays interaction prompt when idle', () => 
   assert.strictEqual(assistant.tutorBadgeSprite.position.y, 2.05, 'Badge should hover above assistant head');
 });
 
-runTest('3. onStudentClick turns assistant towards student, sets greeting state and opens wall display menu', () => {
+runTest('3. onStudentClick turns assistant towards student, sets greeting state and opens radial holographic menu', () => {
   const assistant = new LabAssistant({ scene });
   let speechSpoken = null;
   assistant.initTutorServices({
@@ -98,23 +98,26 @@ runTest('3. onStudentClick turns assistant towards student, sets greeting state 
     }
   });
 
-  const studentPos = new THREE.Vector3(0.0, 1.3, 0.82);
+  const studentPos = new THREE.Vector3(0.0, 1.25, 0.82);
   assistant.onStudentClick(studentPos);
 
   assert.strictEqual(assistant.tutorState, 'greeting', 'Assistant tutor state must transition to greeting');
-  assert.ok(speechSpoken && speechSpoken.includes('Welcome to Physics VR Simulation!'), 'Should trigger welcome speech');
-  assert.strictEqual(assistant.subpanels.currentView, 'menu', 'Wall display must open to menu view');
-  assert.strictEqual(assistant.subpanels.group.visible, true, 'Wall display must be visible in scene');
+  assert.ok(speechSpoken && speechSpoken.includes('Welcome to LabVerse!'), 'Should trigger welcome speech');
+  assert.strictEqual(assistant.state.radialMenuOpen, true, 'Radial menu state must be open');
+  assert.strictEqual(assistant.radialMenu.isOpen, true, 'Radial menu must be open');
+  assert.strictEqual(assistant.radialMenu.group.visible, true, 'Radial menu group must be visible in scene');
+  assert.strictEqual(assistant.subpanels.currentView, 'standby', 'Wall display must stay in standby until option selected');
   assert.strictEqual(assistant.state.interactionActive, true, 'State interactionActive must be true');
-  assert.strictEqual(assistant.state.activeSubpanel, 'menu', 'State activeSubpanel must be menu');
 
-  // Verify hitbox is shielded while interaction is active
+  // Verify radial button colliders are clickable, while chest hitbox is shielded to prevent stealing clicks
   const clickables = assistant.getClickableObjects();
-  assert.ok(!clickables.includes(assistant.hitBox), 'Hitbox must NOT be clickable while interaction is active');
+  assert.ok(!clickables.includes(assistant.hitBox), 'Hitbox must be excluded while radial menu is open so it cannot steal clicks');
+  assert.strictEqual(clickables.length, 7, 'Must include exactly 7 colliders (6 options + close)');
 
-  // Subsequent click while active should be ignored
-  assistant.onStudentClick(studentPos);
-  assert.strictEqual(assistant.state.interactionActive, true);
+  // Trigger close via canonical handler
+  assistant.handleAssistantAction('close');
+  assert.strictEqual(assistant.state.interactionActive, false, 'Action close should close menu');
+  assert.strictEqual(assistant.state.radialMenuOpen, false, 'Radial menu should close');
 });
 
 // ─── 2. Radial Menu Structure Audit ───────────────────────────────────────
@@ -122,7 +125,7 @@ runTest('3. onStudentClick turns assistant towards student, sets greeting state 
 runTest('4. Radial menu defines exactly six primary educational options arranged circularly', () => {
   assert.strictEqual(RADIAL_OPTIONS.length, 6, 'Must define exactly 6 options');
 
-  const expectedIds = ['radial_ask', 'radial_hints', 'radial_next_step', 'radial_video', 'radial_examples', 'radial_qna'];
+  const expectedIds = ['radial_ask', 'radial_hints', 'radial_examples', 'radial_next_step', 'radial_qna', 'radial_video'];
   const actualIds = RADIAL_OPTIONS.map(o => o.id);
   assert.deepStrictEqual(actualIds, expectedIds, 'Options must match the 6 specified features');
 
@@ -137,12 +140,12 @@ runTest('5. Selecting a menu option opens the corresponding subpanel view and al
   assistant.initTutorServices({ workflowManager, bridge });
 
   assistant.onStudentClick();
-  assert.strictEqual(assistant.subpanels.currentView, 'menu');
-  assert.strictEqual(assistant.state.interactionActive, true);
-  assert.strictEqual(assistant.state.activeSubpanel, 'menu');
+  assert.strictEqual(assistant.state.radialMenuOpen, true);
+  assert.strictEqual(assistant.subpanels.currentView, 'standby');
 
-  // Click "Ask Anything"
+  // Click "Ask Anything" from radial menu
   assistant.onRadialSelect('radial_ask');
+  assert.strictEqual(assistant.state.radialMenuOpen, false, 'Radial menu closes on selection');
   assert.strictEqual(assistant.subpanels.group.visible, true);
   assert.strictEqual(assistant.subpanels.currentView, 'ask_anything');
   assert.strictEqual(assistant.state.activeSubpanel, 'ask_anything', 'Subpanel state must be set');
@@ -150,8 +153,8 @@ runTest('5. Selecting a menu option opens the corresponding subpanel view and al
 
   // Test "Back to Menu"
   assistant.onBackToRadial();
-  assert.strictEqual(assistant.subpanels.currentView, 'menu');
-  assert.strictEqual(assistant.state.activeSubpanel, 'menu');
+  assert.strictEqual(assistant.subpanels.currentView, 'standby', 'Wall display returns to standby');
+  assert.strictEqual(assistant.state.radialMenuOpen, true, 'Radial menu re-opens');
 
   // Click "Hints"
   assistant.onRadialSelect('radial_hints');
@@ -350,18 +353,18 @@ runTest('13. Ask Anything handles backend failure gracefully with error display 
   assert.strictEqual(assistant.tutorState, 'warning', 'Tutor badge should show warning posture on error');
 });
 
-runTest('14. Assistant Positioned Near Left Wall and Wall Display Enlarged (16:9)', () => {
+runTest('14. Assistant Positioned on Student Right Side and Wall Display Enlarged (16:9)', () => {
   const assistant = new LabAssistant({ scene });
-  // Assistant placed safely beside left wall display clear of workbench and apparatus
-  assert.ok(assistant.position.x <= -1.90 && assistant.position.x >= -2.20, 'Assistant positioned near left wall beside wall display');
+  // Assistant placed on student's RIGHT side of workbench table clear of apparatus
+  assert.ok(assistant.position.x >= 1.70 && assistant.position.x <= 2.20, 'Assistant positioned on student right side of table');
   assert.strictEqual(assistant.position.y, 0.0, 'Assistant feet aligned with floor at y = 0.0m');
-  assert.ok(assistant.position.z >= 0.5 && assistant.position.z <= 1.0, 'Assistant positioned beside wall display');
+  assert.ok(assistant.position.z >= 0.4 && assistant.position.z <= 0.9, 'Assistant positioned near right workbench edge');
 
   // Wall Display mounted on left wall with 16:9 laboratory proportions
   const wallDisplay = assistant.subpanels.group;
-  assert.ok(Math.abs(wallDisplay.position.x - (-2.95)) < 0.05, 'Wall display mounted on left wall');
+  assert.ok(Math.abs(wallDisplay.position.x - (-2.90)) < 0.05, 'Wall display mounted on left wall');
   assert.ok(Math.abs(wallDisplay.position.y - 1.52) < 0.1, 'Wall display center at eye height');
-  assert.ok(Math.abs(wallDisplay.position.z - 1.15) < 0.05, 'Wall display centered along z = 1.15m in red-marked area');
+  assert.ok(Math.abs(wallDisplay.position.z - 0.95) < 0.05, 'Wall display centered along z = 0.95m');
   assert.ok(Math.abs(assistant.subpanels.panelW - 2.20) < 0.01, 'Display width is 2.20m');
   assert.ok(Math.abs(assistant.subpanels.panelH - 1.24) < 0.01, 'Display height is 1.24m (exact 16:9 ratio)');
 });

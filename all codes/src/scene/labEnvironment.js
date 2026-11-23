@@ -433,15 +433,16 @@ export class LabEnvironment {
     this.mainLight.shadow.mapSize.height = 1024;
     this.mainLight.shadow.camera.near = 0.5;
     this.mainLight.shadow.camera.far = 10.0;
-    this.mainLight.shadow.camera.left = -2.2;
-    this.mainLight.shadow.camera.right = 2.2;
-    this.mainLight.shadow.camera.top = 2.2;
-    this.mainLight.shadow.camera.bottom = -2.2;
+    // Expanded shadow bounds to encompass student right side assistant at x=1.92
+    this.mainLight.shadow.camera.left = -2.8;
+    this.mainLight.shadow.camera.right = 2.8;
+    this.mainLight.shadow.camera.top = 2.4;
+    this.mainLight.shadow.camera.bottom = -2.4;
     this.mainLight.shadow.bias = -0.0004;
     this.mainLight.shadow.radius = 2.0;
     this.scene.add(this.mainLight);
 
-    // 3. Warm / purple fill light
+    // 3. Warm fill light
     this.warmFill = new THREE.DirectionalLight(0xffecd1, 0.85);
     this.warmFill.position.set(-3.0, 3.5, -1.2);
     this.scene.add(this.warmFill);
@@ -460,6 +461,20 @@ export class LabEnvironment {
     this.scifiPurpleLight = new THREE.PointLight(0x8b00ff, 0, 4.0, 2.0);
     this.scifiPurpleLight.position.set(-0.8, 2.4, 0.5);
     this.scene.add(this.scifiPurpleLight);
+
+    // 7. Dedicated Lightweight Portrait Key & Rim Light for Assistant (Meta Quest safe)
+    // Directly illuminates character at x=1.92 without expensive post-processing or overhead
+    this.assistantKeyLight = new THREE.DirectionalLight(0xfff7ed, 0.75);
+    this.assistantKeyLight.position.set(2.6, 2.5, 1.8);
+    this.assistantKeyLight.target.position.set(1.92, 1.25, 0.65);
+    this.scene.add(this.assistantKeyLight);
+    this.scene.add(this.assistantKeyLight.target);
+
+    this.assistantRimLight = new THREE.DirectionalLight(0x93c5fd, 0.40);
+    this.assistantRimLight.position.set(1.1, 2.2, -0.2);
+    this.assistantRimLight.target.position.set(1.92, 1.25, 0.65);
+    this.scene.add(this.assistantRimLight);
+    this.scene.add(this.assistantRimLight.target);
   }
 
   /**

@@ -50,7 +50,7 @@ export const COMIC_HIT_TEXTS = [
 ];
 
 export class LabAssistant {
-  constructor({ scene, narration, position = new THREE.Vector3(-2.05, 0.0, 0.75) } = {}) {
+  constructor({ scene, narration, position = new THREE.Vector3(1.92, 0.0, 0.65) } = {}) {
     this.scene = scene;
     this.narration = narration;
     this.position = position;
@@ -59,8 +59,8 @@ export class LabAssistant {
     this.group.name = 'LabAssistant';
     this.group.position.copy(this.position);
 
-    // Face student and experiment table naturally
-    const targetLook = new THREE.Vector3(0.0, 0.85, 0.40);
+    // Face student and experiment table naturally from student's right side
+    const targetLook = new THREE.Vector3(0.0, 1.25, 0.82);
     const angleToTable = Math.atan2(targetLook.x - this.position.x, targetLook.z - this.position.z);
     this.group.rotation.y = angleToTable;
 
@@ -186,15 +186,16 @@ export class LabAssistant {
   }
 
   _buildHitbox() {
-    // Human capsule proxy (cylinder + spheres) for raycasting & physics collisions
-    const hitGeo = new THREE.CylinderGeometry(0.38, 0.38, 1.85, 12);
+    // Narrow upper-body cylinder (radius 0.26m, height 0.65m at chest level y = 1.25m)
+    // Prevents blocking raycasts to table apparatus, meters, or terminals behind/beside it
+    const hitGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.65, 12);
     const hitMat = new THREE.MeshBasicMaterial({
       visible: false,
       wireframe: true,
       color: 0x38bdf8
     });
     this.hitBox = new THREE.Mesh(hitGeo, hitMat);
-    this.hitBox.position.set(0, 0.92, 0);
+    this.hitBox.position.set(0, 1.25, 0);
     this.hitBox.userData = {
       isAssistantHitbox: true,
       assistant: this,
@@ -219,6 +220,7 @@ export class LabAssistant {
 
   _buildParticleSystem() {
     this.particleGroup = new THREE.Group();
+    this.particleGroup.visible = false; // Hidden during serious physics practical
     const count = 16;
     const pGeo = new THREE.SphereGeometry(0.024, 8, 8);
     const pMat = new THREE.MeshBasicMaterial({
@@ -442,8 +444,11 @@ export class LabAssistant {
     // Trigger corresponding Mixamo animation clip if available
     switch (newState) {
       case 'greeting':
-        if (this.actions.taunt) {
-          this._playTemporaryAction(this.actions.taunt);
+        if (this.actions.greeting) {
+          this._playTemporaryAction(this.actions.greeting);
+        } else if (this.actions.idle && this.currentAction !== this.actions.idle) {
+          this.actions.idle.reset().play();
+          this.currentAction = this.actions.idle;
         }
         break;
 
@@ -588,40 +593,60 @@ export class LabAssistant {
       this.model.position.x = -(box.min.x + box.max.x) / 2;
       this.model.position.z = -(box.min.z + box.max.z) / 2;
 
-      // Enhance materials and enable shadows
+      // Enhance materials and enable shadows with distinct, authentic PBR materials
       this.model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          // Apply distinct professional colors to assistant garments
-          if (child.name === 'Ch31_Sweater' || child.name === 'Ch31_Body') {
+
+          // Apply distinct professional colors to assistant body and garments
+          if (child.name === 'Ch31_Body') {
+            // Natural warm healthy human skin tone (face, neck, hands)
             child.material = new THREE.MeshStandardMaterial({
-              color: 0xf8fafc,
+              color: 0xd49b72,
+              roughness: 0.60,
+              metalness: 0.0
+            });
+          } else if (child.name === 'Ch31_Sweater') {
+            // Clean crisp white/light-blue laboratory coat
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0xf1f5f9,
               roughness: 0.65,
+              metalness: 0.02
+            });
+          } else if (child.name === 'Ch31_Collar') {
+            // Professional blue shirt collar accent
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0x2563eb,
+              roughness: 0.55,
               metalness: 0.05
             });
           } else if (child.name === 'Ch31_Pants') {
+            // Navy / dark charcoal laboratory slacks
             child.material = new THREE.MeshStandardMaterial({
               color: 0x1e293b,
-              roughness: 0.8,
-              metalness: 0.1
-            });
-          } else if (child.name === 'Ch31_Collar') {
-            child.material = new THREE.MeshStandardMaterial({
-              color: 0x2563eb,
-              roughness: 0.6,
-              metalness: 0.05
+              roughness: 0.80,
+              metalness: 0.08
             });
           } else if (child.name === 'Ch31_Shoes') {
+            // Dark neutral dress shoes with subtle specularity
             child.material = new THREE.MeshStandardMaterial({
               color: 0x0f172a,
-              roughness: 0.5,
-              metalness: 0.2
+              roughness: 0.45,
+              metalness: 0.20
             });
           } else if (child.name === 'Ch31_Hair') {
+            // Natural deep dark brown hair
             child.material = new THREE.MeshStandardMaterial({
-              color: 0x3e2723,
-              roughness: 0.9,
+              color: 0x24140e,
+              roughness: 0.85,
+              metalness: 0.0
+            });
+          } else if (child.name === 'Ch31_Eyelashes') {
+            // Deep black / dark charcoal eyelashes
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0x111827,
+              roughness: 0.90,
               metalness: 0.0
             });
           } else if (child.material) {
@@ -811,8 +836,11 @@ export class LabAssistant {
   }
 
   onStudentClick(studentPos) {
-    // If interaction session is already active, ignore hitbox click to prevent restart/flicker
-    if (this.state.interactionActive) return;
+    // If radial menu or subpanel is already active, clicking character toggles it closed
+    if (this.state.radialMenuOpen || this.state.activeSubpanel) {
+      this.onRadialClose();
+      return;
+    }
 
     // 1. Audio unlock & context initialization
     this._ensureAudio();
@@ -820,23 +848,26 @@ export class LabAssistant {
       this.sound.unlock();
     }
 
-    // 2. Transition state machine (Wall display is primary interface)
+    // 2. Transition state machine (1st click opens 3D radial menu orbiting character)
     this.state.interactionActive = true;
-    this.state.radialMenuOpen = false;
-    this.state.activeSubpanel = 'menu';
+    this.state.radialMenuOpen = true;
+    this.state.activeSubpanel = null;
 
     // 3. Turn towards the student naturally
-    const targetPos = studentPos || new THREE.Vector3(0.0, 1.3, 0.82);
+    const targetPos = studentPos || new THREE.Vector3(0.0, 1.25, 0.82);
     const angle = Math.atan2(targetPos.x - this.position.x, targetPos.z - this.position.z);
     this.group.rotation.y = angle;
 
-    // 4. Play greeting animation if available
-    if (this.actions.taunt) {
-      this._playTemporaryAction(this.actions.taunt);
+    // 4. Play calm greeting or idle (NO combat/taunt fist stance!)
+    if (this.actions.greeting) {
+      this._playTemporaryAction(this.actions.greeting);
+    } else if (this.actions.idle && this.currentAction !== this.actions.idle) {
+      this.actions.idle.reset().play();
+      this.currentAction = this.actions.idle;
     }
 
     // 5. Display welcome message
-    const welcomeMsg = 'Welcome to Physics VR Simulation! I am your AI Lab Assistant. How can I help you with your practical today?';
+    const welcomeMsg = 'Welcome to LabVerse! Choose an option from the menu to assist your practical.';
     this.setTutorState('greeting', { text: welcomeMsg });
 
     if (this.speechService && typeof this.speechService.speak === 'function') {
@@ -844,9 +875,13 @@ export class LabAssistant {
       this.state.speechState = 'speaking';
     }
 
-    // 6. Open Wall Display Menu with the 6 educational options
+    // 6. Open 3D Holographic Radial Menu orbiting the assistant
+    if (this.radialMenu) {
+      this.radialMenu.open();
+    }
+    // Keep wall display in clean standby until an option is picked
     if (this.subpanels) {
-      this.subpanels.openMenu();
+      this.subpanels.openStandby();
     }
   }
 
@@ -867,9 +902,13 @@ export class LabAssistant {
 
     const targetView = viewMap[optionId] || optionId;
 
-    // State transition: subpanel active, interaction persists
+    // 2nd click: Close radial menu and display corresponding module on 16:9 wall screen
+    if (this.radialMenu) {
+      this.radialMenu.close();
+    }
     this.state.radialMenuOpen = false;
     this.state.activeSubpanel = targetView;
+    this.state.interactionActive = true;
 
     if (this.subpanels) {
       this.subpanels.openView(targetView);
@@ -877,10 +916,14 @@ export class LabAssistant {
   }
 
   onBackToRadial() {
-    this.state.activeSubpanel = 'menu';
-    this.state.radialMenuOpen = false;
+    this.state.activeSubpanel = null;
+    this.state.radialMenuOpen = true;
+    this.state.interactionActive = true;
     if (this.subpanels) {
-      this.subpanels.openMenu();
+      this.subpanels.openStandby();
+    }
+    if (this.radialMenu) {
+      this.radialMenu.open();
     }
   }
 
@@ -908,13 +951,39 @@ export class LabAssistant {
     }
   }
 
+  handleAssistantAction(actionId, context = {}) {
+    if (!actionId) return;
+
+    if (actionId === 'assistant_toggle' || actionId === 'assistant_body' || actionId === 'assistant_hitbox') {
+      this.onStudentClick(context.studentPos);
+      return;
+    }
+
+    if (actionId === 'radial_close' || actionId === 'close') {
+      this.onRadialClose();
+      return;
+    }
+
+    if (actionId === 'back' || actionId === 'back_to_menu') {
+      this.onBackToRadial();
+      return;
+    }
+
+    // Direct selection of radial option or subpanel view
+    this.onRadialSelect(actionId);
+  }
+
   getClickableObjects() {
     const list = [];
-    // Only allow hitbox clicks when interaction is NOT active (prevents background miss clicks)
-    if (!this.state.interactionActive) {
+    // CRITICAL: Only include chest hitbox when radial menu is closed!
+    // When radial menu is open, excluding the chest hitbox prevents it from stealing clicks from radial nodes.
+    if (!this.state.radialMenuOpen && this.hitBox) {
       list.push(this.hitBox);
     }
-    if (this.subpanels && typeof this.subpanels.getClickableObjects === 'function') {
+    if (this.state.radialMenuOpen && this.radialMenu && typeof this.radialMenu.getClickableObjects === 'function') {
+      list.push(...this.radialMenu.getClickableObjects());
+    }
+    if (this.state.activeSubpanel && this.subpanels && typeof this.subpanels.getClickableObjects === 'function') {
       list.push(...this.subpanels.getClickableObjects());
     }
     return list;

@@ -360,9 +360,21 @@ export class XRHandManager {
       return false;
     }
 
-    // Phase Rules Enforcement
+    // Phase Rules Enforcement:
+    // 0. Global Assistant & Radial Menu accessibility across all practical phases
+    if (target.type === 'radial_button' && this.assistant && this.assistant.radialMenu && this.isHierarchyVisible(this.assistant.radialMenu.group)) {
+      return true;
+    }
+    if (target.type === 'subpanel_button' && this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
+      return true;
+    }
+    if (target.type === 'assistant_hitbox' && this.assistant && this.isHierarchyVisible(this.assistant.group)) {
+      // Allowed when radial menu is NOT open (when radial menu is open, radial buttons take full priority)
+      return !this.assistant.state?.radialMenuOpen;
+    }
+
     if (currentPhase === 'WIRING') {
-      // During wiring phase: allow ONLY terminals, existing wires, start_button, and active guidance control
+      // During wiring phase: allow terminals, existing wires, start_button, and active guidance control
       if (target.type === 'terminal' || target.type === 'wire') {
         return true;
       }
@@ -372,8 +384,6 @@ export class XRHandManager {
       if (target.type === 'button' && this.vrWorldPanel && this.isHierarchyVisible(this.vrWorldPanel.group)) {
         return true;
       }
-      // Assistant body/hitbox, radial buttons, tutor buttons, throwables, holo switches,
-      // observation station buttons, wall HUD and wrist controls MUST NOT intercept rays during wiring!
       return false;
     }
 
@@ -393,15 +403,8 @@ export class XRHandManager {
       if (target.type === 'tutor_button' && this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
         return true;
       }
-      if (target.type === 'subpanel_button' && this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
-        return true;
-      }
       if ((target.type === 'wrist_button' || target.type === 'wrist_rheostat') && this.vrWrist3DController && this.isHierarchyVisible(this.vrWrist3DController.group)) {
         return true;
-      }
-      // Assistant body hitbox must NEVER intercept rays targeting the workbench
-      if (target.type === 'assistant_hitbox') {
-        return false;
       }
       return false;
     }
@@ -416,9 +419,6 @@ export class XRHandManager {
       if (target.type === 'tutor_button' && this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
         return true;
       }
-      if (target.type === 'subpanel_button' && this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
-        return true;
-      }
       return false;
     }
 
@@ -431,6 +431,11 @@ export class XRHandManager {
    */
   getActiveCandidates(currentPhase) {
     const candidates = [];
+
+    // Include visible Assistant & Radial Menu candidates across all practical phases
+    if (this.assistant && this.isHierarchyVisible(this.assistant.group)) {
+      candidates.push(...this.assistant.getClickableObjects());
+    }
 
     if (currentPhase === 'WIRING') {
       if (this.terminalMarkers && this.isHierarchyVisible(this.terminalMarkers.group)) {
@@ -473,9 +478,6 @@ export class XRHandManager {
       if (this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
         candidates.push(...this.vrAITutorPanel.getClickableObjects());
       }
-      if (this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
-        candidates.push(...this.assistant.subpanels.getClickableObjects());
-      }
       if (this.vrWrist3DController && this.isHierarchyVisible(this.vrWrist3DController.group)) {
         candidates.push(...this.vrWrist3DController.getClickables());
       }
@@ -491,9 +493,6 @@ export class XRHandManager {
       }
       if (this.vrAITutorPanel && this.isHierarchyVisible(this.vrAITutorPanel.group)) {
         candidates.push(...this.vrAITutorPanel.getClickableObjects());
-      }
-      if (this.assistant && this.assistant.subpanels && this.isHierarchyVisible(this.assistant.subpanels.group)) {
-        candidates.push(...this.assistant.subpanels.getClickableObjects());
       }
       return candidates;
     }
@@ -1254,6 +1253,17 @@ export class XRHandManager {
         let hitDist = 3.5;
         let hitPoint = this.tempHitPoint.copy(rayOrigin).addScaledVector(handObj.smoothedRayDir, 3.5);
         let skippedHits = 0;
+
+        // Prioritize actionable radial buttons over background/secondary meshes
+        rayHits.sort((a, b) => {
+          const aTgt = this.resolveActionableTarget(a.object);
+          const bTgt = this.resolveActionableTarget(b.object);
+          const aIsRadial = aTgt && aTgt.type === 'radial_button';
+          const bIsRadial = bTgt && bTgt.type === 'radial_button';
+          if (aIsRadial && !bIsRadial) return -1;
+          if (!aIsRadial && bIsRadial) return 1;
+          return a.distance - b.distance;
+        });
 
         // Iterate through sorted ray hits. Select the first actionable hit.
         // Skip decorative meshes, panel backgrounds, text meshes, model body meshes, hidden meshes, and inactive colliders.

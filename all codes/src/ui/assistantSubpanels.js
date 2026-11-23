@@ -161,10 +161,10 @@ export class AssistantSubpanels {
     this.group = new THREE.Group();
     this.group.name = 'AssistantWallDisplay';
 
-    // Flush mounted on left wall inside red-marked area, centered at adult eye level
-    this.group.position.set(-2.95, 1.52, 1.15);
+    // Flush mounted on left wall, centered at adult eye level
+    this.group.position.set(-2.90, 1.52, 0.95);
     // Parallel to left wall, subtle tilt inward toward student at workbench
-    this.group.rotation.set(0, Math.PI / 2 - 0.04, 0);
+    this.group.rotation.set(0, Math.PI / 2 - 0.02, 0);
 
     // Permanent laboratory wall-mounted display: always present in scene
     this.group.visible = true;
@@ -247,6 +247,7 @@ export class AssistantSubpanels {
 
   _buildPhysicalFrame() {
     // Professional Thin-Bezel Laboratory Wall Chassis (Dark navy aluminum / slate with cyan rim)
+    // Offset along local Z to -0.010m to guarantee zero z-fighting with screen mesh or room wall
     const frameGeo = new THREE.BoxGeometry(this.panelW + 0.03, this.panelH + 0.03, 0.016);
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x071326,
@@ -254,9 +255,10 @@ export class AssistantSubpanels {
       metalness: 0.6
     });
     this.frameMesh = new THREE.Mesh(frameGeo, frameMat);
+    this.frameMesh.position.z = -0.010;
     this.group.add(this.frameMesh);
 
-    // Thin cyan accent rim wireframe around bezel
+    // Thin cyan accent rim wireframe around bezel at local z = 0.002
     const rimGeo = new THREE.BoxGeometry(this.panelW + 0.034, this.panelH + 0.034, 0.018);
     const rimMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
@@ -265,6 +267,7 @@ export class AssistantSubpanels {
       opacity: 0.45
     });
     const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+    rimMesh.position.z = 0.002;
     this.group.add(rimMesh);
   }
 
@@ -278,10 +281,20 @@ export class AssistantSubpanels {
     this.texture.minFilter = THREE.LinearFilter;
     this.texture.magFilter = THREE.LinearFilter;
 
+    // Screen plane placed forward at z = +0.020m with polygonOffset to completely prevent flickering/stippling
     const screenGeo = new THREE.PlaneGeometry(this.panelW, this.panelH);
-    const screenMat = new THREE.MeshBasicMaterial({ map: this.texture, side: THREE.DoubleSide });
+    const screenMat = new THREE.MeshBasicMaterial({
+      map: this.texture,
+      side: THREE.FrontSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2.0,
+      polygonOffsetUnits: -2.0,
+      depthWrite: true,
+      depthTest: true
+    });
     this.screenMesh = new THREE.Mesh(screenGeo, screenMat);
-    this.screenMesh.position.z = 0.008;
+    this.screenMesh.position.z = 0.020;
+    this.screenMesh.renderOrder = 25;
     this.group.add(this.screenMesh);
   }
 
@@ -306,8 +319,6 @@ export class AssistantSubpanels {
     this.currentView = 'standby';
     if (this.assistant && this.assistant.state) {
       this.assistant.state.activeSubpanel = null;
-      this.assistant.state.radialMenuOpen = false;
-      this.assistant.state.interactionActive = false;
     }
     this.redraw();
   }
@@ -332,10 +343,10 @@ export class AssistantSubpanels {
   }
 
   backToMenu() {
-    this.currentView = 'menu';
+    this.currentView = 'standby';
     if (this.assistant && this.assistant.state) {
-      this.assistant.state.activeSubpanel = 'menu';
-      this.assistant.state.radialMenuOpen = false;
+      this.assistant.state.activeSubpanel = null;
+      this.assistant.state.radialMenuOpen = true;
       this.assistant.state.interactionActive = true;
     }
     this.redraw();
@@ -382,7 +393,7 @@ export class AssistantSubpanels {
     const colGeo = new THREE.BoxGeometry(sizeX, sizeY, 0.04);
     const colMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true });
     const colMesh = new THREE.Mesh(colGeo, colMat);
-    colMesh.position.set(posX, posY, 0.02);
+    colMesh.position.set(posX, posY, 0.030);
 
     colMesh.userData = {
       type: 'subpanel_button',
@@ -559,9 +570,9 @@ export class AssistantSubpanels {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(cur.title, 36, 52);
 
-    // Top Controls: "← Back to Options" in Cyan and "✖ Close Assistant"
-    this._drawButton(ctx, w - 340, 18, 170, 40, '← Back to Options', '#0284c7', 'rgba(56, 189, 248, 0.45)', '#FFFFFF');
-    this._registerButton('hdr_back', w - 340, 18, 170, 40, 'Back', () => this.backToMenu());
+    // Top Controls: "← Back to Menu" in Cyan and "✖ Close"
+    this._drawButton(ctx, w - 340, 18, 170, 40, '← Back to Menu', '#0284c7', 'rgba(56, 189, 248, 0.45)', '#FFFFFF');
+    this._registerButton('hdr_back', w - 340, 18, 170, 40, 'Back', () => this.backToRadial());
 
     this._drawButton(ctx, w - 150, 18, 120, 40, '✖ Close', '#0c2340', 'rgba(56, 189, 248, 0.35)', '#cbd5e1');
     this._registerButton('hdr_close', w - 150, 18, 120, 40, 'Close', () => this.close(true));

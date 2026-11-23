@@ -22,8 +22,9 @@ export class InteractionController {
     this.modelLoader = options.modelLoader;
     this.simulation = options.simulation;
     this.controls = options.controls || null;
-    this.onFeedback = options.onFeedback || (() => {});
-    this.onSelectionChanged = options.onSelectionChanged || (() => {});
+    this.assistant = options.assistant || null;
+    this.onFeedback = options.onFeedback || (() => { });
+    this.onSelectionChanged = options.onSelectionChanged || (() => { });
 
     this.selectedTerminalId = null;
     this.raycaster = new THREE.Raycaster();
@@ -118,6 +119,39 @@ export class InteractionController {
 
   setupPointerEvents() {
     this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
+    this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
+  }
+
+  handlePointerMove(e) {
+    if (typeof window === 'undefined') return;
+    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    let candidateClickables = [...this.extraClickables];
+    for (const provider of this.clickableProviders) {
+      if (typeof provider === 'function') {
+        const list = provider();
+        if (Array.isArray(list)) candidateClickables.push(...list);
+      }
+    }
+
+    const radialNodes = candidateClickables.filter((o) => o && o.userData && o.userData.type === 'radial_button' && o.visible !== false);
+    if (radialNodes.length > 0) {
+      const hits = this.raycaster.intersectObjects(radialNodes, false);
+      let hoveredOptionId = null;
+      if (hits.length > 0) {
+        hoveredOptionId = hits[0].object?.userData?.actionId || hits[0].object?.userData?.optionId || null;
+        this.canvas.style.cursor = 'pointer';
+      } else {
+        this.canvas.style.cursor = '';
+      }
+
+      const ast = this.assistant || (typeof window !== 'undefined' ? window.labAssistant : null);
+      if (ast && ast.radialMenu && typeof ast.radialMenu.setHoveredOption === 'function') {
+        ast.radialMenu.setHoveredOption(hoveredOptionId);
+      }
+    }
   }
 
   handlePointerDown(e) {
@@ -171,11 +205,30 @@ export class InteractionController {
       });
       const extraHits = this.raycaster.intersectObjects(activeClickables, false);
       if (extraHits.length > 0) {
-        this._lockControlsTemporarily();
-        const obj = extraHits[0].object;
-        if (obj.userData && typeof obj.userData.onPress === 'function') {
-          obj.userData.onPress(extraHits[0]);
-          return;
+        // Prioritize radial_button hits over background or generic colliders
+        extraHits.sort((a, b) => {
+          const aIsRadial = a.object?.userData?.type === 'radial_button' || a.object?.parent?.userData?.type === 'radial_button';
+          const bIsRadial = b.object?.userData?.type === 'radial_button' || b.object?.parent?.userData?.type === 'radial_button';
+          if (aIsRadial && !bIsRadial) return -1;
+          if (!aIsRadial && bIsRadial) return 1;
+          return a.distance - b.distance;
+        });
+
+        for (const hit of extraHits) {
+          let cur = hit.object;
+          let pressFn = null;
+          while (cur && cur !== this.scene) {
+            if (cur.userData && typeof cur.userData.onPress === 'function') {
+              pressFn = cur.userData.onPress;
+              break;
+            }
+            cur = cur.parent;
+          }
+          if (typeof pressFn === 'function') {
+            this._lockControlsTemporarily();
+            pressFn(hit);
+            return;
+          }
         }
       }
     }
@@ -474,6 +527,10 @@ export class InteractionController {
    */
   registerExtraClickables(objects) {
     this.extraClickables.push(...objects);
+  }
+
+  setAssistant(assistant) {
+    this.assistant = assistant;
   }
 
   /**
