@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd \"all codes\" && npm install && npm run build",
+  "outputDirectory": "all codes/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/all codes/api/index.js"
+    }
+  ]
+}
