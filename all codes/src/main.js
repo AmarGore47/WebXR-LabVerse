@@ -641,11 +641,11 @@ if (vrObservationStation && interaction) {
   interaction.registerExtraClickables(vrObservationStation.getClickableObjects());
 }
 
-// 3D Animated Lab Assistant (Positioned safely to side and back at x = 1.40, z = 0.0)
+// 3D Animated Lab Assistant (Restored to original position at x = 1.25, y = 0.0, z = 0.35)
 labAssistant = new LabAssistant({
   scene,
   narration,
-  position: new THREE.Vector3(1.40, 0.0, 0.0)
+  position: new THREE.Vector3(1.25, 0.0, 0.35)
 });
 
 // Interactive Lab Throwables (Bouncy ball, eraser, flask, apple with 3.5s respawn)
